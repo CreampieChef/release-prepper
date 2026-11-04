@@ -1,0 +1,70 @@
+# The Windows build. `flutter build windows` only runs on a Windows host, so
+# this is where the Windows app is built (`ai/doc.md` §9).
+#
+# It builds only. The test suite is not run here: its tool preconditions —
+# ffmpeg, ffprobe and mtn on PATH — are not met on a GitHub runner.
+#
+# Run it from the Actions tab.
+
+name: windows-build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # The image already has CMake and the Visual C++ toolset, including the
+      # ATL component `flutter_secure_storage` needs, so only the SDK is
+      # missing. The version is the one the project is developed against:
+      # Flutter 3.47.7 is what ships the Dart 3.13.5 `pubspec.yaml` requires.
+      - name: Install the Flutter SDK
+        shell: pwsh
+        run: |
+          $version = "3.47.7"
+          $archive = "flutter_windows_${version}-stable.zip"
+          $url = "https://storage.googleapis.com/flutter_infra_release/releases/stable/windows/${archive}"
+          Invoke-WebRequest -Uri $url -OutFile "$env:RUNNER_TEMP\$archive"
+          Expand-Archive -Path "$env:RUNNER_TEMP\$archive" `
+            -DestinationPath "$env:RUNNER_TEMP\flutter"
+          Add-Content -Path $env:GITHUB_PATH `
+            -Value "$env:RUNNER_TEMP\flutter\flutter\bin"
+
+      - name: Check the toolchain
+        shell: pwsh
+        run: flutter --version
+
+      - name: Get the packages
+        shell: pwsh
+        run: flutter pub get
+
+      - name: Build
+        shell: pwsh
+        run: flutter build windows
+
+      # The install step puts the tools the app ships in the same directory as
+      # the executable, so that directory is the app: the exe, `data/`,
+      # `uptooda/`, `mkbrr/` and `media/` (`windows/CMakeLists.txt`). The path
+      # is found rather than written, because the arch segment of it is the
+      # toolchain's, not the project's.
+      - name: Package the build output
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path build/windows -Recurse `
+            -Filter release_prepper.exe | Select-Object -First 1
+          if (-not $exe) {
+            Write-Error "no release_prepper.exe under build/windows"
+            exit 1
+          }
+          Compress-Archive -Path $exe.DirectoryName `
+            -DestinationPath "$env:RUNNER_TEMP\release_prepper_windows.zip"
+
+      - name: Upload the build
+        uses: actions/upload-artifact@v7
+        with:
+          name: release_prepper_windows
+          path: ${{ runner.temp }}/release_prepper_windows.zip

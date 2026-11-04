@@ -1857,6 +1857,12 @@ windows/runner/resources/       `app_icon.ico`, the icon the Windows runner show
                                 it as `IDI_APP_ICON`, and the runner loads that for the
                                 window class, so a window with no icon there takes the
                                 default Windows one.
+.github/workflows/              `windows-build.yml`, the Windows build. It is where the
+                                Windows app is built, because `flutter build windows`
+                                only runs on a Windows host. It is run by hand from the
+                                Actions tab and it builds only: the tool preconditions
+                                the tests state are not met on a runner (§9). Its
+                                artifact is the install directory, which is the app.
 .widget_preview/                generated `flutter widget-preview` scaffold (gitignored)
 ```
 
@@ -3527,12 +3533,21 @@ with default permissions and does not keep the source's execute bit, so a binary
 that way is found by the locator and then fails to start, which the app reports as the tool
 not being available.
 
-`flutter build windows` only runs on a Windows host, so the first Windows
-build has to be made on one; the `windows/` runner is already in the tree.
-Its install step copies the tools the app ships into the directory next to
-`release_prepper.exe`, which is the bundle the app resolves from: `uptooda`,
-`mkbrr`, and the committed `native/media/windows/` as `media/`, the one
-directory the three media tools share (`ai/bundled_native_tools.md`).
+`flutter build windows` only runs on a Windows host, so the Windows build is
+made on a Windows CI runner by `.github/workflows/windows-build.yml`; the
+`windows/` runner is already in the tree. Its install step copies the tools the
+app ships into the directory next to `release_prepper.exe`, which is the bundle
+the app resolves from: `uptooda`, `mkbrr`, and the committed
+`native/media/windows/` as `media/`, the one directory the three media tools
+share (`ai/bundled_native_tools.md`). The workflow uploads that directory as an
+artifact, because the app is the directory and not the executable: the tools are
+read from beside it.
+
+That workflow builds only, and it is run by hand rather than on a push. It does
+not run `flutter test`, because the tool preconditions the tests state are not
+met on a runner. The committed `native/media/windows/` is the whole closure, so
+putting it on PATH would cover ffmpeg, ffprobe and mtn there; `sh`, `echo` and
+`sleep` would still have to be installed for the tool-runner tests.
 
 `flutter widget-preview start` regenerates `.widget_preview/`.
 
