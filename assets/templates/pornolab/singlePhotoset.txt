@@ -1,0 +1,27 @@
+{{#style.poster}}{{posterUrl}}{{/style.poster}}
+
+{{blank}}
+
+{{#style.label}}Модель{{/style.label}}: {{#style.text}}{{cast}}{{/style.text}}
+{{#style.label}}Название сета{{/style.label}}: {{#style.text}}{{videoTitle}}{{/style.text}}
+{{#style.label}}Сайт или журнал{{/style.label}}: {{#style.text}}{{siteOrJournal}}{{/style.text}}
+
+{{blank}}
+
+{{#style.label}}Дата производства{{/style.label}}: {{#style.text}}{{productionDate}}{{/style.text}}
+{{#style.label}}Жанр{{/style.label}}: {{#style.text}}{{genreTags}}{{/style.text}}
+
+{{blank}}
+
+{{#style.label}}Фотографии (всего){{/style.label}}: {{#style.text}}{{totalPhotoCount}}{{/style.text}}
+{{#style.label}}Минимальное разрешение фото{{/style.label}}: {{#style.text}}{{minResolution}}{{/style.text}}
+{{#style.label}}Максимальное разрешение фото{{/style.label}}: {{#style.text}}{{maxResolution}}{{/style.text}}
+{{#style.label}}Форматы изображений{{/style.label}}: {{#style.text}}{{imageFormats}}{{/style.text}}
+
+{{blank}}
+
+{{#description}}{{#style.label}}Описание{{/style.label}}: {{#style.text}}{{description}}{{/style.text}}{{/description}}
+
+{{blank}}
+
+{{screenshotSection}}
