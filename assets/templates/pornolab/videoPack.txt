@@ -1,0 +1,26 @@
+{{#style.poster}}{{posterUrl}}{{/style.poster}}
+
+{{blank}}
+
+{{#style.label}}Подсайт и сайт{{/style.label}}: {{#style.text}}{{subsiteAndSite}}{{/style.text}}
+{{#style.label}}В ролях{{/style.label}}: {{#style.text}}{{cast}}{{/style.text}}
+{{#style.label}}Период{{/style.label}}: {{#style.text}}{{period}}{{/style.text}}
+{{#style.label}}Жанр{{/style.label}}: {{#style.text}}{{genreTags}}{{/style.text}}
+
+{{blank}}
+
+{{#style.label}}Видео{{/style.label}}: {{#style.text}}{{videoCount}}{{/style.text}}
+{{#style.label}}Разрешения{{/style.label}}: {{#style.text}}{{videoResolutions}}{{/style.text}}
+{{#style.label}}Форматы{{/style.label}}: {{#style.text}}{{videoFormats}}{{/style.text}}
+
+{{blank}}
+
+{{#description}}{{#style.label}}Описание{{/style.label}}: {{#style.text}}{{description}}{{/style.text}}{{/description}}
+
+{{blank}}
+
+{{#additionalInfo}}{{#style.label}}Доп. информация{{/style.label}}: {{#style.text}}{{additionalInfo}}{{/style.text}}{{/additionalInfo}}
+
+{{blank}}
+
+{{screenshotSection}}

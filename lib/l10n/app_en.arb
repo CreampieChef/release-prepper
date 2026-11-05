@@ -1,0 +1,514 @@
+{
+    "@@locale": "en",
+    "file": "File",
+    "newRelease": "New Release",
+    "newReleaseShortcut": "Ctrl+N",
+    "help": "Help",
+    "about": "About",
+    "close": "Close",
+    "allTabsClosed": "All tabs are closed.",
+    "releaseDetails": "Release details go here.",
+    "closeTab": "Close {title} tab",
+    "closeTabItem": "Close tab",
+    "closeTabShortcut": "Ctrl+W",
+    "releaseNameLabel": "Name",
+    "savePathLabel": "Save path",
+    "chooseSavePath": "Choose folder",
+    "trackerLabel": "Tracker",
+    "releaseTypeLabel": "Release type",
+    "releaseTypeSingleVideo": "Single video",
+    "releaseTypeVideoPack": "Video pack (Beta)",
+    "releaseTypeSinglePhotoset": "Single photoset (Beta)",
+    "releaseTypePhotosetPack": "Photoset pack (Beta)",
+    "releaseTypeImageFolderUpload": "Image folder upload (Beta)",
+    "createButton": "Create",
+    "releaseNameRequired": "Enter a release name.",
+    "releaseNameInvalid": "Use a valid folder name. Avoid / \\ : * ? \" < > |, control characters, reserved Windows names, and a trailing space or period.",
+    "savePathRequired": "Choose a save path.",
+    "releaseAlreadyExists": "A folder with this release name already exists.",
+    "releaseCreated": "Release folder created.",
+    "releaseCreationFailed": "Could not create the release. Check the path and permissions.",
+    "folderPickerFailed": "Could not open the folder picker.",
+    "cloneRelease": "Clone Release",
+    "cloneSourceLabel": "Source release: {name}",
+    "@cloneSourceLabel": {
+        "placeholders": {
+            "name": {
+                "type": "String"
+            }
+        }
+    },
+    "cloneNameMustDiffer": "The clone name must be different from the source release name.",
+    "cloneNoPosterWarning": "The source release has no poster, so the clone will have none. It is best to upload the poster first, so the same poster does not have to be uploaded more than once.",
+    "clonePosterNotUploadedWarning": "The poster has not been uploaded, so its links cannot be copied. It is best to upload the poster first, so the same poster does not have to be uploaded more than once.",
+    "openRelease": "Open Release",
+    "openReleaseShortcut": "Ctrl+O",
+    "chooseReleaseFolder": "Choose a release folder",
+    "releaseManifestNotFound": "The selected folder does not contain release.json.",
+    "releaseMetadataInvalid": "The release.json file is not valid.",
+    "openReleaseError": "Could not open the release.",
+    "chooseAnotherFolder": "Choose another folder",
+    "save": "Save",
+    "saveShortcut": "Ctrl+S",
+    "movieFilePathLabel": "Path to video",
+    "chooseFile": "Choose file",
+    "filePickerFailed": "Could not open the file picker.",
+    "movieFileNotFound": "The movie file was not found.",
+    "probeToolNotAvailable": "ffprobe is not installed. Install it to read file metadata.",
+    "probeFailed": "Could not read the file metadata.",
+    "ffmpegNotAvailable": "ffmpeg is not installed. Install it to work with images.",
+    "thumbnailFailed": "Could not create the thumbnail.",
+    "castLabel": "Cast",
+    "videoTitleLabel": "Video title",
+    "modelLabel": "Model",
+    "setNameLabel": "Set name",
+    "siteNumberLabel": "Site number (optional)",
+    "subsiteAndSiteLabel": "Subsite and site",
+    "productionDateLabel": "Production date",
+    "chooseDate": "Choose date",
+    "genreTagsLabel": "Genre (tags)",
+    "fileSizeLabel": "File size",
+    "fileSizeDisplay": "{human} ({bytes} bytes)",
+    "durationLabel": "Duration",
+    "durationHint": "hh:mm:ss",
+    "videoTypeLabel": "Video type",
+    "videoQualityLabel": "Video quality",
+    "videoFormatLabel": "Video format",
+    "videoStreamLabel": "Video",
+    "audioStreamLabel": "Audio",
+    "descriptionLabel": "Description",
+    "additionalInfoLabel": "Additional information (optional)",
+    "photosetPackFolderLabel": "Folder with the photosets",
+    "singlePhotosetFolderLabel": "Folder with the photos",
+    "imageFolderFolderLabel": "Folder with the images",
+    "chooseFolder": "Choose folder",
+    "siteOrJournalLabel": "Site or journal",
+    "periodLabel": "Period",
+    "photosetCountLabel": "Photosets",
+    "totalPhotoCountLabel": "Photos (total)",
+    "minResolutionLabel": "Minimum photo resolution",
+    "maxResolutionLabel": "Maximum photo resolution",
+    "imageFormatsLabel": "Image formats",
+    "imageCountLabel": "Images (total)",
+    "minImageResolutionLabel": "Minimum image resolution",
+    "maxImageResolutionLabel": "Maximum image resolution",
+    "columnTitleReleaseInfo": "Release Info",
+    "columnTitleVideo": "Video",
+    "columnTitleSourceFolder": "Source folder",
+    "columnTitlePhotosets": "Photosets",
+    "columnTitleImages": "Images",
+    "photosetPackSectionTitle": "Photosets",
+    "singlePhotosetSectionTitle": "Photoset",
+    "scanPhotosets": "Scan",
+    "pickPhotosets": "Pick",
+    "photosetPhotoCount": "{count} photos",
+    "@photosetPhotoCount": {
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "photosetPickedCount": "{count} picked",
+    "@photosetPickedCount": {
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "photosetPackNoPhotosets": "There are no photosets. Pick the folder and scan it.",
+    "singlePhotosetNoPhotosets": "There are no photos. Pick the folder and scan it.",
+    "photosetSkippedEntries": "Not photosets: {entries}",
+    "@photosetSkippedEntries": {
+        "placeholders": {
+            "entries": {
+                "type": "String"
+            }
+        }
+    },
+    "photosetUnreadPhotos": "Could not read the dimensions of: {names}",
+    "@photosetUnreadPhotos": {
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "photosetNameCollisions": "Names that collide: {names}",
+    "@photosetNameCollisions": {
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "photosetNotCopied": "Could not copy: {names}",
+    "@photosetNotCopied": {
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "photosetEmptySets": "Sets with no photos: {names}",
+    "@photosetEmptySets": {
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "photosetPackSourceEmpty": "Pick the folder with the photosets first.",
+    "singlePhotosetSourceEmpty": "Pick the folder with the photos first.",
+    "photosetSourceNotFound": "The picked folder was not found.",
+    "photosetSourceNotReadable": "Could not read the picked folder.",
+    "imageFolderSectionTitle": "Images",
+    "imageFolderCount": "{count} images",
+    "@imageFolderCount": {
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "imageFolderNoImages": "There are no images. Pick the folder and scan it.",
+    "imageFolderNotImages": "Not images: {names}",
+    "@imageFolderNotImages": {
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "imageFolderSourceEmpty": "Pick the folder with the images first.",
+    "videoFolderLabel": "Folder with the videos",
+    "totalSizeLabel": "Total size",
+    "videoCountLabel": "Videos",
+    "videoResolutionsLabel": "Resolutions",
+    "videoFormatsLabel": "Formats",
+    "videoPackSectionTitle": "Videos and screenshots",
+    "fileNameLabel": "File name",
+    "scanVideos": "Scan",
+    "noVideos": "There are no videos. Pick the folder and scan it.",
+    "videoSkippedFiles": "Not videos: {names}",
+    "@videoSkippedFiles": {
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "videoUnprobedFiles": "Could not probe: {names}",
+    "@videoUnprobedFiles": {
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "videoEmptyFolders": "Folders with no videos: {names}",
+    "@videoEmptyFolders": {
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "videoUnreadableFolders": "Folders that could not be read: {names}",
+    "@videoUnreadableFolders": {
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "videoSourceEmpty": "Pick the folder with the videos first.",
+    "videoSourceNotFound": "The picked folder was not found.",
+    "videoSourceNotReadable": "Could not read the picked folder.",
+    "generatePackImages": "Generate",
+    "screenlistLabel": "Screenlist",
+    "screenshotsLabel": "Screenshots",
+    "imagesFailedFiles": "Could not create images for: {names}",
+    "@imagesFailedFiles": {
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "posterImageLabel": "Poster image",
+    "videoThumbnailLabel": "Video thumbnail",
+    "noImageSelected": "No image selected",
+    "noVideoSelected": "No video selected",
+    "posterHint": "Click to choose an image.",
+    "videoHint": "Click to choose a video.",
+    "chooseImage": "Choose image",
+    "pasteFromUrl": "Paste from URL",
+    "nothingToPaste": "There is nothing in the clipboard.",
+    "removeImage": "Remove image",
+    "posterFileNotFound": "The poster file was not found.",
+    "posterWrongFormat": "The poster must be a JPG or WebP file.",
+    "posterUrlInvalid": "The clipboard text is not an http or https link.",
+    "posterDownloadFailed": "Could not download the image.",
+    "posterWriteFailed": "Could not write the poster.",
+    "posterRemoveFailed": "Could not remove the poster.",
+    "screenshotsSectionTitle": "Screenshots",
+    "screenshotCountLabel": "Number of screenshots",
+    "generateScreenshots": "Generate",
+    "regenerateScreenshots": "Regenerate",
+    "noScreenshots": "No screenshots generated.",
+    "selectVideoFirst": "Select a video first",
+    "screenshotFailed": "Could not create the screenshots.",
+    "mtnNotAvailable": "mtn is not installed. Install it to create screenlists.",
+    "screenlistFailed": "Could not create the screenlist.",
+    "uploadSectionTitle": "Upload images",
+    "uploadNeedsImagesFirst": "Add a poster and generate screenshots first",
+    "uploadNeedsScreenlistsFirst": "Add a poster and generate screenlists first",
+    "uploadButton": "Upload",
+    "uploadProgress": "{done} / {total}",
+    "uptoodaNotAvailable": "uptooda is not available. It is part of the app, so the installation is incomplete.",
+    "imagesManifestFailed": "Could not write images.json. Check the path and permissions.",
+    "hosterApiKeyRequired": "Set up the API key in Settings → Integration",
+    "messageSectionTitle": "Message",
+    "generateMessage": "Generate",
+    "messageNeedsImagesFirst": "Upload the images first",
+    "noMessage": "Nothing generated yet.",
+    "screenshotLayoutLabel": "Screenshot block layout",
+    "screenshotLayoutByHoster": "By hoster, then by video",
+    "screenshotLayoutByItem": "By video, then by hoster",
+    "templateNotFound": "There is no template for this tracker and release type.",
+    "styleNotFound": "There is no style for this tracker.",
+    "templateInvalid": "The template is not valid: a section is not closed on the same line.",
+    "messageSaveFailed": "Could not write message.txt. Check the path and permissions.",
+    "fieldNotFilled": "{label} is required.",
+    "@fieldNotFilled": {
+        "placeholders": {
+            "label": {
+                "type": "String"
+            }
+        }
+    },
+    "productionDateInvalid": "{label} must be YYYY-MM-DD, YYYY-MM or YYYY.",
+    "@productionDateInvalid": {
+        "placeholders": {
+            "label": {
+                "type": "String"
+            }
+        }
+    },
+    "messageValidationFailed": "Cannot generate the message:\n{problems}",
+    "@messageValidationFailed": {
+        "placeholders": {
+            "problems": {
+                "type": "String"
+            }
+        }
+    },
+    "copyToClipboard": "Copy to clipboard",
+    "unsavedChanges": "Unsaved changes",
+    "releaseSaveFailed": "Could not save the release. Check the path and permissions.",
+    "closeUnsavedTitle": "Unsaved changes",
+    "closeUnsavedMessage": "You have unsaved changes in {title}. Close without saving?",
+    "closeWithoutSaving": "Close without saving",
+    "saveAndClose": "Save and close",
+    "cancel": "Cancel",
+    "settings": "Settings",
+    "settingsGeneralSectionTitle": "General",
+    "settingsIntegrationSectionTitle": "Integration",
+    "appLanguageLabel": "App language",
+    "defaultReleaseDirectoryLabel": "Default release directory",
+    "languageSystem": "System language",
+    "languageEnglish": "English",
+    "languageRussian": "Russian",
+    "stashdbApiKeyLabel": "StashDB API key",
+    "postimagesApiKeyLabel": "Postimages API key",
+    "pornolabUsernameLabel": "Pornolab username",
+    "pornolabPasswordLabel": "Pornolab password",
+    "loginButton": "Log in",
+    "logoutButton": "Log out",
+    "captchaCodeLabel": "Code",
+    "secretStoreUnavailable": "The credential store is not available on this machine. Enable it — the Secret Service on Linux, the Keychain on macOS, Credential Manager on Windows — or allow storing these values plainly, which is not recommended.",
+    "secretStoreNotAvailable": "The credential store is not available, and storing values plainly is not allowed.",
+    "allowPlainSecretsLabel": "Store values plainly in settings.json (not recommended)",
+    "secretStoredPlainly": "This value is stored plainly in settings.json.",
+    "settingsSaveFailed": "Could not save the settings.",
+    "stashImportTitle": "Import from Stash DB",
+    "stashSceneInputLabel": "StashDB scene URL or ID",
+    "stashFetchButton": "Fetch",
+    "stashApplyButton": "Apply the selected values",
+    "stashInputInvalid": "That is neither a StashDB scene ID nor a link that ends with one.",
+    "stashNoApiKey": "Enter the StashDB API key in Settings to fetch a scene.",
+    "stashRequestFailed": "Could not reach StashDB.",
+    "stashBadResponse": "The answer from StashDB could not be read.",
+    "stashGraphqlError": "StashDB reported an error.",
+    "stashSceneNotFound": "StashDB has no scene with that ID.",
+    "stashImportNotesTitle": "Import notes",
+    "stashNoteSiteNumberStripped": "{label} in StashDB contains its site number, so it has been stripped from the title:",
+    "@stashNoteSiteNumberStripped": {
+        "placeholders": {
+            "label": {
+                "type": "String"
+            }
+        }
+    },
+    "stashNoteDomainFromOtherUrl": "{label}: StashDB has no link in the Primary sources category, so the domain was read from this link:",
+    "@stashNoteDomainFromOtherUrl": {
+        "placeholders": {
+            "label": {
+                "type": "String"
+            }
+        }
+    },
+    "recentReleases": "Recent releases",
+    "noRecentReleases": "No releases have been opened yet.",
+    "recentPathLabel": "Path",
+    "recentSourceLabel": "Source",
+    "recentCreatedDateLabel": "Creation date",
+    "recentLastEditDateLabel": "Last edit date",
+    "recentFolderUnavailable": "The folder is not there.",
+    "recentWriteFailed": "Could not save the recent releases list. Check the path and permissions.",
+    "@fileSizeDisplay": {
+        "placeholders": {
+            "human": {
+                "type": "String"
+            },
+            "bytes": {
+                "type": "String"
+            }
+        }
+    },
+    "@closeTab": {
+        "placeholders": {
+            "title": {
+                "type": "String"
+            }
+        }
+    },
+    "@closeUnsavedMessage": {
+        "placeholders": {
+            "title": {
+                "type": "String"
+            }
+        }
+    },
+    "@uploadProgress": {
+        "placeholders": {
+            "done": {
+                "type": "int"
+            },
+            "total": {
+                "type": "int"
+            }
+        }
+    },
+    "systemCheck": "System Check",
+    "systemCheckToolLabel": "Tool",
+    "systemCheckResultLabel": "Result",
+    "systemCheckToolNotFound": "{tool} not found.",
+    "@systemCheckToolNotFound": {
+        "placeholders": {
+            "tool": {
+                "type": "String"
+            }
+        }
+    },
+    "systemCheckRunFailed": "{tool} exited with code {code}.",
+    "@systemCheckRunFailed": {
+        "placeholders": {
+            "tool": {
+                "type": "String"
+            },
+            "code": {
+                "type": "int"
+            }
+        }
+    },
+    "systemCheckRunTimeout": "{tool} timed out.",
+    "systemCheckNoOutput": "{tool} ran but printed nothing.",
+    "torrentSectionTitle": "Torrent",
+    "torrentPickFileFirst": "Pick a file first",
+    "torrentPickFolderFirst": "Pick a folder first",
+    "torrentButton": "Create",
+    "torrentProgress": "{percent}%",
+    "@torrentProgress": {
+        "placeholders": {
+            "percent": {
+                "type": "int"
+            }
+        }
+    },
+    "torrentSpeed": "Speed: {speed}",
+    "@torrentSpeed": {
+        "placeholders": {
+            "speed": {
+                "type": "String"
+            }
+        }
+    },
+    "torrentEta": "ETA: {eta}",
+    "@torrentEta": {
+        "placeholders": {
+            "eta": {
+                "type": "String"
+            }
+        }
+    },
+    "torrentCreated": "Created {path}",
+    "@torrentCreated": {
+        "placeholders": {
+            "path": {
+                "type": "String"
+            }
+        }
+    },
+    "torrentAlreadyCreated": "Already created: {path}",
+    "@torrentAlreadyCreated": {
+        "placeholders": {
+            "path": {
+                "type": "String"
+            }
+        }
+    },
+    "mkbrrNotAvailable": "mkbrr is not available. It is part of the app, so the installation is incomplete.",
+    "mkbrrRunFailed": "mkbrr exited with code {code}.",
+    "@mkbrrRunFailed": {
+        "placeholders": {
+            "code": {
+                "type": "int"
+            }
+        }
+    },
+    "mkbrrRunTimeout": "mkbrr timed out.",
+    "folderOpenFailed": "Could not open the folder.",
+    "draftSectionTitle": "Upload draft to tracker",
+    "draftUploadButton": "Upload",
+    "parentForumLabel": "Parent forum",
+    "parentForumInvalid": "{label} must be a full forum URL with an f parameter.",
+    "@parentForumInvalid": {
+        "placeholders": {
+            "label": {
+                "type": "String"
+            }
+        }
+    },
+    "draftLinkLabel": "Draft link on tracker",
+    "draftNeedsMessageFirst": "Generate a message first",
+    "draftNeedsLoginFirst": "Log in in Settings → Integration",
+    "draftNeedsForumFirst": "Set the parent forum",
+    "draftRecreated": "The draft the stored link pointed to is no longer on the site, so a new one was created.",
+    "pornolabNeedsCredentials": "Enter the username and the password",
+    "pornolabLoginAccepted": "Login accepted.",
+    "pornolabLoginRefused": "The site did not accept the username and the password.",
+    "pornolabNeedsCaptcha": "The site is asking for a code.",
+    "pornolabLoginNoCookie": "The login was accepted and the answer gave no cookie.",
+    "pornolabCookieRefused": "The site did not accept the cookie. Log in again in Settings → Integration.",
+    "pornolabNoToken": "The page did not give a form token. Try again.",
+    "pornolabTokenRejected": "The site did not accept the form token. Try again.",
+    "pornolabDraftGone": "The site has no draft with that id, and it did not create a new one.",
+    "pornolabSiteError": "The site reported an error.",
+    "pornolabBadResponse": "The answer from the site could not be read.",
+    "pornolabRequestFailed": "Could not reach the site.",
+    "pornolabTimeout": "The request to the site took too long.",
+    "linkOpenFailed": "Could not open the link in the browser."
+}

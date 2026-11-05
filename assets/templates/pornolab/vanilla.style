@@ -1,0 +1,6 @@
+# Default style for a Single video post. Every slot the template uses must be defined.
+
+poster = [img=right]{content}[/img]
+label  = [b]{content}[/b]
+# text style does not have bbcode here
+text   =

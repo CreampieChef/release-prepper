@@ -1,0 +1,34 @@
+{{#style.poster}}{{posterUrl}}{{/style.poster}}
+
+{{blank}}
+
+{{#style.label}}В ролях{{/style.label}}: {{#style.text}}{{cast}}{{/style.text}}
+{{#style.label}}Название ролика{{/style.label}}: {{#style.text}}{{videoTitle}}{{/style.text}}
+{{#siteNumber}}{{#style.label}}Номер на сайте{{/style.label}}: {{#style.text}}{{siteNumber}}{{/style.text}}{{/siteNumber}}
+{{#style.label}}Подсайт и сайт{{/style.label}}: {{#style.text}}{{subsiteAndSite}}{{/style.text}}
+
+{{blank}}
+
+{{#style.label}}Дата производства{{/style.label}}: {{#style.text}}{{productionDate}}{{/style.text}}
+{{#style.label}}Жанр{{/style.label}}: {{#style.text}}{{genreTags}}{{/style.text}}
+{{#style.label}}Продолжительность{{/style.label}}: {{#style.text}}{{duration}}{{/style.text}}
+
+{{blank}}
+
+{{#style.label}}Тип видео{{/style.label}}: {{#style.text}}{{videoType}}{{/style.text}}
+{{#style.label}}Качество видео{{/style.label}}: {{#style.text}}{{videoQuality}}{{/style.text}}
+{{#style.label}}Формат видео{{/style.label}}: {{#style.text}}{{videoFormat}}{{/style.text}}
+{{#style.label}}Видео{{/style.label}}: {{#style.text}}{{videoStream}}{{/style.text}}
+{{#style.label}}Аудио{{/style.label}}: {{#style.text}}{{audioStream}}{{/style.text}}
+
+{{blank}}
+
+{{#description}}{{#style.label}}Описание{{/style.label}}: {{#style.text}}{{description}}{{/style.text}}{{/description}}
+
+{{blank}}
+
+{{#additionalInfo}}{{#style.label}}Доп. информация{{/style.label}}: {{#style.text}}{{additionalInfo}}{{/style.text}}{{/additionalInfo}}
+
+{{blank}}
+
+{{screenshotSection}}

@@ -1,0 +1,200 @@
+# The Windows release. `flutter build windows` only runs on a Windows host, so
+# this is where the Windows app is built and published (`ai/doc.md` §9).
+#
+# Run it from the Actions tab with the version to publish. The version is the
+# name of a file under `changelog/`, and that file is the release notes: the
+# dispatch form gives every input as one line, so it cannot be where multi-line
+# notes come from. The run fails before it installs anything if the version is
+# not three numeric components, if the file is not there or is empty, or if the
+# tag for the version already exists on the remote.
+#
+# The version is written into `pubspec.yaml` and the `appVersion` const in
+# `app/app_info.dart`, the two places the project keeps them equal, and the
+# commit that records it is the one the release is published for: its header is
+# the version, its body is the changelog file.
+
+name: windows-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish, the name of a file under changelog/'
+        required: true
+
+# What the run needs: the push of the version bump, and `gh release create`.
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # The one thing that says whether the run can do anything at all, so it is
+      # the first step and a version that cannot be released costs nothing. The
+      # version is checked against the form pub requires, three numeric
+      # components, because a name like `0.1` would pass as a file name and fail
+      # at `flutter pub get`, which is the far end of the run. The tag is
+      # checked on the remote rather than in the clone, because the checkout
+      # does not fetch the tags.
+      - name: Check the version
+        shell: pwsh
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if ($env:VERSION -notmatch '^\d+\.\d+\.\d+$') {
+            Write-Error "$env:VERSION: pub needs three numeric components"
+            exit 1
+          }
+
+          $notes = "changelog/$env:VERSION.md"
+          if (-not (Test-Path -Path $notes)) {
+            Write-Error "no $notes"
+            if (Test-Path -Path changelog) {
+              Write-Error "the versions that have one:"
+              Get-ChildItem -Path changelog -Filter '*.md' |
+                ForEach-Object { Write-Error "  $($_.BaseName)" }
+            }
+            exit 1
+          }
+          if ((Get-Item -Path $notes).Length -eq 0) {
+            Write-Error "$notes is empty"
+            exit 1
+          }
+          if (git ls-remote --tags origin "v$env:VERSION") {
+            Write-Error "v$env:VERSION is already published"
+            exit 1
+          }
+
+          Add-Content -Path $env:GITHUB_ENV -Value "APP_VERSION=$env:VERSION"
+
+      # The image already has CMake, the Visual C++ toolset including the ATL
+      # component `flutter_secure_storage` needs, and the GitHub CLI, so only
+      # the SDK is missing. The version is the one the project is developed
+      # against: Flutter 3.47.7 is what ships the Dart 3.13.5 `pubspec.yaml`
+      # requires.
+      - name: Install the Flutter SDK
+        shell: pwsh
+        run: |
+          $version = "3.47.7"
+          $archive = "flutter_windows_${version}-stable.zip"
+          $url = "https://storage.googleapis.com/flutter_infra_release/releases/stable/windows/${archive}"
+          Invoke-WebRequest -Uri $url -OutFile "$env:RUNNER_TEMP\$archive"
+          Expand-Archive -Path "$env:RUNNER_TEMP\$archive" `
+            -DestinationPath "$env:RUNNER_TEMP\flutter"
+          Add-Content -Path $env:GITHUB_PATH `
+            -Value "$env:RUNNER_TEMP\flutter\flutter\bin"
+
+      - name: Check the toolchain
+        shell: pwsh
+        run: flutter --version
+
+      - name: Get the packages
+        shell: pwsh
+        run: flutter pub get
+
+      # Both files are rewritten as whole text rather than line by line, so the
+      # line endings they already have are the ones written back.
+      - name: Write the version
+        shell: pwsh
+        run: |
+          $pubspecPattern = '(?m)^version: .+$'
+          $constPattern = "(?m)^const appVersion = '.*';"
+
+          $pubspec = [System.IO.File]::ReadAllText('pubspec.yaml')
+          $appInfo = [System.IO.File]::ReadAllText('lib/app/app_info.dart')
+
+          if (-not [regex]::IsMatch($pubspec, $pubspecPattern)) {
+            Write-Error "no version in pubspec.yaml"
+            exit 1
+          }
+          if (-not [regex]::IsMatch($appInfo, $constPattern)) {
+            Write-Error "no appVersion const in lib/app/app_info.dart"
+            exit 1
+          }
+
+          [System.IO.File]::WriteAllText(
+            'pubspec.yaml',
+            [regex]::Replace($pubspec, $pubspecPattern,
+              "version: $env:APP_VERSION"))
+          [System.IO.File]::WriteAllText(
+            'lib/app/app_info.dart',
+            [regex]::Replace($appInfo, $constPattern,
+              "const appVersion = '$env:APP_VERSION';"))
+
+      # The commit is made before the build, so the binary is built from the
+      # version the release is published for. Its header is the version and its
+      # body is the changelog file, which is what the release shows too. Only
+      # the two files the version is in are staged, so the commit is the bump
+      # and nothing else: the changelog file is committed by the person who
+      # wrote it, before the run. The author is named here because the commit is
+      # the runner's, and the commit is recorded so the release can be made for
+      # it.
+      - name: Commit the version bump
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email `
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add pubspec.yaml lib/app/app_info.dart
+          git commit -m "$env:APP_VERSION" `
+            -m (Get-Content -Raw "changelog/$env:APP_VERSION.md")
+
+          Add-Content -Path $env:GITHUB_ENV -Value `
+            "RELEASE_COMMIT=$(git rev-parse HEAD)"
+
+      - name: Build
+        shell: pwsh
+        run: flutter build windows
+
+      # The install step puts the tools the app ships in the same directory as
+      # the executable, so that directory is the app: the exe, `data/`,
+      # `uptooda/`, `mkbrr/` and `media/` (`windows/CMakeLists.txt`). The path
+      # is found rather than written, because the arch segment of it is the
+      # toolchain's, not the project's. It is renamed before it is zipped,
+      # because the build output is named for the configuration the toolchain
+      # built, and the folder a user unzips is the app, which is what it should
+      # be called (`app/app_info.dart`).
+      - name: Package the build output
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path build/windows -Recurse `
+            -Filter release_prepper.exe | Select-Object -First 1
+          if (-not $exe) {
+            Write-Error "no release_prepper.exe under build/windows"
+            exit 1
+          }
+          $parent = Split-Path -Path $exe.DirectoryName -Parent
+          Rename-Item -Path $exe.DirectoryName -NewName "Release Prepper"
+          Compress-Archive -Path (Join-Path $parent "Release Prepper") `
+            -DestinationPath `
+            "$env:RUNNER_TEMP\release_prepper_windows_$env:APP_VERSION.zip"
+
+      # Pushed only after the build succeeds, so a failed build leaves nothing
+      # on the branch. The checkout left HEAD detached, so the push names the
+      # branch the run was started on.
+      - name: Push the version bump
+        shell: pwsh
+        run: git push origin "HEAD:${{ github.ref }}"
+
+      # `gh` reads its token from `GH_TOKEN`, so the run's token is named for
+      # it here rather than left to the environment. `permissions` is what gives
+      # that token the write scope a release needs.
+      #
+      # `--target` is the commit this run made, not the default branch, because
+      # the release is for the version that commit records. `--notes-file` is
+      # the changelog file as it is, the same text as the commit body.
+      - name: Publish the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v$env:APP_VERSION" `
+            "$env:RUNNER_TEMP\release_prepper_windows_$env:APP_VERSION.zip" `
+            --target "$env:RELEASE_COMMIT" `
+            --title "v$env:APP_VERSION" `
+            --notes-file "changelog/$env:APP_VERSION.md"

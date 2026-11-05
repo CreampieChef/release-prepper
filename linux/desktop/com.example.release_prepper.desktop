@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Release Prepper
+Comment=Prepare media releases for posting
+Exec=release_prepper
+Terminal=false
+Icon=com.example.release_prepper
+Categories=Utility;

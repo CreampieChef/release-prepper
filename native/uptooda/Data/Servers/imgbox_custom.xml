@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<Servers>
+    <Server Name="imgbox.com_custom"  Type="image"  Authorize="0" Plugin="imgbox_custom" WebsiteUrl="https://imgbox.com" RegistrationUrl="https://imgbox.com/register">
+        <Info>
+            <StorageTimeInfo>
+                <StorageTime>-1</StorageTime>
+            </StorageTimeInfo>
+        </Info>
+        <Result ImageUrlTemplate="stub" ThumbUrlTemplate="stub" DownloadUrlTemplate="stub"/>
+    </Server>
+</Servers>

@@ -1,0 +1,10 @@
+# A hanging test is a bug, not a slow test. Keep the limit short so a hang is
+# reported instead of blocking the run for the default ten minutes.
+timeout: 30s
+
+# Some tests are heavy: the native tool tests spawn real ffmpeg, ffprobe and mtn
+# processes, and every test file runs in its own isolate. The runner's default
+# parallelism is a share of the cores available to it, so a full run would start
+# more of these at once than is sensible. Cap it so a run behaves the same
+# whatever it runs on.
+concurrency: 2

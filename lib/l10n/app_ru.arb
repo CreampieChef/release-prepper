@@ -1,0 +1,504 @@
+{
+    "@@locale": "ru",
+    "file": "Файл",
+    "newRelease": "Новый релиз",
+    "newReleaseShortcut": "Ctrl+N",
+    "help": "Справка",
+    "about": "О программе",
+    "close": "Закрыть",
+    "allTabsClosed": "Все вкладки закрыты.",
+    "releaseDetails": "Здесь будут сведения о релизе.",
+    "closeTab": "Закрыть вкладку «{title}»",
+    "closeTabItem": "Закрыть вкладку",
+    "closeTabShortcut": "Ctrl+W",
+    "releaseNameLabel": "Название",
+    "savePathLabel": "Путь для сохранения",
+    "chooseSavePath": "Выбрать папку",
+    "trackerLabel": "Трекер",
+    "releaseTypeLabel": "Тип релиза",
+    "releaseTypeSingleVideo": "Одиночное видео",
+    "releaseTypeVideoPack": "Пак видео (Beta)",
+    "releaseTypeSinglePhotoset": "Одиночный фотосет (Beta)",
+    "releaseTypePhotosetPack": "Пак фотосетов (Beta)",
+    "releaseTypeImageFolderUpload": "Загрузка папки с изображениями (Beta)",
+    "createButton": "Создать",
+    "releaseNameRequired": "Введите название релиза.",
+    "releaseNameInvalid": "Укажите допустимое имя папки. Не используйте / \\ : * ? \" < > |, управляющие символы, зарезервированные имена Windows, а также пробел или точку в конце.",
+    "savePathRequired": "Выберите путь для сохранения.",
+    "releaseAlreadyExists": "Папка с таким названием уже существует.",
+    "releaseCreated": "Папка релиза создана.",
+    "releaseCreationFailed": "Не удалось создать релиз. Проверьте путь и права доступа.",
+    "folderPickerFailed": "Не удалось открыть окно выбора папки.",
+    "cloneRelease": "Копия релиза",
+    "cloneSourceLabel": "Исходный релиз: {name}",
+    "@cloneSourceLabel": {
+        "placeholders": {
+            "name": {
+                "type": "String"
+            }
+        }
+    },
+    "cloneNameMustDiffer": "Название копии должно отличаться от названия исходного релиза.",
+    "cloneNoPosterWarning": "В исходном релизе нет постера, поэтому в копии его не будет. Лучше сначала загрузить постер, чтобы один и тот же постер не загружать несколько раз.",
+    "clonePosterNotUploadedWarning": "Постер не был загружен, поэтому его ссылки не будут скопированы. Лучше сначала загрузить постер, чтобы один и тот же постер не загружать несколько раз.",
+    "openRelease": "Открыть релиз",
+    "openReleaseShortcut": "Ctrl+O",
+    "chooseReleaseFolder": "Выберите папку релиза",
+    "releaseManifestNotFound": "В выбранной папке отсутствует файл release.json.",
+    "releaseMetadataInvalid": "Файл release.json недействителен.",
+    "openReleaseError": "Не удалось открыть релиз.",
+    "chooseAnotherFolder": "Выбрать другую папку",
+    "save": "Сохранить",
+    "saveShortcut": "Ctrl+S",
+    "movieFilePathLabel": "Путь к видео",
+    "chooseFile": "Выбрать файл",
+    "filePickerFailed": "Не удалось открыть окно выбора файла.",
+    "movieFileNotFound": "Файл фильма не найден.",
+    "probeToolNotAvailable": "ffprobe не установлен. Установите его, чтобы читать метаданные файлов.",
+    "probeFailed": "Не удалось прочитать метаданные файла.",
+    "ffmpegNotAvailable": "ffmpeg не установлен. Установите его, чтобы работать с изображениями.",
+    "thumbnailFailed": "Не удалось создать миниатюру.",
+    "castLabel": "В ролях",
+    "videoTitleLabel": "Название ролика",
+    "modelLabel": "Модель",
+    "setNameLabel": "Название сета",
+    "siteNumberLabel": "Номер на сайте (необязательно)",
+    "subsiteAndSiteLabel": "Подсайт и сайт",
+    "productionDateLabel": "Дата производства",
+    "chooseDate": "Выбрать дату",
+    "genreTagsLabel": "Жанр (теги)",
+    "fileSizeLabel": "Размер файла",
+    "fileSizeDisplay": "{human} ({bytes} байт)",
+    "durationLabel": "Продолжительность",
+    "durationHint": "hh:mm:ss",
+    "videoTypeLabel": "Тип видео",
+    "videoQualityLabel": "Качество видео",
+    "videoFormatLabel": "Формат видео",
+    "videoStreamLabel": "Видео",
+    "audioStreamLabel": "Аудио",
+    "descriptionLabel": "Описание",
+    "additionalInfoLabel": "Доп. информация (необязательно)",
+    "photosetPackFolderLabel": "Папка с фотосетами",
+    "singlePhotosetFolderLabel": "Папка с фото",
+    "imageFolderFolderLabel": "Папка с изображениями",
+    "chooseFolder": "Выбрать папку",
+    "siteOrJournalLabel": "Сайт или журнал",
+    "periodLabel": "Период",
+    "photosetCountLabel": "Фотосеты",
+    "totalPhotoCountLabel": "Фотографии (всего)",
+    "minResolutionLabel": "Минимальное разрешение фото",
+    "maxResolutionLabel": "Максимальное разрешение фото",
+    "imageFormatsLabel": "Форматы изображений",
+    "imageCountLabel": "Изображения (всего)",
+    "minImageResolutionLabel": "Минимальное разрешение изображения",
+    "maxImageResolutionLabel": "Максимальное разрешение изображения",
+    "columnTitleReleaseInfo": "Информация о релизе",
+    "columnTitleVideo": "Видео",
+    "columnTitleSourceFolder": "Исходная папка",
+    "columnTitlePhotosets": "Фотосеты",
+    "columnTitleImages": "Изображения",
+    "photosetPackSectionTitle": "Фотосеты",
+    "singlePhotosetSectionTitle": "Фотосет",
+    "scanPhotosets": "Сканировать",
+    "pickPhotosets": "Выбрать",
+    "photosetPhotoCount": "{count} фото",
+    "@photosetPhotoCount": {
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "photosetPickedCount": "{count} выбрано",
+    "@photosetPickedCount": {
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "photosetPackNoPhotosets": "Фотосетов нет. Выберите папку и сканируйте её.",
+    "singlePhotosetNoPhotosets": "Фото нет. Выберите папку и сканируйте её.",
+    "photosetSkippedEntries": "Не фотосеты: {entries}",
+    "@photosetSkippedEntries": {
+        "placeholders": {
+            "entries": {
+                "type": "String"
+            }
+        }
+    },
+    "photosetUnreadPhotos": "Не удалось прочитать разрешение: {names}",
+    "@photosetUnreadPhotos": {
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "photosetNameCollisions": "Совпадающие имена: {names}",
+    "@photosetNameCollisions": {
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "photosetNotCopied": "Не удалось скопировать: {names}",
+    "@photosetNotCopied": {
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "photosetEmptySets": "Фотосеты без фотографий: {names}",
+    "@photosetEmptySets": {
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "photosetPackSourceEmpty": "Сначала выберите папку с фотосетами.",
+    "singlePhotosetSourceEmpty": "Сначала выберите папку с фото.",
+    "photosetSourceNotFound": "Выбранная папка не найдена.",
+    "photosetSourceNotReadable": "Не удалось прочитать выбранную папку.",
+    "imageFolderSectionTitle": "Изображения",
+    "imageFolderCount": "{count} изображений",
+    "@imageFolderCount": {
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "imageFolderNoImages": "Изображений нет. Выберите папку и сканируйте её.",
+    "imageFolderNotImages": "Не изображения: {names}",
+    "@imageFolderNotImages": {
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "imageFolderSourceEmpty": "Сначала выберите папку с изображениями.",
+    "videoFolderLabel": "Папка с видео",
+    "totalSizeLabel": "Общий размер",
+    "videoCountLabel": "Видео",
+    "videoResolutionsLabel": "Разрешения",
+    "videoFormatsLabel": "Форматы",
+    "videoPackSectionTitle": "Видео и скриншоты",
+    "fileNameLabel": "Имя файла",
+    "scanVideos": "Сканировать",
+    "noVideos": "Видео нет. Выберите папку и сканируйте её.",
+    "videoSkippedFiles": "Не видео: {names}",
+    "@videoSkippedFiles": {
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "videoUnprobedFiles": "Не удалось прочитать: {names}",
+    "@videoUnprobedFiles": {
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "videoEmptyFolders": "Папки без видео: {names}",
+    "@videoEmptyFolders": {
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "videoUnreadableFolders": "Папки, которые не удалось прочитать: {names}",
+    "@videoUnreadableFolders": {
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "videoSourceEmpty": "Сначала выберите папку с видео.",
+    "videoSourceNotFound": "Выбранная папка не найдена.",
+    "videoSourceNotReadable": "Не удалось прочитать выбранную папку.",
+    "generatePackImages": "Создать",
+    "screenlistLabel": "Скринлист",
+    "screenshotsLabel": "Скриншоты",
+    "imagesFailedFiles": "Не удалось создать изображения для: {names}",
+    "@imagesFailedFiles": {
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "posterImageLabel": "Изображение постера",
+    "videoThumbnailLabel": "Миниатюра видео",
+    "noImageSelected": "Изображение не выбрано",
+    "noVideoSelected": "Видео не выбрано",
+    "posterHint": "Нажмите, чтобы выбрать изображение.",
+    "videoHint": "Нажмите, чтобы выбрать видео.",
+    "chooseImage": "Выбрать изображение",
+    "pasteFromUrl": "Вставить из ссылки",
+    "nothingToPaste": "В буфере обмена ничего нет.",
+    "removeImage": "Удалить изображение",
+    "posterFileNotFound": "Файл постера не найден.",
+    "posterWrongFormat": "Постер должен быть файлом JPG или WebP.",
+    "posterUrlInvalid": "В буфере обмена нет ссылки на файл.",
+    "posterDownloadFailed": "Не удалось скачать изображение.",
+    "posterWriteFailed": "Не удалось записать постер.",
+    "posterRemoveFailed": "Не удалось удалить постер.",
+    "screenshotsSectionTitle": "Скриншоты",
+    "screenshotCountLabel": "Количество скриншотов",
+    "generateScreenshots": "Создать",
+    "regenerateScreenshots": "Пересоздать",
+    "noScreenshots": "Скриншоты не созданы.",
+    "selectVideoFirst": "Сначала выберите видео",
+    "screenshotFailed": "Не удалось создать скриншоты.",
+    "mtnNotAvailable": "mtn не установлен. Установите его, чтобы создавать скринлисты.",
+    "screenlistFailed": "Не удалось создать скринлист.",
+    "uploadSectionTitle": "Загрузка изображений",
+    "uploadNeedsImagesFirst": "Сначала добавьте постер и создайте скриншоты",
+    "uploadNeedsScreenlistsFirst": "Сначала добавьте постер и создайте скринлисты",
+    "uploadButton": "Загрузить",
+    "uploadProgress": "{done} / {total}",
+    "uptoodaNotAvailable": "uptooda недоступен. Он входит в состав приложения, поэтому установка неполная.",
+    "imagesManifestFailed": "Не удалось записать images.json. Проверьте путь и права доступа.",
+    "hosterApiKeyRequired": "Укажите API-ключ в разделе «Настройки → Интеграции»",
+    "messageSectionTitle": "Сообщение",
+    "generateMessage": "Сгенерировать",
+    "messageNeedsImagesFirst": "Сначала загрузите изображения",
+    "noMessage": "Ничего не создано.",
+    "screenshotLayoutLabel": "Вид блока скриншотов",
+    "screenshotLayoutByHoster": "Сначала по хостеру, затем по видео",
+    "screenshotLayoutByItem": "Сначала по видео, затем по хостеру",
+    "templateNotFound": "Нет шаблона для этого трекера и типа релиза.",
+    "styleNotFound": "Нет стиля для этого трекера.",
+    "templateInvalid": "Шаблон некорректен: секция не закрыта на той же строке.",
+    "messageSaveFailed": "Не удалось записать message.txt. Проверьте путь и права доступа.",
+    "fieldNotFilled": "Поле «{label}» обязательно.",
+    "@fieldNotFilled": {
+        "placeholders": {
+            "label": {
+                "type": "String"
+            }
+        }
+    },
+    "productionDateInvalid": "Поле «{label}» должно быть в формате YYYY-MM-DD, YYYY-MM или YYYY.",
+    "@productionDateInvalid": {
+        "placeholders": {
+            "label": {
+                "type": "String"
+            }
+        }
+    },
+    "messageValidationFailed": "Сообщение не создано:\n{problems}",
+    "@messageValidationFailed": {
+        "placeholders": {
+            "problems": {
+                "type": "String"
+            }
+        }
+    },
+    "copyToClipboard": "Скопировать в буфер обмена",
+    "unsavedChanges": "Несохранённые изменения",
+    "releaseSaveFailed": "Не удалось сохранить релиз. Проверьте путь и права доступа.",
+    "closeUnsavedTitle": "Несохранённые изменения",
+    "closeUnsavedMessage": "У вас есть несохранённые изменения в «{title}». Закрыть без сохранения?",
+    "closeWithoutSaving": "Закрыть без сохранения",
+    "saveAndClose": "Сохранить и закрыть",
+    "cancel": "Отмена",
+    "settings": "Настройки",
+    "settingsGeneralSectionTitle": "Основные",
+    "settingsIntegrationSectionTitle": "Интеграции",
+    "appLanguageLabel": "Язык приложения",
+    "defaultReleaseDirectoryLabel": "Каталог релизов по умолчанию",
+    "languageSystem": "Язык системы",
+    "languageEnglish": "English",
+    "languageRussian": "Русский",
+    "stashdbApiKeyLabel": "API-ключ StashDB",
+    "postimagesApiKeyLabel": "API-ключ Postimages",
+    "pornolabUsernameLabel": "Имя пользователя PornoLab",
+    "pornolabPasswordLabel": "Пароль PornoLab",
+    "loginButton": "Войти",
+    "logoutButton": "Выйти",
+    "captchaCodeLabel": "Код",
+    "secretStoreUnavailable": "Хранилище ключей на этом компьютере недоступно. Включите его — Secret Service на Linux, Keychain на macOS, Диспетчер учётных данных на Windows — или разрешите хранить эти значения открытым текстом, что не рекомендуется.",
+    "secretStoreNotAvailable": "Хранилище ключей недоступно, и хранение открытым текстом не разрешено.",
+    "allowPlainSecretsLabel": "Хранить значения открытым текстом в settings.json (не рекомендуется)",
+    "secretStoredPlainly": "Это значение хранится открытым текстом в settings.json.",
+    "settingsSaveFailed": "Не удалось сохранить настройки.",
+    "stashImportTitle": "Импорт из StashDB",
+    "stashSceneInputLabel": "URL или ID ролика в StashDB",
+    "stashFetchButton": "Загрузить",
+    "stashApplyButton": "Применить выбранное",
+    "stashInputInvalid": "Это не ID ролика в StashDB и не ссылка, которая им заканчивается.",
+    "stashNoApiKey": "Введите API-ключ StashDB в настройках, чтобы загрузить ролик.",
+    "stashRequestFailed": "Не удалось обратиться к StashDB.",
+    "stashBadResponse": "Ответ StashDB не удалось прочитать.",
+    "stashGraphqlError": "StashDB сообщил об ошибке.",
+    "stashSceneNotFound": "В StashDB нет ролика с таким ID.",
+    "stashImportNotesTitle": "Заметки импорта",
+    "stashNoteSiteNumberStripped": "{label} в StashDB содержит номер сайта, поэтому он удалён из названия:",
+    "@stashNoteSiteNumberStripped": {
+        "placeholders": {
+            "label": {
+                "type": "String"
+            }
+        }
+    },
+    "stashNoteDomainFromOtherUrl": "{label}: в StashDB нет ссылки в категории «Primary sources», поэтому домен взят из этой ссылки:",
+    "@stashNoteDomainFromOtherUrl": {
+        "placeholders": {
+            "label": {
+                "type": "String"
+            }
+        }
+    },
+    "recentReleases": "Недавние релизы",
+    "noRecentReleases": "Ни один релиз ещё не был открыт.",
+    "recentPathLabel": "Путь",
+    "recentSourceLabel": "Источник",
+    "recentCreatedDateLabel": "Дата создания",
+    "recentLastEditDateLabel": "Дата последнего изменения",
+    "recentFolderUnavailable": "Папка не найдена.",
+    "recentWriteFailed": "Не удалось сохранить список недавних релизов. Проверьте путь и права доступа.",
+    "@fileSizeDisplay": {
+        "placeholders": {
+            "human": {
+                "type": "String"
+            },
+            "bytes": {
+                "type": "String"
+            }
+        }
+    },
+    "@closeUnsavedMessage": {
+        "placeholders": {
+            "title": {
+                "type": "String"
+            }
+        }
+    },
+    "@closeTab": {
+        "placeholders": {
+            "title": {
+                "type": "String"
+            }
+        }
+    },
+    "systemCheck": "Проверка системы",
+    "systemCheckToolLabel": "Инструмент",
+    "systemCheckResultLabel": "Результат",
+    "systemCheckToolNotFound": "{tool} не найден.",
+    "@systemCheckToolNotFound": {
+        "placeholders": {
+            "tool": {
+                "type": "String"
+            }
+        }
+    },
+    "systemCheckRunFailed": "{tool} завершился с кодом {code}.",
+    "@systemCheckRunFailed": {
+        "placeholders": {
+            "tool": {
+                "type": "String"
+            },
+            "code": {
+                "type": "int"
+            }
+        }
+    },
+    "systemCheckRunTimeout": "{tool} превысил время ожидания.",
+    "systemCheckNoOutput": "{tool} выполнил команду, но ничего не сообщил.",
+    "torrentSectionTitle": "Торрент",
+    "torrentPickFileFirst": "Сначала выберите файл",
+    "torrentPickFolderFirst": "Сначала выберите папку",
+    "torrentButton": "Создать",
+    "torrentProgress": "{percent}%",
+    "@torrentProgress": {
+        "placeholders": {
+            "percent": {
+                "type": "int"
+            }
+        }
+    },
+    "torrentSpeed": "Скорость: {speed}",
+    "@torrentSpeed": {
+        "placeholders": {
+            "speed": {
+                "type": "String"
+            }
+        }
+    },
+    "torrentEta": "Осталось: {eta}",
+    "@torrentEta": {
+        "placeholders": {
+            "eta": {
+                "type": "String"
+            }
+        }
+    },
+    "torrentCreated": "Создан {path}",
+    "@torrentCreated": {
+        "placeholders": {
+            "path": {
+                "type": "String"
+            }
+        }
+    },
+    "torrentAlreadyCreated": "Уже создан: {path}",
+    "@torrentAlreadyCreated": {
+        "placeholders": {
+            "path": {
+                "type": "String"
+            }
+        }
+    },
+    "mkbrrNotAvailable": "mkbrr недоступен. Он входит в состав приложения, поэтому установка неполная.",
+    "mkbrrRunFailed": "mkbrr завершился с кодом {code}.",
+    "@mkbrrRunFailed": {
+        "placeholders": {
+            "code": {
+                "type": "int"
+            }
+        }
+    },
+    "mkbrrRunTimeout": "mkbrr превысил время ожидания.",
+    "folderOpenFailed": "Не удалось открыть папку.",
+    "draftSectionTitle": "Загрузка черновика на трекер",
+    "draftUploadButton": "Загрузить",
+    "parentForumLabel": "Родительский форум",
+    "parentForumInvalid": "{label} должен быть полным URL форума с параметром f.",
+    "@parentForumInvalid": {
+        "placeholders": {
+            "label": {
+                "type": "String"
+            }
+        }
+    },
+    "draftLinkLabel": "Ссылка на черновик на трекере",
+    "draftNeedsMessageFirst": "Сначала создайте сообщение",
+    "draftNeedsLoginFirst": "Войдите на сайт в разделе «Настройки → Интеграции»",
+    "draftNeedsForumFirst": "Укажите родительский форум",
+    "draftRecreated": "Черновика, на который указывала сохранённая ссылка, на сайте больше нет, поэтому создан новый.",
+    "pornolabNeedsCredentials": "Введите имя пользователя и пароль",
+    "pornolabLoginAccepted": "Вход принят.",
+    "pornolabLoginRefused": "Сайт не принял имя пользователя и пароль.",
+    "pornolabNeedsCaptcha": "Сайт просит код подтверждения.",
+    "pornolabLoginNoCookie": "Вход принят, но ответ не дал cookie.",
+    "pornolabCookieRefused": "Сайт не принял cookie. Войдите на сайт снова в разделе «Настройки → Интеграции».",
+    "pornolabNoToken": "Страница не дала form_token. Попробуйте ещё раз.",
+    "pornolabTokenRejected": "Сайт не принял form_token. Попробуйте ещё раз.",
+    "pornolabDraftGone": "На сайте нет черновика с этим id, и новый не создан.",
+    "pornolabSiteError": "Сайт сообщил об ошибке.",
+    "pornolabBadResponse": "Ответ сайта не удалось прочитать.",
+    "pornolabRequestFailed": "Не удалось обратиться к сайту.",
+    "pornolabTimeout": "Запрос к сайту длился слишком долго.",
+    "linkOpenFailed": "Не удалось открыть ссылку в браузере."
+}
