@@ -325,4 +325,62 @@ void main() {
       );
     },
   );
+
+  // The flag is part of the record for the same reason the block shape is:
+  // `message.txt` holds a post written with or without the signature, so a release
+  // opened again has to show the state its post was written with
+  // (`ai/description_template.md` §App signature). Every type can include it,
+  // because the app signature is the app's own text, so every type writes it.
+  test('the signature flag is written for every type', () async {
+    final store = ReleaseStore();
+
+    final release = await store.create(
+      savePath: directory.path,
+      name: 'release',
+      tracker: Tracker.pornolab,
+      releaseType: ReleaseType.singleVideo,
+    );
+
+    expect(readFile()['includeAppSignature'], isTrue);
+
+    release.includeAppSignature = false;
+    await store.save(release);
+
+    expect(readFile()['includeAppSignature'], isFalse);
+    expect((await store.load(releasePath())).includeAppSignature, isFalse);
+  });
+
+  // A manifest written before the flag existed is not an error, and neither is a
+  // value this version does not know: both read as the state those files were
+  // written with, the same rule as the block shape.
+  test(
+    'a manifest without the flag, or with a value this version does not know, '
+    'reads as the default',
+    () async {
+      final store = ReleaseStore();
+
+      await writeFile({
+        'schema': schemaVersion,
+        'tracker': 'pornolab',
+        'releaseType': 'singleVideo',
+        'source': '/home/user/videos',
+        'fields': {},
+        'items': [],
+      });
+
+      expect((await store.load(releasePath())).includeAppSignature, isTrue);
+
+      await writeFile({
+        'schema': schemaVersion,
+        'tracker': 'pornolab',
+        'releaseType': 'singleVideo',
+        'source': '/home/user/videos',
+        'fields': {},
+        'items': [],
+        'includeAppSignature': 'yes',
+      });
+
+      expect((await store.load(releasePath())).includeAppSignature, isTrue);
+    },
+  );
 }

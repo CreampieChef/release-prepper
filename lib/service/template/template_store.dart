@@ -4,9 +4,9 @@ import '../../feature/release/release_type.dart';
 import '../../feature/release/tracker.dart';
 import 'style.dart';
 
-/// Reads the template, the title template and the style for a tracker and a
-/// release type from the app bundle (`ai/description_template.md`). One folder
-/// per tracker holds the files.
+/// Reads the template, the title template, the signature and the style for a
+/// tracker and a release type from the app bundle (`ai/description_template.md`).
+/// One folder per tracker holds the files.
 ///
 /// The folder and the template file are named by the technical names, so the
 /// value `release.json` writes, the enum value and the asset path are the same
@@ -29,6 +29,13 @@ class TemplateStore {
   /// which is read first (`ai/description_template.md`), and a type with no
   /// title reads neither (`hasTitle`).
   static const titleFile = 'title.txt';
+
+  /// The app signature: the app's own credit line. It is stored per tracker,
+  /// because a tracker publishes its own wording for it, the same as the style
+  /// and the title (`ai/description_template.md` §App signature). The templates
+  /// place it with the `{{appSignature}}` block variable, so where it goes is
+  /// the template's, not the code's.
+  static const signatureFile = 'appSignature.txt';
 
   Future<TemplateResult> load({
     required Tracker tracker,
@@ -61,9 +68,16 @@ class TemplateStore {
               ''
         : '';
 
+    // The app signature is one file per tracker, so there is no per-type file
+    // for it, and a tracker without one reads as absent rather than as a
+    // failure, the same rule as a title file: the post text does not depend on
+    // it.
+    final signature = await _read('$folder/$signatureFile') ?? '';
+
     return TemplateSuccess(
       template: template,
       title: title,
+      signature: signature,
       style: Style.parse(styleText),
     );
   }
@@ -90,11 +104,16 @@ final class TemplateSuccess extends TemplateResult {
   const TemplateSuccess({
     required this.template,
     required this.title,
+    required this.signature,
     required this.style,
   });
 
   final String template;
   final String title;
+
+  /// The app signature, or an empty string when the tracker has no file for it.
+  final String signature;
+
   final Style style;
 }
 

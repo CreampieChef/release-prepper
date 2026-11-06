@@ -274,6 +274,7 @@
     "generateMessage": "Сгенерировать",
     "messageNeedsImagesFirst": "Сначала загрузите изображения",
     "noMessage": "Ничего не создано.",
+    "includeAppSignature": "Добавить заметку «Оформлено с помощью Release Prepper»",
     "screenshotLayoutLabel": "Вид блока скриншотов",
     "screenshotLayoutByHoster": "Сначала по хостеру, затем по видео",
     "screenshotLayoutByItem": "Сначала по видео, затем по хостеру",

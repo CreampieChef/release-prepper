@@ -573,6 +573,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get noMessage => 'Ничего не создано.';
 
   @override
+  String get includeAppSignature =>
+      'Добавить заметку «Оформлено с помощью Release Prepper»';
+
+  @override
   String get screenshotLayoutLabel => 'Вид блока скриншотов';
 
   @override

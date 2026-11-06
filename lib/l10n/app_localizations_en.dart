@@ -574,6 +574,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noMessage => 'Nothing generated yet.';
 
   @override
+  String get includeAppSignature =>
+      'Include the \"Made with Release Prepper\" line';
+
+  @override
   String get screenshotLayoutLabel => 'Screenshot block layout';
 
   @override

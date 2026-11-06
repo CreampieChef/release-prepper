@@ -124,7 +124,8 @@ decide membership from the release type, which is the branch the whole design ex
         "duration": "00:12:34"
       }
     }
-  ]
+  ],
+  "includeAppSignature": true
 }
 ```
 
@@ -145,14 +146,22 @@ Rules:
   without them, because the app writes what the file contains rather than a date it invented.
 - `fields` is always a `name → string` map, at both levels. That is what makes this one shape.
 - `items` is always present. Single video has exactly one item, and its data is `items[0]`.
-- `screenshotLayout` is the only key that is not a field, a date or an ID: it is the shape the
-  message's image block has (`ai/description_template.md` §Screenshot section). It is written only
-  for the type that can choose one, so a release of another type does not carry a shape it could
-  never use. It belongs to the record rather than to the app's settings because `message.txt` holds
-  a block built with one of the two: a release opened again has to show the shape its post was
-  written with. A manifest without the key, or with a value this version does not know, reads as
-  the default, which is the shape those files were written with — a shape is not an ID, so it is
-  not reported as an error the way an unknown tracker or release type is.
+- Two keys are not fields, dates or IDs: `screenshotLayout` and
+  `includeAppSignature`. Both say how the release is prepared rather than what it
+  contains, and both belong to the record rather than to the app's settings,
+  because the generated files were written with them: a release opened again has
+  to show the shape and the signature its post was written with. Neither is a
+  field, so neither is in a field list; the checkbox that shows the flag is a row of the
+  Message section rather than of the form.
+  `screenshotLayout` is the shape the message's image block has
+  (`ai/description_template.md` §Screenshot section). It is written only for the
+  type that can choose one, so a release of another type does not carry a shape it
+  could never use. `includeAppSignature` is whether the message ends with the
+  app signature (`ai/description_template.md` §App signature), and it is
+  written for every type. A manifest without either, or with a value this version
+  does not know, reads as the default — the shape those files were written with,
+  and a message with the signature — because a shape and a flag are not IDs, so
+  they are not reported as an error the way an unknown tracker or release type is.
 - The shared fields — subsite and site, production date, genre tags, description, additional
   information — exist at **both** levels. **Templates read the release fields**, so the message
   has one variable scope. 99% of releases work with the release-level values; the per-item

@@ -274,6 +274,7 @@
     "generateMessage": "Generate",
     "messageNeedsImagesFirst": "Upload the images first",
     "noMessage": "Nothing generated yet.",
+    "includeAppSignature": "Include the \"Made with Release Prepper\" line",
     "screenshotLayoutLabel": "Screenshot block layout",
     "screenshotLayoutByHoster": "By hoster, then by video",
     "screenshotLayoutByItem": "By video, then by hoster",

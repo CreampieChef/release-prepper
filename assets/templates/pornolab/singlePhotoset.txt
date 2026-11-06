@@ -25,3 +25,7 @@
 {{blank}}
 
 {{screenshotSection}}
+
+{{blank}}
+
+{{appSignature}}

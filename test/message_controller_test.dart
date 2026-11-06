@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:release_prepper/app/app_info.dart';
 import 'package:release_prepper/feature/message/message_controller.dart';
 import 'package:release_prepper/feature/message/message_store.dart';
 import 'package:release_prepper/feature/message/screenshot_layout.dart';
@@ -40,6 +41,7 @@ void main() {
   Release release({
     FieldValues? fields,
     ReleaseType releaseType = ReleaseType.singleVideo,
+    bool includeAppSignature = true,
   }) => Release(
     name: directory.path,
     directoryPath: directory.path,
@@ -47,6 +49,7 @@ void main() {
     releaseType: releaseType,
     source: '/home/user/videos',
     fields: fields ?? completeFields(),
+    includeAppSignature: includeAppSignature,
     items: [
       ReleaseItem(
         path: 'movie.mp4',
@@ -61,8 +64,13 @@ void main() {
     required AssetBundle bundle,
     FieldValues? fields,
     ReleaseType releaseType = ReleaseType.singleVideo,
+    bool includeAppSignature = true,
   }) => MessageController(
-    release: release(fields: fields, releaseType: releaseType),
+    release: release(
+      fields: fields,
+      releaseType: releaseType,
+      includeAppSignature: includeAppSignature,
+    ),
     templates: TemplateStore(bundle: bundle),
     renderer: const TemplateRenderer(),
     images: images,
@@ -265,6 +273,108 @@ void main() {
       File(store.filePath(directory.path, MessageStore.titleFile)).existsSync(),
       isFalse,
     );
+  });
+
+  // The app signature is the app's own text, read as a block variable the
+  // template places (`ai/description_template.md` §App signature). The values it
+  // reads are the ones the message reads, plus the version the app is running.
+  test('the app signature is rendered from its file and placed by the '
+      'template', () async {
+    final fields = completeFields();
+    fields.setValue('videoTitle', 'Example title');
+
+    final result = await controller(
+      images: _FakeImagesStore(const ImagesManifest.empty()),
+      bundle: _FakeBundle({
+        'assets/templates/pornolab/singleVideo.txt':
+            '{{videoTitle}}\n{{blank}}\n{{appSignature}}',
+        'assets/templates/pornolab/appSignature.txt':
+            'made with {{appVersion}}',
+        'assets/templates/pornolab/vanilla.style': 'text = {content}',
+      }),
+      fields: fields,
+    ).generate();
+
+    expect(
+      (result as MessageGenerated).text,
+      'Example title\n\nmade with $appVersion',
+    );
+  });
+
+  // The checkbox is what decides whether the block is in the post, so a release
+  // that does not include it generates the message without it. The line the
+  // template writes for it produces nothing, and the blank before it is the last
+  // line, so it is trimmed rather than left behind.
+  test(
+    'a release that does not include the signature generates none',
+    () async {
+      final fields = completeFields();
+      fields.setValue('videoTitle', 'Example title');
+
+      final result = await controller(
+        images: _FakeImagesStore(const ImagesManifest.empty()),
+        bundle: _FakeBundle({
+          'assets/templates/pornolab/singleVideo.txt':
+              '{{videoTitle}}\n{{blank}}\n{{appSignature}}',
+          'assets/templates/pornolab/appSignature.txt':
+              'made with {{appVersion}}',
+          'assets/templates/pornolab/vanilla.style': 'text = {content}',
+        }),
+        fields: fields,
+        includeAppSignature: false,
+      ).generate();
+
+      expect((result as MessageGenerated).text, 'Example title');
+    },
+  );
+
+  // A tracker with no signature file is not a failure: the file is read as
+  // absent, the same rule as a title file, and the block variable is empty.
+  test(
+    'a tracker with no signature file generates the message without one',
+    () async {
+      final fields = completeFields();
+      fields.setValue('videoTitle', 'Example title');
+
+      final result = await controller(
+        images: _FakeImagesStore(const ImagesManifest.empty()),
+        bundle: _FakeBundle({
+          'assets/templates/pornolab/singleVideo.txt':
+              '{{videoTitle}}\n{{blank}}\n{{appSignature}}',
+          'assets/templates/pornolab/vanilla.style': 'text = {content}',
+        }),
+        fields: fields,
+      ).generate();
+
+      expect((result as MessageGenerated).text, 'Example title');
+    },
+  );
+
+  // The flag is part of what a render would produce, so it is a change the
+  // snapshot sees, the same rule as a field and as the block shape.
+  test('the signature flag is a change the render reads', () async {
+    final fields = completeFields();
+    fields.setValue('videoTitle', 'Example title');
+
+    final c = controller(
+      images: _FakeImagesStore(const ImagesManifest.empty()),
+      bundle: _FakeBundle({
+        'assets/templates/pornolab/singleVideo.txt':
+            '{{videoTitle}}\n{{blank}}\n{{appSignature}}',
+        'assets/templates/pornolab/appSignature.txt':
+            'made with {{appVersion}}',
+        'assets/templates/pornolab/vanilla.style': 'text = {content}',
+      }),
+      fields: fields,
+    );
+
+    await c.generate();
+
+    expect(c.valuesChanged(), isFalse);
+
+    c.release.includeAppSignature = false;
+
+    expect(c.valuesChanged(), isTrue);
   });
 
   test('the poster comes from the poster hoster, not from the first hoster in the record', () async {

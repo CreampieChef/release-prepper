@@ -69,11 +69,16 @@ import 'screenshot_layout.dart';
 /// The reset is silent — it is not an error, and the section is already the thing
 /// that shows the message.
 ///
+/// The first row after the section's title is the checkbox for the app signature
+/// (`ai/description_template.md` §App signature), above the title line. The flag
+/// is part of `release.json`, so the write is the editor's: this widget builds
+/// the row but does not own the record, and the notice that write sends is what
+/// clears the box, because the flag is part of what a render would produce.
+///
 /// The shape the screenshot block has is chosen here, for the type that can
-/// choose it: the row of radio buttons is the first thing after the section's
-/// title. The choice is part
-/// of `release.json`, so it is written through the editor's single write path
-/// rather than by this widget — it builds the row, but it does not own the
+/// choose it: the row of radio buttons is the row after the checkbox. The choice
+/// is part of `release.json`, so it is written through the editor's single write
+/// path rather than by this widget — it builds the row, but it does not own the
 /// record. Choosing a shape changes what a render would produce, so it goes
 /// through the same reset as a field: the box and the two files go back to the
 /// placeholder, and the next generation uses the shape chosen.
@@ -87,6 +92,7 @@ class MessageSection extends StatefulWidget {
     required this.subscribeFieldsChanged,
     required this.onFieldsRefused,
     required this.onScreenshotLayoutChanged,
+    required this.onAppSignatureChanged,
     required this.onMessageChanged,
     super.key,
   });
@@ -113,6 +119,11 @@ class MessageSection extends StatefulWidget {
   /// write path for what `release.json` stores. A plain callback, not a listener
   /// (rule 3), the same shape as the two above.
   final void Function(ScreenshotLayout layout) onScreenshotLayoutChanged;
+
+  /// Reports the chosen signature flag to the editor, which is the widget with the
+  /// write path for what `release.json` stores. A plain callback, not a listener
+  /// (rule 3), the same shape as the three above.
+  final void Function(bool include) onAppSignatureChanged;
 
   /// Reports that the message changed: a generation wrote the two files, a reset
   /// removed them, or an edit in the box wrote one. The Upload draft section sends
@@ -365,6 +376,36 @@ class _MessageSectionState extends State<MessageSection> {
         ScreenshotLayout.byItem => l10n.screenshotLayoutByItem,
       };
 
+  /// The row for the signature: the checkbox and the words for it, the checkbox
+  /// first as the Upload section's rows put it. The flag is part of
+  /// `release.json`, so the write is the editor's — this widget builds the row,
+  /// but it does not own the record. The same notice that updates the row is what
+  /// clears the box, because the flag is part of what a render would produce.
+  Widget _signatureRow(AppLocalizations l10n) {
+    final selected = widget.release.includeAppSignature;
+
+    return Row(
+      key: const ValueKey('appSignature'),
+      children: [
+        Checkbox(
+          value: selected,
+          onChanged: (value) {
+            if (value == null || value == selected) {
+              return;
+            }
+
+            widget.onAppSignatureChanged(value);
+
+            // The row shows what the model holds, so it is updated after the
+            // write, the same order as the single write path.
+            setState(() {});
+          },
+        ),
+        Expanded(child: Text(l10n.includeAppSignature)),
+      ],
+    );
+  }
+
   /// The row of the two shapes, with the one the release has selected.
   Widget _layoutRow(AppLocalizations l10n) {
     final selected = widget.release.screenshotLayout;
@@ -433,6 +474,8 @@ class _MessageSectionState extends State<MessageSection> {
                 )
               : null,
         ),
+        const SizedBox(height: 12),
+        _signatureRow(l10n),
         const SizedBox(height: 12),
         if (_hasLayoutChoice(widget.release.releaseType)) ...[
           _layoutRow(l10n),

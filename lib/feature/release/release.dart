@@ -28,6 +28,7 @@ class Release {
     this.createdDate,
     this.lastEditDate,
     this.screenshotLayout = ScreenshotLayout.byHoster,
+    this.includeAppSignature = true,
   });
 
   final String name;
@@ -71,6 +72,14 @@ class Release {
   /// its post was written with.
   ScreenshotLayout screenshotLayout;
 
+  /// Whether the post ends with the app's signature
+  /// (`ai/description_template.md` §App signature). It is stored for the same
+  /// reason the block shape is: `message.txt` holds a post written with or
+  /// without the signature, so a release opened again has to show the state its
+  /// post was written with. Every type can include it, because the signature is
+  /// the tracker's text, so every type carries it.
+  bool includeAppSignature;
+
   /// The real files on disk the release is made of. The user cannot add or
   /// remove an item that is not on disk.
   final List<ReleaseItem> items;
@@ -93,6 +102,7 @@ class Release {
     'source': source,
     'fields': fields.toJson(),
     'items': [for (final item in items) item.toJson()],
+    'includeAppSignature': includeAppSignature,
     // Only a type that can choose writes it, so a release of another type does
     // not carry a shape it could never use.
     if (releaseType == ReleaseType.videoPack)

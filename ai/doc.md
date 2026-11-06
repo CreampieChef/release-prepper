@@ -452,8 +452,13 @@ data (`ai/release_structure.md` §4). The URLs are stored per image and per host
 - Below the Upload section is the Message section
   (`ai/description_template.md`) — the
   fourth column when there is room for four, otherwise the whole width below everything
-  (§2): its title row with the Generate button at the right, the title line, and a large text box, each
-  with a copy button. Only what
+  (§2): its title row with the Generate button at the right, the app signature
+  checkbox, the title line, and a large text box; the last two each have a copy
+  button. The checkbox is on by default and decides whether the message ends with
+  the app signature (`ai/description_template.md` §App signature). Its
+  state is the release's, as `includeAppSignature` in `release.json`, so a
+  release shows the same answer wherever the app is reopened, and changing it
+  marks the record dirty like a field does. Only what
   there is to show is drawn: an empty title draws no row, and while nothing has been generated the
   section is its title row and the placeholder — the same shape the Screenshots section
   has when it has no images. The Generate button is drawn only once every image
@@ -1179,9 +1184,10 @@ lib/
                                 shape its post was written with. Only the type with more
                                 than one item can choose, and a file without the key reads
                                 as the shape the block has always had
-      message_controller.dart   MessageController: builds the values the template reads and the
+      message_controller.dart   MessageController: builds the values the template reads, the
                                 screenshot block, in the shape the release chose or the flat block
-                                for the types that cannot group, calls the renderer, writes both
+                                for the types that cannot group, and the app signature block when
+                                the release asks for it, calls the renderer, writes both
                                 files; typed result, no listener, no context. Says whether every
                                 image the message reads has been uploaded to the
                                 poster hoster — a synchronous check, because the
@@ -1197,12 +1203,13 @@ lib/
                                 the files. Removes the two files for a reset and answers
                                 with `MessageCleared`, which reports nothing back
       message_section.dart      MessageSection: the title row with the Generate button at the right, the
-                                title line, and the large text box showing the post text, each with a copy
-                                button. The row of radio buttons that chooses the shape of the block is
-                                drawn before them, for the type that can choose, and it shows what the
-                                release holds; the choice is part of `release.json`, so the section reports
-                                it to the editor, which is the widget with the write path. The row is a
-                                `RadioGroup` with `Radio` children, because `Radio`'s own `groupValue`
+                                app signature checkbox, the title line, and the large text box showing
+                                the post text, each with a copy button. The checkbox row is drawn first,
+                                and the row of radio buttons that chooses the shape of the block is drawn
+                                before the title line, for the type that can choose; both show what the
+                                release holds and both are part of `release.json`, so the section reports
+                                them to the editor, which is the widget with the write path. The radio
+                                row is a `RadioGroup` with `Radio` children, because `Radio`'s own `groupValue`
                                 and `onChanged` are deprecated in the Flutter version this project uses.
                                 The
                                 button for the box is at its top rather than in its middle, through
@@ -1638,7 +1645,10 @@ lib/
                                 is read per release type first, and the tracker's
                                 `title.txt` is the fallback when that type has no file of
                                 its own (`ai/single_photoset.md` §8); a type with no title
-                                reads neither (`hasTitle`). A key the bundle does not have
+                                reads neither (`hasTitle`). The app signature is one
+                                file per tracker, `appSignature.txt`, read as text with
+                                its trailing newline kept (`ai/description_template.md`
+                                §App signature). A key the bundle does not have
                                 is read as absent, not as a crash, because the bundle throws
                                 `FlutterError`, an `Error` and not an `Exception`. The asset
                                 bundle is a constructor parameter, so the service reads no
@@ -2717,12 +2727,18 @@ caller already knows the hoster and the file.
 title line and the text box, `MessageController` owns the render and the write. `generate()` reads
 the two templates and the style through `TemplateStore` (the asset bundle is a constructor
 parameter, so the service reads no static), builds the values — the fields as `release.json` writes
-them, plus `name`, `tracker`, `releaseType`, `posterUrl` and `screenshotSection`; the two are the
-technical names, because a template is written in the language the tracker publishes in and writes
-its own words, so the app can only provide the ID — only the
+them, plus `name`, `tracker`, `releaseType`, `posterUrl`, `appVersion`, and the
+two block variables, `screenshotSection` and `appSignature`; `tracker` and
+`releaseType` are the technical names, because a template is written in the
+language the tracker publishes in and writes its own words, so the app can only
+provide the ID — only the
 release's own field values, because the renderer has no iteration and no template lists items, so a
 per-item value is not something a template can read — renders the post
 text and the title through `TemplateRenderer`, and writes them to `message.txt` and `title.txt`.
+The app signature is `appSignature.txt` rendered with the same
+values, and it is empty when the Message section's checkbox is off; the flag is
+one of the values the snapshot holds, so turning it off is a change to what a
+render would produce and clears the box like a field does.
 The files hold exactly the text the section shows, with no trailing newline, so the file, the box
 and the pasted post are the same bytes; these are the only persisted files that do not end with a
 newline. An edit in the box calls `saveText()`, which writes the file immediately, like the poster
@@ -3161,10 +3177,13 @@ file-or-folder rule is the release type's: one key cannot say both.
 images" rather than naming the thumbnail, so one key serves both.
 The Message family (`messageSectionTitle`, `generateMessage`,
 `messageNeedsImagesFirst`, `noMessage`, `screenshotLayoutLabel`,
-`screenshotLayoutByHoster`, `screenshotLayoutByItem`, `templateNotFound`, `styleNotFound`,
-`templateInvalid`, `messageSaveFailed`, `fieldNotFilled`, `productionDateInvalid`,
-`messageValidationFailed`, `copyToClipboard`) is in both files and is
-used by `message_section.dart`. `noMessage` is the placeholder the section shows when nothing has been
+`screenshotLayoutByHoster`, `screenshotLayoutByItem`, `includeAppSignature`,
+`templateNotFound`, `styleNotFound`, `templateInvalid`, `messageSaveFailed`,
+`fieldNotFilled`, `productionDateInvalid`, `messageValidationFailed`,
+`copyToClipboard`) is in both files and is
+used by `message_section.dart`. `includeAppSignature` is the label of the checkbox
+row, the row that decides whether the message ends with the app signature.
+`noMessage` is the placeholder the section shows when nothing has been
 generated, which is what its value already said: the box is not drawn when it holds nothing, so the key
 is no longer a hint. `copyToClipboard` is the tooltip of every copy button — the Message
 section's two and the one next to the draft link — so one key serves all three.

@@ -92,6 +92,20 @@ class ReleaseEditorController {
     return true;
   }
 
+  /// Whether the post ends with the app's signature. The same rule as the block
+  /// shape: not a field, but part of `release.json`, so it is part of the save
+  /// and marks the tab dirty the same way.
+  bool setIncludeAppSignature(bool include) {
+    if (release.includeAppSignature == include) {
+      return false;
+    }
+
+    release.includeAppSignature = include;
+    tabManager.setUnsavedChanges(tabId, true);
+
+    return true;
+  }
+
   /// Records the path the user picked.
   ///
   /// A picked file is treated as a directory containing only itself, so the

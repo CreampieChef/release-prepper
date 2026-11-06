@@ -42,9 +42,21 @@ void ignoreFieldsRefused(List<FieldProblem> problems) {}
 // not about the write does not need the callback.
 void ignoreScreenshotLayoutChanged(ScreenshotLayout layout) {}
 
+// The editor writes the signature flag through the same write path; a test that is
+// not about the write does not need the callback.
+void ignoreAppSignatureChanged(bool include) {}
+
 // The editor tells the Upload draft section what this section wrote. A test that is
 // not about that does not need the callback.
 void ignoreMessageChanged() {}
+
+/// The checkbox inside the signature row. The row is what a test finds by its key,
+/// so the box is found through it rather than by looking for the only checkbox on
+/// the page, which would be the row's shape rather than the row.
+Finder signatureCheckbox() => find.descendant(
+  of: find.byKey(const ValueKey('appSignature')),
+  matching: find.byType(Checkbox),
+);
 
 void main() {
   late Directory directory;
@@ -66,6 +78,7 @@ void main() {
     FieldValues? fields,
     ReleaseType releaseType = ReleaseType.singleVideo,
     ScreenshotLayout screenshotLayout = ScreenshotLayout.byHoster,
+    bool includeAppSignature = true,
   }) => Release(
     name: directory.path,
     directoryPath: directory.path,
@@ -74,6 +87,7 @@ void main() {
     source: '/home/user/videos',
     fields: fields ?? completeFields(),
     screenshotLayout: screenshotLayout,
+    includeAppSignature: includeAppSignature,
     items: [
       ReleaseItem(
         path: 'movie.mp4',
@@ -103,6 +117,9 @@ void main() {
     WidgetTester tester, {
     required String template,
     String title = '',
+    // The app signature file. A test that is not about the signature does
+    // not need one, so the default is the file not being there.
+    String signature = '',
     ReleaseType releaseType = ReleaseType.singleVideo,
     // What the images store answers with. The default is the state the generation
     // gate needs, so the tests that do not look at the gate are not about it.
@@ -126,6 +143,12 @@ void main() {
     // not about the write does not need the callback.
     void Function(ScreenshotLayout) onScreenshotLayoutChanged =
         ignoreScreenshotLayoutChanged,
+    // The state the signature row shows. The default is the default the app
+    // gives a new release, so a test that is not about the row is not about it.
+    bool includeAppSignature = true,
+    // The editor writes the flag through the same write path; a test that is not
+    // about the write does not need the callback.
+    void Function(bool) onAppSignatureChanged = ignoreAppSignatureChanged,
     // The editor passes this to the Upload draft section; a test that is not about
     // what the section shows does not need the callback.
     void Function() onMessageChanged = ignoreMessageChanged,
@@ -139,7 +162,8 @@ void main() {
       MultiProvider(
         providers: [
           Provider<TemplateStore>(
-            create: (_) => TemplateStore(bundle: _FakeBundle(template, title)),
+            create: (_) =>
+                TemplateStore(bundle: _FakeBundle(template, title, signature)),
           ),
           Provider<TemplateRenderer>(create: (_) => const TemplateRenderer()),
           Provider<ImagesStore>(create: (_) => store),
@@ -156,11 +180,13 @@ void main() {
                   fields: fields,
                   releaseType: releaseType,
                   screenshotLayout: screenshotLayout,
+                  includeAppSignature: includeAppSignature,
                 ),
                 subscribeImagesChanged: subscribeImagesChanged,
                 subscribeFieldsChanged: subscribeFieldsChanged,
                 onFieldsRefused: onFieldsRefused,
                 onScreenshotLayoutChanged: onScreenshotLayoutChanged,
+                onAppSignatureChanged: onAppSignatureChanged,
                 onMessageChanged: onMessageChanged,
               ),
             ),
@@ -715,6 +741,155 @@ void main() {
     expect(File(storePath(MessageStore.messageFile)).existsSync(), isFalse);
   });
 
+  // The signature row is the first row after the section's title and the row
+  // above the title line. It is drawn for every type, because the flag is the
+  // tracker's rule and not something a type has to have a title for.
+  testWidgets('the signature row is the first row after the section title', (
+    tester,
+  ) async {
+    // The title line is drawn only when there is a title, so the test writes one.
+    await tester.runAsync(() async {
+      await MessageStore().save(
+        directory.path,
+        MessageStore.titleFile,
+        'a title',
+      );
+    });
+
+    await pump(tester, template: '{{videoTitle}}');
+
+    final row = find.byKey(const ValueKey('appSignature'));
+
+    expect(row, findsOneWidget);
+    expect(
+      tester.getRect(row).top,
+      greaterThan(tester.getRect(find.text('Message')).bottom),
+    );
+    expect(
+      tester.getRect(row).top,
+      lessThan(tester.getRect(find.text('a title')).top),
+    );
+  });
+
+  // The flag is part of `release.json`, so the row shows what the model holds,
+  // and the state a new release is created with is the checked one.
+  testWidgets('the row is checked as a new release is created', (tester) async {
+    await pump(tester, template: '{{videoTitle}}');
+
+    expect(tester.widget<Checkbox>(signatureCheckbox()).value, isTrue);
+  });
+
+  testWidgets('the row shows the state the release has', (tester) async {
+    await pump(tester, template: '{{videoTitle}}', includeAppSignature: false);
+
+    expect(tester.widget<Checkbox>(signatureCheckbox()).value, isFalse);
+  });
+
+  // The flag is the tracker's rule, so a type that draws no title line has the
+  // row too.
+  testWidgets('the row is drawn for a type that has no title line', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      template: '{{videoTitle}}',
+      releaseType: ReleaseType.imageFolderUpload,
+    );
+
+    expect(find.byKey(const ValueKey('appSignature')), findsOneWidget);
+  });
+
+  // The flag is part of `release.json`, so the write is the editor's: the section
+  // reports it through the callback the editor gave it, as it reports the shape.
+  testWidgets('toggling the row reports it to the write path', (tester) async {
+    final chosen = <bool>[];
+
+    await pump(
+      tester,
+      template: '{{videoTitle}}',
+      onAppSignatureChanged: (include) => chosen.add(include),
+    );
+
+    await tester.tap(signatureCheckbox());
+    await tester.pump();
+
+    expect(chosen, [false]);
+  });
+
+  // The flag is part of what a render would produce, so the same reset as a field
+  // runs: the write is the editor's, and the notice it sends clears the box and
+  // the files with it.
+  testWidgets('toggling the row clears the box and the files', (tester) async {
+    await tester.runAsync(() async {
+      await MessageStore().save(
+        directory.path,
+        MessageStore.messageFile,
+        'a generated message',
+      );
+    });
+
+    void Function()? rebuild;
+
+    await pump(
+      tester,
+      template: '{{videoTitle}}',
+      subscribeFieldsChanged: (callback) => rebuild = callback,
+      onAppSignatureChanged: (include) => rebuild!(),
+    );
+
+    await tester.tap(signatureCheckbox());
+
+    await tester.runAsync(() async {
+      await Future.delayed(const Duration(milliseconds: 200));
+    });
+    await tester.pump();
+
+    expect(find.text('Nothing generated yet.'), findsOneWidget);
+    expect(File(storePath(MessageStore.messageFile)).existsSync(), isFalse);
+  });
+
+  // What the generation writes is what the template places, so the signature is
+  // the text the tracker's file has, and nothing when the flag is off.
+  testWidgets('the generation writes the signature the template places', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      template: 'a\n{{blank}}\n{{appSignature}}',
+      signature: 'the signature',
+    );
+
+    await tester.runAsync(() async {
+      await tester.tap(find.widgetWithText(FilledButton, 'Generate'));
+      await Future.delayed(const Duration(milliseconds: 200));
+    });
+    await tester.pump();
+
+    expect(
+      File(storePath(MessageStore.messageFile)).readAsStringSync(),
+      'a\n\nthe signature',
+    );
+  });
+
+  testWidgets('with the flag off the generation writes no signature', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      template: 'a\n{{blank}}\n{{appSignature}}',
+      signature: 'the signature',
+      includeAppSignature: false,
+    );
+
+    await tester.runAsync(() async {
+      await tester.tap(find.widgetWithText(FilledButton, 'Generate'));
+      await Future.delayed(const Duration(milliseconds: 200));
+    });
+    await tester.pump();
+
+    expect(File(storePath(MessageStore.messageFile)).readAsStringSync(), 'a');
+  });
+
   // The parts appear with what they hold. A type that has a title draws the
   // title line only once there is one, so a message with no title is its title
   // row and the placeholder, and the title line appears when a generation
@@ -825,15 +1000,20 @@ void main() {
 }
 
 class _FakeBundle extends AssetBundle {
-  _FakeBundle(this.template, this.title);
+  _FakeBundle(this.template, this.title, this.signature);
 
   final String template;
   final String title;
+  final String signature;
 
   @override
   Future<ByteData> load(String key) async {
     if (key.endsWith('.style')) {
       return ByteData.sublistView(utf8.encode('text = {content}'));
+    }
+
+    if (key.endsWith('appSignature.txt')) {
+      return ByteData.sublistView(utf8.encode(signature));
     }
 
     if (key.endsWith('title.txt')) {

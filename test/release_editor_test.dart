@@ -2620,6 +2620,46 @@ void main() {
     },
   );
 
+  // The signature flag is part of `release.json` for the same reason the block
+  // shape is, so it marks the tab dirty the same way a field does.
+  test(
+    'the signature flag marks the tab dirty, and the same flag again does not',
+    () {
+      final tabManager = TabManager();
+      final release = testVideoPackRelease('/tmp/x');
+      final tabId = tabManager.addReleaseEditor(release);
+
+      final controller = ReleaseEditorController(
+        release: release,
+        store: ReleaseStore(),
+        tabManager: tabManager,
+        ffprobe: _FakeProbe(
+          const MediaInfo(
+            fileSize: '',
+            duration: '',
+            durationSeconds: null,
+            videoType: '',
+            videoFormat: '',
+            videoStream: '',
+            audioStream: '',
+          ),
+        ),
+        ffmpeg: _FakeFfmpeg(),
+        downloader: _FakeDownloader(
+          DownloadSuccess('', ContentType('image', 'jpeg')),
+        ),
+        images: ImagesStore(),
+        tabId: tabId,
+      );
+
+      expect(controller.setIncludeAppSignature(false), isTrue);
+      expect(release.includeAppSignature, isFalse);
+      expect(tabManager.tabs.single.hasUnsavedChanges, isTrue);
+
+      expect(controller.setIncludeAppSignature(false), isFalse);
+    },
+  );
+
   // For a picked directory the item is under it, which is what a pack needs. A
   // picked file is treated as a directory containing only itself, so the item
   // is the source.

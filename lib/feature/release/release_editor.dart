@@ -452,6 +452,21 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
     return true;
   }
 
+  /// The single write path for the signature flag, the same rule as for a field
+  /// and for the block shape: the model first, then the row showing it. The row
+  /// is the Message section's, so the notice is what updates it, and the same
+  /// notice is what clears the box, because the flag is what a render would
+  /// produce the signature with.
+  bool _writeIncludeAppSignature(bool include) {
+    if (!_controller.setIncludeAppSignature(include)) {
+      return false;
+    }
+
+    _fieldsChanged();
+
+    return true;
+  }
+
   /// The text a field shows. For every field but a byte count that is the value
   /// itself; a size field shows the byte count in a human-friendly form as well,
   /// so its text is derived from the value rather than being the value. Which
@@ -1333,6 +1348,7 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
               subscribeFieldsChanged: _registerFieldRebuild,
               onFieldsRefused: _fieldsRefused,
               onScreenshotLayoutChanged: _writeScreenshotLayout,
+              onAppSignatureChanged: _writeIncludeAppSignature,
               onMessageChanged: _messageChanged,
             );
             // The Upload draft section is drawn for the types its field list has

@@ -1,5 +1,6 @@
 import 'package:path/path.dart' as p;
 
+import '../../app/app_info.dart';
 import '../../service/template/template_renderer.dart';
 import '../../service/template/template_store.dart';
 import '../release/field_validation.dart';
@@ -122,6 +123,11 @@ class MessageController {
     }
 
     final success = loaded as TemplateSuccess;
+
+    // The values the render reads include the signature, so the text it is built
+    // from has to be the same text this load read.
+    _loaded = success;
+
     final read = values(await images.load(release.directoryPath));
 
     final message = renderer.render(
@@ -211,6 +217,15 @@ class MessageController {
   /// content that comes after the reset, not to the one already cleared.
   Map<String, String> _snapshot = {};
 
+  /// The templates the last load read, kept because `values()` is asked while the
+  /// widget builds and cannot read the bundle again. The signature is one of the
+  /// values a template reads, so the snapshot the reset compares against has to be
+  /// built from the same text the render was built from. Before the first
+  /// generation nothing has been read, and the snapshot taken then is built from
+  /// nothing as well, so the comparison cannot see a change it did not record —
+  /// the checkbox is what clears the box, through the editor's write path.
+  TemplateSuccess? _loaded;
+
   /// Whether the values the render reads are not the ones the box was built from.
   /// This is the image half of the reset rule: an upload run that added a URL the
   /// message reads changes them, and a run that wrote nothing does not. Neither
@@ -246,8 +261,9 @@ class MessageController {
   }
 
   /// The values the template reads: the fields as `release.json` writes them,
-  /// the release record, and the image variables. A local path is not something
-  /// a post shows, so the source is not a value.
+  /// the release record, the image variables, `appVersion`, and the app
+  /// signature block (`ai/description_template.md` §App signature). A local path
+  /// is not something a post shows, so the source is not a value.
   ///
   /// Only the release's own fields are here. A per-item value is not one a
   /// template can read, because the renderer has no iteration; showing items
@@ -260,19 +276,49 @@ class MessageController {
   /// must not make the content the Message section shows stale
   /// (`ai/uploading_draft.md` §4). A key the field list does not know is not a
   /// value a template can read either, so it is not here.
-  Map<String, String> values(ImagesManifest manifest) => {
-    for (final field in fieldListFor(release.releaseType).fields)
-      if (field.readByTemplate) field.name: release.fields.value(field.name),
-    'name': release.name,
-    'tracker': release.tracker.name,
-    'releaseType': release.releaseType.name,
-    'posterUrl': _url(
-      _first(manifest.of(ImageKind.poster)),
-      posterHoster,
-      posterUrlType,
-    ),
-    'screenshotSection': _screenshotSection(manifest),
-  };
+  Map<String, String> values(ImagesManifest manifest) {
+    final read = {
+      for (final field in fieldListFor(release.releaseType).fields)
+        if (field.readByTemplate) field.name: release.fields.value(field.name),
+      'name': release.name,
+      'tracker': release.tracker.name,
+      'releaseType': release.releaseType.name,
+      'posterUrl': _url(
+        _first(manifest.of(ImageKind.poster)),
+        posterHoster,
+        posterUrlType,
+      ),
+      'screenshotSection': _screenshotSection(manifest),
+      'appVersion': appVersion,
+    };
+
+    // The signature is rendered from the values above, so it cannot be one of
+    // them while they are being built: a block variable is not something a
+    // template can read from itself.
+    return {...read, 'appSignature': _appSignature(read)};
+  }
+
+  /// The app signature block (`ai/description_template.md` §App signature): the
+  /// app signature file rendered with the values above, or nothing when the
+  /// release does not include it. A block variable has no failure path — the
+  /// renderer reports an unbalanced section only to the caller that reads a
+  /// template, and here the caller is the value map — so a signature that cannot
+  /// be rendered produces nothing; validating the asset files is in `lib/TODO.MD`.
+  String _appSignature(Map<String, String> values) {
+    final loaded = _loaded;
+
+    if (loaded == null || !release.includeAppSignature) {
+      return '';
+    }
+
+    final block = renderer.render(
+      template: loaded.signature,
+      style: loaded.style,
+      values: values,
+    );
+
+    return block is RenderSuccess ? block.text : '';
+  }
 
   /// Two value maps as the render would read them. A map has no value equality,
   /// so this is the comparison the staleness check needs.

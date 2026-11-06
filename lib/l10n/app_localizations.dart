@@ -1112,6 +1112,12 @@ abstract class AppLocalizations {
   /// **'Nothing generated yet.'**
   String get noMessage;
 
+  /// No description provided for @includeAppSignature.
+  ///
+  /// In en, this message translates to:
+  /// **'Include the \"Made with Release Prepper\" line'**
+  String get includeAppSignature;
+
   /// No description provided for @screenshotLayoutLabel.
   ///
   /// In en, this message translates to:

@@ -14,6 +14,7 @@ Open items).
 assets/templates/<tracker>/<releaseType>.txt    the template
 assets/templates/<tracker>/<releaseType>.title.txt  the title template (see Title)
 assets/templates/<tracker>/title.txt             the tracker default title template
+assets/templates/<tracker>/appSignature.txt      the app signature text (see App signature)
 assets/templates/<tracker>/<style>.style         the style
 <release dir>/message.txt                        the generated text
 <release dir>/title.txt                          the generated title (a type with no title has no such file)
@@ -38,10 +39,11 @@ Six constructs, and no others:
 * `{{#style.slot}}…{{/style.slot}}` — a style slot. Its content is wrapped by the rule
   of that name in the style file.
 * `{{blank}}` — an empty line in the output.
-* A block variable (`{{screenshotSection}}`) — the app builds the whole block from the
-  release's image records as a spoiler block, one item per line, and passes the finished block
-  to the template as a string. The template does not describe its shape, so no style slot
-  applies to it. `MessageController` builds it.
+* A block variable (`{{screenshotSection}}`, `{{appSignature}}`) — the app builds the
+  whole block itself, the image block from the release's image records as a spoiler block
+  with one item per line and the app signature from its file, and passes the
+  finished block to the template as a string. The template does not describe its shape, so
+  no style slot applies to it. `MessageController` builds it.
 
 ### Lines
 
@@ -82,6 +84,8 @@ Field names are the names `release.json` writes.
 | `cast`, `videoTitle`, `siteNumber`, `subsiteAndSite`, `productionDate`, `genreTags`, `fileSize`, `duration`, `videoType`, `videoQuality`, `videoFormat`, `videoStream`, `audioStream`, `description`, `additionalInfo` | the release fields |
 | `name`, `tracker`, `releaseType` | the release record |
 | `posterUrl`, `screenshotSection` | `images.json` |
+| `appVersion` | the app's own version, from `lib/app/app_info.dart` |
+| `appSignature` | the app signature file, when the checkbox is on (see App signature) |
 
 `tracker` and `releaseType` are the technical names, not the display names. A template is written
 in the language the tracker publishes in and writes its own words, so the app can only provide the
@@ -210,10 +214,17 @@ The title is read-only in the section: it has no edit path, only a copy button.
 
 ## Section
 
-The Message section sits below Upload: a **Generate** button, the title line, and a large text
-box.
+The Message section sits below Upload: a **Generate** button, the app signature
+checkbox, the title line, and a large text box.
 
 * The text is generated when the user clicks the button.
+* The app signature checkbox is the first row after the section's title, above
+  the row of radio buttons where the type has one. It is on by default, and its
+  state is the release's (`includeAppSignature` in `release.json`), so a release
+  shows the same answer wherever the app is reopened. Changing it goes through
+  the editor's single write path, so it marks the tab dirty and clears the box
+  with the two files, the same as a field, because the text shown is no longer
+  what a render would produce with the signature off.
 * The fields are validated first (§Validation), so a release with a required
   field is told which field it is rather than rendered as a post with a label
   and nothing after it. The controller answers with field names, because a field
@@ -400,6 +411,29 @@ inside it.
   one record that does not, and the backup half shows it.
 * The per-item description line and the per-item poster line are not written yet. They are what a
   per-video `stash_url` import would fill, so they wait for it.
+
+## App signature
+
+`appSignature.txt` is the app signature: the app's own credit line, the text a post
+ends with. It is a template like the other two, so it reads the same variables,
+and `appVersion` is the one it usually reads. It is one file per tracker rather
+than one per release type, because a tracker publishes its own wording for it, so
+every description template ends with `{{appSignature}}`.
+
+The Message section's checkbox decides whether a release's message ends with it,
+and the release's answer is what the checkbox shows (§Section). When it is off the
+block is not built at all, so the variable renders as an empty string; the
+`{{blank}}` that introduces it is still emitted, because a template line that is
+only a control tag is always emitted, and the trailing-blank-line rule then trims
+it — so a message without a signature ends at its last content line rather than
+at an empty one.
+
+The file is read as text, not as a line list: it is not split, its lines are not
+re-joined, and its trailing newline is kept, so a signature written with a final
+newline renders with one. A tracker without the file produces an empty block, the
+same as a tracker without a title file produces an empty title. It is not
+validated (§Validation), so a variable it reads that is not in the table renders
+as an empty string, as it does anywhere in a template.
 
 ## Open items
 
