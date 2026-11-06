@@ -19,11 +19,101 @@ static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
 }
 
-// The app icon, resolved through the icon theme by the application id — the same
-// name the .desktop file uses, which is what a desktop environment reads on
-// Wayland, where a window has no icon of its own. This is what an X11 session
-// gets. An application id with no icon in the theme is reported rather than left
-// as the default icon, so a build that did not install one is visible.
+// The size the window is created with when there is nothing recorded: the size
+// the runner has always started with.
+static const int kDefaultWidth = 1280;
+static const int kDefaultHeight = 720;
+
+// The format version this reader understands, which must stay equal to
+// `schemaVersion` in `lib/feature/release/release.dart` — that is what writes
+// the file. A file of a version this does not write is not read (`ai/doc.md`
+// §7).
+static const int kFormatVersion = 1;
+
+// One token of the line. A token is a whole number or it is not one the app
+// wrote, so "1440.5" is not read as 1440.
+static gboolean parse_whole(const char* token, int* value) {
+  char* end = nullptr;
+
+  const long long parsed = g_ascii_strtoll(token, &end, 10);
+
+  if (end == token || *end != '\0') {
+    return FALSE;
+  }
+
+  *value = static_cast<int>(parsed);
+
+  return TRUE;
+}
+
+// Reads the size the app recorded in the last run into width and height, and
+// leaves them as they are when there is nothing to read: a file that is not
+// there, cannot be read, is not three whole numbers, or is not the version the
+// app writes. Nothing is reported for any of those, which is the same rule the
+// app follows (`ai/doc.md` §7) — a size that cannot be read is not something
+// the runner can show, and a run that starts at the default size is not an
+// error.
+//
+// The file is read from the app data directory as `path_provider` resolves it:
+// `XDG_DATA_HOME`, or `~/.local/share` when that is not set, plus the
+// application id, which is what `g_get_user_data_dir` gives. path_provider's
+// fallback to a directory named for the executable is not reproduced here, so
+// such a directory is not read.
+static void read_recorded_size(int* width, int* height) {
+  g_autofree char* path = g_build_filename(
+      g_get_user_data_dir(), APPLICATION_ID, "window_size.txt", nullptr);
+
+  g_autofree char* contents = nullptr;
+  gsize length = 0;
+
+  if (!g_file_get_contents(path, &contents, &length, nullptr)) {
+    return;
+  }
+
+  g_auto(GStrv) parts = g_strsplit_set(contents, " \t\r\n", -1);
+
+  int values[3] = {0, 0, 0};
+  int count = 0;
+
+  for (char** part = parts; *part != nullptr; part++) {
+    // An empty piece between two separators is not a token.
+    if (**part == '\0') {
+      continue;
+    }
+
+    int value;
+
+    if (!parse_whole(*part, &value)) {
+      return;
+    }
+
+    if (count < 3) {
+      values[count] = value;
+    }
+
+    count++;
+  }
+
+  if (count != 3 || values[0] != kFormatVersion) {
+    return;
+  }
+
+  // A window is never zero wide or zero tall, so a number outside that is not a
+  // size the runner can use.
+  if (values[1] <= 0 || values[2] <= 0) {
+    return;
+  }
+
+  *width = values[1];
+  *height = values[2];
+}
+
+// The app icon, resolved through the icon theme by the application id — the
+// same name the .desktop file uses, which is what a desktop environment reads
+// on Wayland, where a window has no icon of its own. This is what an X11
+// session gets. An application id with no icon in the theme is reported rather
+// than left as the default icon, so a build that did not install one is
+// visible.
 static void set_window_icon(GtkWindow* window) {
   GtkIconTheme* theme = gtk_icon_theme_get_default();
 
@@ -68,7 +158,19 @@ static void my_application_activate(GApplication* application) {
     gtk_window_set_title(window, "release_prepper");
   }
 
-  gtk_window_set_default_size(window, 1280, 720);
+  // The size the window is created with is the one the app recorded in the last
+  // run, or the default when there is nothing recorded. This is the only place
+  // the size can be applied: the size a window is created with is what this
+  // says, and a size asked for after the window exists is a request the desktop
+  // may ignore, so an app that asked for it would show the user one window that
+  // jumped (`ai/doc.md` §7).
+  int width = kDefaultWidth;
+  int height = kDefaultHeight;
+
+  read_recorded_size(&width, &height);
+
+  gtk_window_set_default_size(window, width, height);
+
   set_window_icon(window);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();

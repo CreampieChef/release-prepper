@@ -32,9 +32,12 @@ class Win32Window {
   // |origin| and |size|. New windows are created on the default monitor. Window
   // sizes are specified to the OS in physical pixels, hence to ensure a
   // consistent size this function will scale the inputted width and height as
-  // as appropriate for the default monitor. The window is invisible until
-  // |Show| is called. Returns true if the window was created successfully.
-  bool Create(const std::wstring& title, const Point& origin, const Size& size);
+  // as appropriate for the default monitor — unless |scale_size| is false,
+  // which is what a size that is already in physical pixels needs, such as the
+  // size the app recorded in its last run. The window is invisible until |Show|
+  // is called. Returns true if the window was created successfully.
+  bool Create(const std::wstring& title, const Point& origin, const Size& size,
+             bool scale_size = true);
 
   // Show the current window. Returns true if the window was successfully shown.
   bool Show();

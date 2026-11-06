@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../feature/main_menu_controller.dart';
 import '../feature/message/message_store.dart';
@@ -21,6 +22,9 @@ import '../feature/settings/settings_store.dart';
 import '../feature/system_check/system_check_controller.dart';
 import '../feature/tab/tab_close_controller.dart';
 import '../feature/tab/tab_manager.dart';
+import '../feature/window/window_controller.dart';
+import '../feature/window/window_gateway.dart';
+import '../feature/window/window_size_store.dart';
 import '../service/fonts/font_store.dart';
 import '../service/launcher/folder_opener.dart';
 import '../service/launcher/url_opener.dart';
@@ -269,6 +273,37 @@ List<SingleChildWidget> appProviders() => [
 
       return controller;
     },
+  ),
+
+  // The window. It has no widget and shows nothing, so the entries here are
+  // the whole feature (`ai/doc.md` §4): the size is recorded at the point the
+  // close flow decides the app is closing for real, and the app never asks the
+  // window for a size — the runners apply the recorded one before the window is
+  // created.
+  //
+  // The gateway is the plugin seam, the same reason `SecretStore` is one, and
+  // the plugin instance is read here for the same reason its instance is.
+  Provider<WindowGateway>(
+    create: (_) => PluginWindowGateway(windowManager: windowManager),
+  ),
+
+  // `window_size.txt` in the same app data directory. It is not a field inside
+  // settings.json, because settings are the user's choices and this is a record
+  // of what the window was (`ai/doc.md` §7). The Linux and Windows runners read
+  // the same file before they create the window.
+  Provider<WindowSizeStore>(
+    create: (_) =>
+        WindowSizeStore(appDirectory: getApplicationSupportDirectory),
+  ),
+
+  // Nothing is read here at startup, because the app does not apply a size. This
+  // entry is the shape of the other controllers': the close flow is what calls
+  // it.
+  Provider<WindowController>(
+    create: (context) => WindowController(
+      store: context.read<WindowSizeStore>(),
+      gateway: context.read<WindowGateway>(),
+    ),
   ),
 
   Provider<TabCloseController>(

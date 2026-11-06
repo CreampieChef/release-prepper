@@ -8,15 +8,15 @@
   apart, and to give the menu item a busy or disabled state while the picker and
   the load are in flight.
 * Validation for the subsite and site fields: the shape of the two domains. The
-  rule engine reports an unfilled required field and the date shape only, so this
-  needs a problem kind of its own.
-* Renamed files: the record ID is the relative path, so a rename loses the record
-  and its URLs. Moving the data to the new name is not built; the app accepts the
-  data is gone.
+  rule engine reports an unfilled required field and the date shape only, so
+  this needs a problem kind of its own.
+* Renamed files: the record ID is the relative path, so a rename loses the
+  record and its URLs. Moving the data to the new name is not built; the app
+  accepts the data is gone.
 * Validation for the other release types, per tracker, and how many posters a
   release may have. Only the single video field list states rules, so nothing is
-  checked for the others, and the required set a tracker wants is not known until
-  more release types are covered.
+  checked for the others, and the required set a tracker wants is not known
+  until more release types are covered.
 * bbcode in description and additional information. The renderer emits the value
   as it is; bbcode appears only because the `text` style rule is empty.
 * Validation of description templates and style files: every style slot a
@@ -32,3 +32,10 @@
 * Editor: a button that fills the release-level tags from the items.
   One-directional on purpose — editing a release field must not overwrite the
   items it was built from.
+* Window size on macOS: the Linux and Windows runners read `window_size.txt`
+  before they create the window, so a run starts at the size the last one had.
+  The macOS runner does not read it — `macos/Runner/MainFlutterWindow.swift`
+  uses the frame the storyboard gives it — so on macOS the record is written and
+  never applied. Adding it there is the same reading as the other two in Swift,
+  with `path_provider`'s macOS directory rule reproduced, which is what
+  `ai/doc.md` §7 keeps as one rule with three implementations.

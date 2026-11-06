@@ -35,23 +35,26 @@ menu bar.
   §4). `flutter_svg` is the only other one and is used solely to render the
   tracker icon assets, because Flutter has no built-in SVG renderer.
   `window_manager` is the first exception to rule 12: it is used to receive the
-  native window-close event, which Flutter cannot intercept on its own, so the app
-  can run the per-tab unsaved-changes popup before closing, and to set the native
-  window title in `main.dart`, which `MaterialApp.title` does not set on the
-  desktop runners. `flutter_secure_storage` is the second: it is used only to reach
-  the OS credential store, which Flutter cannot reach on its own, and only for the
-  values the Integration section stores (see §7). `archive` is the third: it is used
-  only to read ZIP archives in the photoset scan, because the parts a hand-written
-  reader gets wrong are the ones real archives have (see §5 and rule 12).
-  `url_launcher` is the fourth: it is used only to open a folder in the file
-  manager the OS uses, which Flutter cannot do on its own, and only for the link
-  the Torrent section shows next to the path it wrote, and for the draft link the
-  Upload draft section shows, which opens the browser the OS uses for it (see §5
-  and rule 12). `enough_convert` is the fifth: it is used only to read a response
-  in the charset the site declares, because `dart:convert` has UTF-8 and Latin-1
-  and the pages of this site are in neither (see §5 and rule 12). No
-  routing, logging, networking, analytics, or testing packages. Everything else is
-  plain Flutter + `dart:io`.
+  native window-close event, which Flutter cannot intercept on its own, so the
+  app can run the per-tab unsaved-changes popup before closing, to set the
+  native window title in `main.dart`, which `MaterialApp.title` does not set on
+  the desktop runners, and to read the size the window has at the point the app
+  closes. It is not used to ask the window for a size: the runners apply the
+  recorded one before the window exists (§7). `flutter_secure_storage` is the
+  second: it is used only to reach the OS credential store, which Flutter cannot
+  reach on its own, and only for the values the Integration section stores (see
+  §7). `archive` is the third: it is used only to read ZIP archives in the
+  photoset scan, because the parts a hand-written reader gets wrong are the ones
+  real archives have (see §5 and rule 12). `url_launcher` is the fourth: it is
+  used only to open a folder in the file manager the OS uses, which Flutter
+  cannot do on its own, and only for the link the Torrent section shows next to
+  the path it wrote, and for the draft link the Upload draft section shows,
+  which opens the browser the OS uses for it (see §5 and rule 12).
+  `enough_convert` is the fifth: it is used only to read a response in the
+  charset the site declares, because `dart:convert` has UTF-8 and Latin-1 and
+  the pages of this site are in neither (see §5 and rule 12). No routing,
+  logging, networking, analytics, or testing packages. Everything else is plain
+  Flutter + `dart:io`.
 
 ---
 
@@ -650,6 +653,27 @@ data (`ai/release_structure.md` §4). The URLs are stored per image and per host
   live, which is why `SettingsController` is a `ChangeNotifier` (see §4). The tab is opened once: the
   menu item selects the one already open, because settings are app-level and a second tab would
   show the same thing twice.
+- The app remembers the size the window had at the end of the run (`ai/doc.md`
+  §7). It is the app's second app-level record and the only one with no page:
+  nothing on the Settings page writes it, because the value is not something the
+  app takes from a form — the window is what writes it. It is recorded at the
+  point the app closes for real, which is the only moment the app knows what the
+  window was for a whole run, and the same size as the one already recorded is
+  not written again. What is remembered is the size the window reported at that
+  point: the maximized state is not part of the record, so a window closed
+  maximized is remembered at the size it was maximized to. Position is not
+  recorded, because a size is what the user chose by dragging and the app has
+  one window. A write that fails is not reported: there is no widget left that
+  could say it, so it shows up on the next run, as the file the runners read and
+  as the record this feature compares against. The app never asks the window for
+  a size; the runners read the record before they create the window, so the
+  window is created at the size the last run had rather than resized to it after
+  it appeared. That is the only way to get that: the size a window is created
+  with is what its toolkit says at creation, and a size asked for afterwards is
+  a request the desktop may ignore, which is the difference between a window
+  that opens at the remembered size and one that jumps to it. A record that is
+  not there is nothing, so a first run takes the size a runner starts with. The
+  macOS runner does not read it (`lib/TODO.MD`).
 - The Recent releases tab (`File` → `Recent releases`, `Icons.schedule` in the tab strip) is a table of
   the releases the app has opened, so the user can go back to one without picking the folder again
   (`ai/recent_releases.md`). It is opened at startup, as the first tab, and opened once like the
@@ -794,10 +818,15 @@ lib/
                                 closes the current tab through the shared close
                                 flow. It sits inside the `Scaffold` so the save
                                 flow can show a message.
-      app_close.dart            AppCloseHandler: keeps the window open when the close
-                                button is pressed (prevent-close), runs the popup once
-                                per dirty tab, and closes the app only if none is
-                                cancelled (window_manager)
+      app_close.dart            AppCloseHandler: keeps the window open when the
+                                close button is pressed (prevent-close), runs
+                                the popup once per dirty tab, and closes the app
+                                only if none is cancelled (window_manager). On
+                                the answer that closes, it records the window
+                                size through `WindowController` before the
+                                window is destroyed, because that is the only
+                                point at which the app knows what the window was
+                                for a whole run (`ai/doc.md` §7)
     main_menu.dart              MenuBar: File (New Release, Open Release, Clone
                                 Release, Save, Close tab, Settings, Recent
                                 releases), Help
@@ -1458,6 +1487,37 @@ lib/
                                         reason; a row click goes through the shared open flow. It asks
                                         for the availability check and the scan when it opens, and
                                         passes the default directory to the scan
+    window/
+      window_size.dart          WindowSize (the whole pixels the window last
+                                had), the app's record of what the window was
+                                (`ai/doc.md` §7), + encode() and decode() for
+                                the line the format is + the rule that a line no
+                                reader can read is read as nothing
+      window_size_store.dart    WindowSizeStore (load/save) for window_size.txt
+                                in the app data directory; a missing or
+                                unreadable file reads as nothing. The app is the
+                                only writer: the Linux and Windows runners read
+                                the same line, so the rules are the format's,
+                                not the store's, and this class does the file
+                                and not the interpretation. The directory is a
+                                constructor parameter as a function, for the
+                                same reason SettingsStore's is
+      window_gateway.dart       WindowGateway (currentSize only) +
+                                PluginWindowGateway over window_manager. It is
+                                an interface because the plugin is a method
+                                channel and cannot be exercised in a test, the
+                                same reason SecretStore is one; the instance is
+                                read at the composition root. It reads the
+                                window and does not ask it for a size, because
+                                the runners apply the recorded one before the
+                                window exists (see §7)
+      window_controller.dart    WindowController: recordSize() (read the size
+                                the window has and write it when it is a size
+                                the app can store and not the size already
+                                recorded); typed result, no listener, no
+                                context, no widget and no state (see §4). It is
+                                called from the close flow, the only place that
+                                knows the app is closing for real
     stashdb/
       stash_controller.dart       StashController: the scene ID from what the user pasted, the
                                   request, which form field each value goes into, the URL the domain
@@ -1927,12 +1987,26 @@ linux/desktop/                  `com.example.release_prepper.desktop`, the file 
                                 through the theme rather than by a path, so the icon
                                 has to be in a theme directory under that name.
 linux/runner/                   the GTK runner. It sets the window icon by the
-                                application id through the icon theme, the same name
-                                the .desktop file uses. On Wayland a window has no icon
-                                of its own, so the icon there comes from the .desktop
-                                file; the runner's call is what an X11 session reads.
-                                An application id with no icon in the theme is reported
-                                with a warning rather than left as the default icon.
+                                application id through the icon theme, the same
+                                name the .desktop file uses. On Wayland a window
+                                has no icon of its own, so the icon there comes
+                                from the .desktop file; the runner's call is
+                                what an X11 session reads. An application id
+                                with no icon in the theme is reported with a
+                                warning rather than left as the default icon. It
+                                also reads `window_size.txt` before it creates
+                                the window, so the window is created at the size
+                                the last run had (`ai/doc.md` §7), and takes its
+                                own default when the line is not one it can
+                                read.
+windows/runner/                 the Win32 runner. `window_size.cpp` reads the
+                                same line as the Linux runner does, from the
+                                directory `path_provider_windows` names, and
+                                `main.cpp` creates the window at it; a recorded
+                                size is in physical pixels, so it is not scaled
+                                to the monitor, which is the `scale_size`
+                                argument `Win32Window::Create` has for this
+                                (`ai/doc.md` §7).
 windows/runner/resources/       `app_icon.ico`, the icon the Windows runner shows in
                                 the titlebar and the taskbar. It is the app's own
                                 icon, the same artwork as
@@ -2028,21 +2102,25 @@ not treat those rules as describing the code as it is today).
     English in widgets. A tracker name is the one exception, and it is a necessary one: it is
     the same in every language, so it is a field on `Tracker` rather than a key.
 12. **No third-party packages** beyond the ones the project uses for one defined
-    job each: `provider` for dependency injection only — not as a state-management
-    framework, `flutter_svg`, which is only ever used by `lib/feature/tracker_icon.dart`
-    to draw the tracker icons, `window_manager`, which is only used by
-    `lib/feature/tab/app_close.dart` to receive the native window-close event so closing
-    the app can run the per-tab unsaved-changes popup, and by `main.dart` to set the
-    native window title, `file_picker` only for the folder picker, `path` only for joining
-    paths, `intl` only for the formatting the generated l10n code needs and for the dates the Recent
-    releases table shows in local time, and `path_provider` only for the app data directory
-    `settings.json`, `recent_releases.json` and the font `FontStore` writes live in, and
-    `flutter_secure_storage` only for the OS credential store the Integration values live in,
-    and `archive` only for reading ZIP archives in the photoset scan and for nothing else,
-    and `url_launcher` only for opening a folder in the file manager the OS
-    uses, which Flutter cannot do on its own, and only for the link the Torrent
-    section shows and the draft link the Upload draft section shows, which the OS
-    opens in the browser, and `enough_convert` only to read a response in the
+    job each: `provider` for dependency injection only — not as a
+    state-management framework, `flutter_svg`, which is only ever used by
+    `lib/feature/tracker_icon.dart` to draw the tracker icons, `window_manager`,
+    which is only used by `lib/feature/tab/app_close.dart` to receive the native
+    window-close event so closing the app can run the per-tab unsaved-changes
+    popup, by `main.dart` to set the native window title, and by
+    `PluginWindowGateway` to read the size the window has and to ask for a size,
+    which is the toolkit's decision and not the app's, `file_picker` only for
+    the folder picker, `path` only for joining paths, `intl` only for the
+    formatting the generated l10n code needs and for the dates the Recent
+    releases table shows in local time, and `path_provider` only for the app
+    data directory `settings.json`, `recent_releases.json`, `window_size.txt`
+    and the font `FontStore` writes live in, and `flutter_secure_storage` only
+    for the OS credential store the Integration values live in, and `archive`
+    only for reading ZIP archives in the photoset scan and for nothing else, and
+    `url_launcher` only for opening a folder in the file manager the OS uses,
+    which Flutter cannot do on its own, and only for the link the Torrent
+    section shows and the draft link the Upload draft section shows, which the
+    OS opens in the browser, and `enough_convert` only to read a response in the
     charset the site declares, which `dart:convert` cannot do.
 13. **Do not pass `BuildContext` into controllers.** Typed results come from
     controllers; localized messages stay in widgets.
@@ -2068,9 +2146,24 @@ not treat those rules as describing the code as it is today).
   `ScreenshotsController`) are per-widget state, so they are created by their widget
   in `initState` and are not provider entries. They receive their dependencies from
   the provider scope, which keeps rule 4 intact.
+- Rule 2: `WindowController` has no widget, because the feature shows nothing
+  and there is no widget to pair it with. It is called from `app_close.dart`,
+  the only place that knows the app is closing for real, and that is the only
+  place the feature is used from, so the provider entry is the whole feature. It
+  holds no state and nothing is read at startup, because the app does not apply
+  a size — the runners read the record before they create a window (§5) — so the
+  size it compares against is the file read at the point the record is written.
+  It is not a `Listenable`, so rule 7 is intact. Its typed result is read by the
+  tests, because there is no widget that could show it: the close flow cannot
+  report a file that was not written, so it calls the write and does not look at
+  the answer, and a failed write shows up on the next run.
 - Rule 10: `window_manager` exposes a top-level `windowManager` instance, which
-  `app_close.dart` uses. It is the one shared object reached outside the provider
-  scope, and it exists only to receive the window-close event.
+  `app_close.dart` uses. It is the one shared object reached outside the
+  provider scope, and it is there to receive the window-close event and to be
+  the window the app reads. The window feature does not reach it as a top-level:
+  the composition root reads it once and gives it to `PluginWindowGateway`, the
+  same kind of exception as `rootBundle` and the environment — a top-level the
+  framework owns, read only at the composition root.
 - Rule 13: the shared close flow in `tab_close.dart`, the open flow in
   `release_open_flow.dart`, and the save flow in `main_menu.dart` show the popup
   or the message, so their functions take a `BuildContext` and
@@ -2119,38 +2212,52 @@ not treat those rules as describing the code as it is today).
 
 ## 5. Runtime flow
 
-**Startup:** `main.dart` → `runApp(const App())`. `App` installs the `MultiProvider` built from
-`appProviders()`; its child `AppRoot` builds `MaterialApp` with
-`AppLocalizations.delegate` + `GlobalMaterialLocalizations.delegate` +
-`GlobalCupertinoLocalizations.delegate` + `GlobalWidgetsLocalizations.delegate`,
-`supportedLocales: AppLocalizations.supportedLocales`, `locale:` from `SettingsController` —
-null follows the system locale, which is what the settings' `system` option means — and
-`home: const TabsPage()`. `SettingsController.load()` runs when the provider creates it — settings.json
-first, then the credential store — so the first frames use the defaults and the stored values apply
-when the reads complete. A store that cannot be reached is not an error at startup: the page shows the
-values it has and says what is missing. `RecentReleasesController.start()` runs when the provider
-creates it, in the same shape: it reads `recent_releases.json` and then opens the tab the app opens at
-startup as the first tab, so the first frames show an empty table and the stored entries apply when the
-read completes. Opening a tab is a side effect, so it is the controller's and not `app.dart`'s (rule 8).
+**Startup:** `main.dart` → `runApp(const App())`. `App` installs the
+`MultiProvider` built from `appProviders()`; its child `AppRoot` builds
+`MaterialApp` with `AppLocalizations.delegate` +
+`GlobalMaterialLocalizations.delegate` + `GlobalCupertinoLocalizations.delegate`
++ `GlobalWidgetsLocalizations.delegate`, `supportedLocales:
+AppLocalizations.supportedLocales`, `locale:` from `SettingsController` — null
+follows the system locale, which is what the settings' `system` option means —
+and `home: const TabsPage()`. `SettingsController.load()` runs when the provider
+creates it — settings.json first, then the credential store — so the first
+frames use the defaults and the stored values apply when the reads complete. A
+store that cannot be reached is not an error at startup: the page shows the
+values it has and says what is missing. `RecentReleasesController.start()` runs
+when the provider creates it, in the same shape: it reads `recent_releases.json`
+and then opens the tab the app opens at startup as the first tab, so the first
+frames show an empty table and the stored entries apply when the read completes.
+Opening a tab is a side effect, so it is the controller's and not `app.dart`'s
+(rule 8). Nothing in the app reads the window size at startup, because the app
+does not apply a size. The Linux and Windows runners read `window_size.txt`
+before they create the window (§7), which is the only point at which a size can
+be settled: a window is created at the size its toolkit states at creation, and
+a size asked for afterwards is a request the desktop may ignore, so an app that
+asked would show the user a window that jumps. What the app does with the size
+is record it, at the point `app_close.dart` decides the app is closing for real.
 
-**Composition:** `appProviders()` is the whole object graph: `ToolLocator`, `ToolLog`,
-`ToolRunner`, `Ffmpeg`, `Ffprobe`, `Mtn`, `Uptooda`, `HttpClient` and
-`ImageDownloader` and `StashClient` — the two network users share one client, and `Provider`
-closes it — `ReleaseStore`, `ImagesStore`, `TemplateStore`, `TemplateRenderer`,
-`MessageStore`, `SettingsStore`, `RecentReleasesStore`, `SecretStore` (the plugin instance is built here, not inside the
-store), `SettingsController`, `TabManager` and `RecentReleasesController`
+**Composition:** `appProviders()` is the whole object graph: `ToolLocator`,
+`ToolLog`, `ToolRunner`, `Ffmpeg`, `Ffprobe`, `Mtn`, `Uptooda`, `HttpClient` and
+`ImageDownloader` and `StashClient` — the two network users share one client,
+and `Provider` closes it — `ReleaseStore`, `ImagesStore`, `TemplateStore`,
+`TemplateRenderer`, `MessageStore`, `SettingsStore`, `RecentReleasesStore`,
+`SecretStore` (the plugin instance is built here, not inside the store),
+`SettingsController`, `TabManager` and `RecentReleasesController`
 (`ChangeNotifierProvider`s, disposed by Provider), `TabCloseController`,
-`ReleaseOpenController`, `MainMenuController`. `RecentReleasesController` is built after `TabManager`,
-because opening the startup tab goes through it.
-`SystemCheckController` is a provider entry too, because the check is app-level
-rather than per release; it is given the four tool wrappers and the app data
-directory as a function, for the same reason `SettingsStore` is given one.
-`TabsPage` is stateless: its `build` places `AppCloseHandler` around a `Scaffold`
-whose body is `TabShortcuts` around a `Column` of `MainMenu`, `TabStrip`,
-`Expanded(TabView)`. It builds nothing and resolves nothing; the two wrappers are
-feature widgets that own the window-close and the keyboard-shortcut behaviour.
-`TabShortcuts` is inside the `Scaffold`, not around it, because the save flow shows
-its message through `ScaffoldMessenger`, which the `Scaffold` provides.
+`ReleaseOpenController`, `MainMenuController`, `WindowSizeStore`,
+`WindowGateway` (`PluginWindowGateway`: the plugin instance is read here for the
+same reason the credential store's is) and `WindowController`.
+`RecentReleasesController` is built after `TabManager`, because opening the
+startup tab goes through it. `SystemCheckController` is a provider entry too,
+because the check is app-level rather than per release; it is given the four
+tool wrappers and the app data directory as a function, for the same reason
+`SettingsStore` is given one. `TabsPage` is stateless: its `build` places
+`AppCloseHandler` around a `Scaffold` whose body is `TabShortcuts` around a
+`Column` of `MainMenu`, `TabStrip`, `Expanded(TabView)`. It builds nothing and
+resolves nothing; the two wrappers are feature widgets that own the window-close
+and the keyboard-shortcut behaviour. `TabShortcuts` is inside the `Scaffold`,
+not around it, because the save flow shows its message through
+`ScaffoldMessenger`, which the `Scaffold` provides.
 
 **Resolution:** widgets read their dependencies from the provider scope —
 `MainMenu` reads `MainMenuController` and watches `TabManager` for the Save item's
@@ -2236,16 +2343,20 @@ error inside itself, so the user can retry or pick another option rather than lo
 the work. The popup therefore only returns a choice that really closed the tab, or
 Cancel.
 
-`TabShortcuts` wraps the content and maps Ctrl-W to closing the current tab through
-that flow, so it works regardless of which tab is focused. `AppCloseHandler`
-registers the `window_manager` window-close listener and sets `setPreventClose(true)`
-so the toolkit does not close the window on its own; on the close event it runs the
-same popup once per dirty tab (`confirmCloseApp`) and calls `windowManager.destroy()`
-only if none is cancelled. A clean tab is skipped. `destroy()` fires the close event
-again, so the handler guards against re-entering itself. `main.dart` calls
+`TabShortcuts` wraps the content and maps Ctrl-W to closing the current tab
+through that flow, so it works regardless of which tab is focused.
+`AppCloseHandler` registers the `window_manager` window-close listener and sets
+`setPreventClose(true)` so the toolkit does not close the window on its own; on
+the close event it runs the only if none is cancelled. A clean tab is skipped.
+On the answer that closes it first records the size the window has, through
+`WindowController.recordSize()`, because this is the only point at which the app
+knows what the window was for a whole run; the answer is not shown, because
+there is no widget left that could say a file was not written, and the close
+does not depend on the write. `destroy()` fires the close event again, so the
+handler guards against re-entering itself. `main.dart` calls
 `windowManager.ensureInitialized()` before `runApp` so the listener can be
-registered, then `windowManager.setTitle(appName)` — `MaterialApp.title`
-is not the window title on the desktop runners, so the native title is set here.
+registered, then `windowManager.setTitle(appName)` — `MaterialApp.title` is not
+the window title on the desktop runners, so the native title is set here.
 
 **Creating a release:** `ReleaseWizard` (form) → `validateReleaseName()` →
 `ReleaseWizardController.create()` → `ReleaseStore.create()` →
@@ -3600,6 +3711,73 @@ when a release is opened.
   a failed write does not change what the table shows, so the page says the file was not written, as the
   settings page says the same for `settings.json`.
 
+`window_size.txt` in the same directory is the app's record of the size the
+window had at the end of the last run. It is one line of three whole numbers —
+the format version, the width, the height — with a trailing newline:
+
+```text
+1 1440 900
+```
+
+- It is a file of its own rather than a field inside `settings.json`, for the
+  same reason `recent_releases.json` is: settings are the user's choices, and
+  this is a record of what the window was. Nothing on the Settings page reads or
+  writes it, so nothing shows it.
+- It is plain text rather than JSON because three readers read it: the app, and
+  the Linux and Windows runners, which read it before they create the window so
+  the window is created at the size the last run had rather than being resized
+  to it after it appeared. A C or C++ runner has no reader for the app's JSON
+  files, and a JSON library to parse two numbers would be a dependency for
+  nothing.
+- The app is the only writer; the runners only read. So what a line means is the
+  format's rules, not a store's, and every reader must give the same answer for
+  the same file: a line that is not three whole numbers, a version the app does
+  not write, or a number that is not positive is read as nothing by all three.
+  `1440.5` is not read as `1440`. A missing or unreadable file reads as nothing,
+  as `SettingsStore` reads a missing file as the defaults, so a run with no
+  record takes the size the runner starts with — the one
+  `linux/runner/my_application.cc` and `windows/runner/main.cpp` define. Nothing
+  is reported for any of it: a size that cannot be read is not something a
+  runner can show, and a window that opens at the default size is not an error.
+- The numbers are the size as the toolkit reported it, and a reader applies them
+  in the units it read them in, which are the same units on a platform: logical
+  pixels on Linux, where `gtk_window_get_size` reports and
+  `gtk_window_set_default_size` takes; physical pixels on Windows, where
+  `GetWindowRect` reports and `CreateWindow` takes — which is why the Windows
+  runner does not scale a recorded size to the monitor, which is what
+  `Win32Window::Create`'s `scale_size` is for. The macOS runner does not read
+  the file (`lib/TODO.MD`).
+- The directory has to be named the same way by both readers, so the runners
+  reproduce what `path_provider` does. Linux: `XDG_DATA_HOME`, or
+  `~/.local/share` when that is not set, plus the application id, which is what
+  `g_get_user_data_dir` gives; path_provider's fallback to a directory named for
+  the executable is not reproduced, so such a directory is not read. Windows:
+  Roaming AppData plus `company-name\product-name` from the VERSIONINFO
+  resource, with the executable name as the product when the resource has none
+  and the names sanitised as `path_provider_windows` sanitises them, which is
+  what `windows/runner/window_size.cpp` does.
+- The version is written as `schemaVersion` (§4 rule 11) and read as a number
+  that must equal it, the same field the other data files carry. In the runners
+  it is a constant that must stay equal to the Dart const, because a C runner
+  has no access to it.
+- It is written at the point the app closes for real, not as the window is
+  resized, because that is the only moment the app knows what the window was for
+  a whole run. The same size as the one already recorded is not written again,
+  the same rule as the settings feature's.
+- Position is not stored, and the maximized state is not part of the record, so
+  a window closed maximized is remembered at the size it was maximized to. §10
+  keeps both as open work.
+- A write that fails is reported to the caller rather than swallowed, but the
+  caller is the close flow and there is no widget left that could say a file was
+  not written, so it shows up on the next run as the size the runners read. The
+  close does not depend on the write.
+- What no test can check is the runners' own reading, which is these rules
+  written in C and C++ with no test host for either. That is why the version
+  constant, the rules about a line, and the directory are written the same way
+  in every reader: they are one rule with three implementations, not three
+  rules. What the three were seen to agree on is recorded in
+  `ai/environment.md`.
+
 ---
 
 ## 8. Not live code — do not treat as working
@@ -3608,8 +3786,9 @@ when a release is opened.
   left of Open Release, the subsite and site field shapes, a renamed file losing
   its record, the field rules for the release types that have none, bbcode in
   description and additional information, template and style validation, an image
-  with no `thumb_url`, the source folder field, and the editor button that fills
-  the release tags from the items. What the list used to hold and no longer does
+  with no `thumb_url`, the source folder field, the editor button that fills the
+  release tags from the items, and the macOS runner not reading the window-size
+  record. What the list used to hold and no longer does
   is work the code already does: the native tools check is the System Check tab,
   the Screenshots slider has a fixed width, and the Settings credentials are read
   by the Stash and Upload sections.
@@ -3708,546 +3887,626 @@ test joins the release directory to it rather than rewriting it.
 `flutter widget-preview start` regenerates `.widget_preview/`.
 
 `test/release_editor_test.dart` covers the editor: a picked date reaches its
-field, the form fills from a manifest, a change marks the tab dirty, Ctrl+S writes
-the manifest and clears the flag, the fields the field model marks as filled by the app are
-read-only,
-typing keeps the caret where the user put it (the write path must not echo the
-value back), the size field shows the byte count in a human-friendly form while the
-model keeps the bytes — for a value read from a manifest and for one the probe
-wrote, since both go through the same write path, `probeMovieFile()` passes the item's path
-to the tool and
-reports an empty or missing path as `fileNotFound` (the tool is a fake there), a new release
-starts with the default video quality while a loaded manifest shows what it contains, a new
-release has no source and no item because an item is a real file on disk, `setSource()` records
-the source and the item it is and marks the tab dirty, the flags the record holds
-mark it the same way and the same value again does not, and the flag a run
-changed is written to the manifest at once without marking the tab dirty — a
-manifest that cannot be written is not reported, the same rule as the stamp. An
-item path is relative to the
-source — a picked file is the item itself, a picked directory contains it — the saving test
-writes the record in the shape `release.json` now has, the thumbnail path is derived from the
-release directory and the item path while the
-tool is called at half the duration the probe reported (the tool is a fake there),
-and the thumbnail box shows an image only for a file that is on disk: the test
-submits a path, the fake tool writes the file, and the box shows it; the poster and
-thumbnail boxes are 16:9 and start at the same height, so the frame a video produces
-is not cropped and the two columns line up, and the tracker and release-type badges come
-after the name at the gap rather than at the right edge of the heading. The box tests look
-past the Upload section's
-hoster icons, which are `Image` widgets too, by matching only the images whose provider is
-a `FileImage`. The poster
-tests cover the same shape: there is no poster path before a poster is recorded, and after that
-the path comes from the record, a missing
-file and a wrong extension are reported as `fileNotFound` and `wrongFormat`,
-`setPoster()` calls the fake tool once — the poster at 1200 px — and records the poster,
-and `removePoster()` deletes the file and the record;
-the poster box shows nothing
-while no file is on disk, shows the poster with `BoxFit.contain` and the remove
-button when one is, shows nothing again after removing, and the record is gone with it. A pasted link is checked the
-same way a picked file is — the format comes from the path when the link names one, so a
-link with a query is still a jpg and a rejected link is never downloaded — and then goes
-through the same resize call with the temporary download as the input, and that file is
-gone afterwards. A link that names no format is judged by what the fake answers with as its
-content type: `image/jpeg` is accepted, `image/png` and a response that says nothing are
-not. The download is a fake there, so nothing reaches the network. The cache test puts a real image in the cache for the poster's
-path, lets the widget write over it, and checks both halves: the entry is gone, and the key
-the image is built with changed — without either the box would still show the first image.
-Fields are
-found by the `ValueKey` the editor gives them, so the
-tests do not depend on which column a field is in. The sections are keyed the same way, on the
-widget that is their root — a `Column`, or the `Row` the Stash row is — because a `StatefulWidget`
-element has no render object to measure. The
-layout tests set the window size and read the rectangles: at 2000 px the scene
-row is the first row of the left column, under the poster box, the Screenshots
-section and the Upload section with the Message section are the columns after
-the form, and the Torrent section is the last thing in the form's second column,
-below its last field with the gap between sections rather than the gap between
-the rows of a column, in the four-column layout and in the single-column one. The
-Upload draft section is below the Message section in both, at the same width and the
-same left edge, because it is the part of that column that sends what it shows. At
-1200 px the sections are the same width but below the form, at the left edge. A field's rectangle is its column width, so a field's width is what
-those tests read as the column width. The column titles are keyed as `columnTitle`, so a test reads
-them as the widgets the editor builds rather than as text: a photoset pack shows the word "Photosets"
-twice, once as the title of its column and once as the label of its photoset count field. The title
-tests read the titles at the top of each column and as wide as it, the small gap after a title
-measured against the image box that is the first row of the column, and what each type calls its
-right column; each type is its own test, because a pump reuses the state of a widget that is in the
-same place, so one test cannot open two types. The editor now renders the Message
-section,
-so every test that builds it provides the message dependencies through a shared helper; the
-bundle answers with nothing, so the box stays empty and none of those tests reach the Generate
-button. The editor also renders the Stash row, so the same tests provide a `StashClient` that
-answers with nothing, a `DomainMap` whose bundle has no mapping, and a settings controller with no
-key; none of those tests reach the Fetch button, and the row's own behaviour is in
-`test/stash_section_test.dart`. The editor also renders the Upload draft section, so the same tests
-provide a settings controller with a client that answers with nothing, and the fake launcher; none
-of those tests reach the Upload button or the link, and the section's own behaviour is in
-`test/draft_section_test.dart`.
-The pack tests cover the field list as the editor uses it: a photoset pack shows its own fields and
-none of the video ones, a video pack shows its own four aggregates as read-only and none of the
-photoset ones — the total first, and shown in the human form as the size field is —, a single
-photoset shows its own fields and the words its type uses for names the
-other types already have — Model and Set name — and none of the fields it does not have, the values
-the scan will write are read-only, an image folder shows only the four values the scan counts and the words
-its type uses for the three photo names — Images (total), Minimum and Maximum image resolution — with no
-left column, because it has no field the user writes, the section list is per type in all five directions — a
-photoset pack and a single photoset form have the Photoset section and no Stash or Screenshots section, a
-video pack form has the Video pack section and neither of the other two, an image folder form has the Image
-folder section and none of the others, including no Upload draft section because it has no title to send,
-a video form has the Screenshots section and no pack section — while the other four forms have the Upload
-draft section, which is the field list deciding rather than the widget, and while
-the poster box is in all five, the source row label is the one the release type has because a folder with
-videos is a different thing to pick than a folder with photosets, a folder with photos in it, or a folder with
-images in it, a new pack release starts with no values
-because its field list has no defaults of its own, and picking a directory records the source
-without creating an item — the items of a pack are what the scan writes.
-`test/release_store_test.dart` covers the two dates the manifest records: `create()` writes the
-creation date and the write that created the release is its first edit, both dates are read back
-from the file, a manifest without them or with a value that is not a date loads with none because
-the app writes what the file contains rather than a date it invented, saving stamps the last edit
-while keeping the creation date as it was, and the stamp the operations that write files inside a
-release make changes only the timestamp — the field values the user has not saved are not written,
-so a dirty tab keeps its values — and reports false when the manifest is not there or is not an
-object.
-It also covers the three keys that are not fields, dates or IDs: each is written
-and read back, and a manifest without one, or with a value this version does not
-know, reads as the default rather than being reported as an error — the shape the
-files were written with, a message with the signature, and a private torrent.
-`test/clone_controller_test.dart` covers the copy rules: the fields the
-user writes are copied and the six the app fills from the movie file are not,
-`sceneUrl` is copied although it has no form row, `draftUrl` is not copied because a run wrote it
-while `parentForum` is, the poster record is copied
-with its URLs and no other record is, the poster file is copied to the same
-relative path when it is on disk, and a record whose file is not there is
+field, the form fills from a manifest, a change marks the tab dirty, Ctrl+S
+writes the manifest and clears the flag, the fields the field model marks as
+filled by the app are read-only, typing keeps the caret where the user put it
+(the write path must not echo the value back), the size field shows the byte
+count in a human-friendly form while the model keeps the bytes — for a value
+read from a manifest and for one the probe wrote, since both go through the same
+write path, `probeMovieFile()` passes the item's path to the tool and reports an
+empty or missing path as `fileNotFound` (the tool is a fake there), a new
+release starts with the default video quality while a loaded manifest shows what
+it contains, a new release has no source and no item because an item is a real
+file on disk, `setSource()` records the source and the item it is and marks the
+tab dirty, the flags the record holds mark it the same way and the same value
+again does not, and the flag a run changed is written to the manifest at once
+without marking the tab dirty — a manifest that cannot be written is not
+reported, the same rule as the stamp. An item path is relative to the source — a
+picked file is the item itself, a picked directory contains it — the saving test
+writes the record in the shape `release.json` now has, the thumbnail path is
+derived from the release directory and the item path while the tool is called at
+half the duration the probe reported (the tool is a fake there), and the
+thumbnail box shows an image only for a file that is on disk: the test submits a
+path, the fake tool writes the file, and the box shows it; the poster and
+thumbnail boxes are 16:9 and start at the same height, so the frame a video
+produces is not cropped and the two columns line up, and the tracker and
+release-type badges come after the name at the gap rather than at the right edge
+of the heading. The box tests look past the Upload section's hoster icons, which
+are `Image` widgets too, by matching only the images whose provider is a
+`FileImage`. The poster tests cover the same shape: there is no poster path
+before a poster is recorded, and after that the path comes from the record, a
+missing file and a wrong extension are reported as `fileNotFound` and
+`wrongFormat`, `setPoster()` calls the fake tool once — the poster at 1200 px —
+and records the poster, and `removePoster()` deletes the file and the record;
+the poster box shows nothing while no file is on disk, shows the poster with
+`BoxFit.contain` and the remove button when one is, shows nothing again after
+removing, and the record is gone with it. A pasted link is checked the same way
+a picked file is — the format comes from the path when the link names one, so a
+link with a query is still a jpg and a rejected link is never downloaded — and
+then goes through the same resize call with the temporary download as the input,
+and that file is gone afterwards. A link that names no format is judged by what
+the fake answers with as its content type: `image/jpeg` is accepted, `image/png`
+and a response that says nothing are not. The download is a fake there, so
+nothing reaches the network. The cache test puts a real image in the cache for
+the poster's path, lets the widget write over it, and checks both halves: the
+entry is gone, and the key the image is built with changed — without either the
+box would still show the first image. Fields are found by the `ValueKey` the
+editor gives them, so the tests do not depend on which column a field is in. The
+sections are keyed the same way, on the widget that is their root — a `Column`,
+or the `Row` the Stash row is — because a `StatefulWidget` element has no render
+object to measure. The layout tests set the window size and read the rectangles:
+at 2000 px the scene row is the first row of the left column, under the poster
+box, the Screenshots section and the Upload section with the Message section are
+the columns after the form, and the Torrent section is the last thing in the
+form's second column, below its last field with the gap between sections rather
+than the gap between the rows of a column, in the four-column layout and in the
+single-column one. The Upload draft section is below the Message section in
+both, at the same width and the same left edge, because it is the part of that
+column that sends what it shows. At 1200 px the sections are the same width but
+below the form, at the left edge. A field's rectangle is its column width, so a
+field's width is what those tests read as the column width. The column titles
+are keyed as `columnTitle`, so a test reads them as the widgets the editor
+builds rather than as text: a photoset pack shows the word "Photosets" twice,
+once as the title of its column and once as the label of its photoset count
+field. The title tests read the titles at the top of each column and as wide as
+it, the small gap after a title measured against the image box that is the first
+row of the column, and what each type calls its right column; each type is its
+own test, because a pump reuses the state of a widget that is in the same place,
+so one test cannot open two types. The editor now renders the Message section,
+so every test that builds it provides the message dependencies through a shared
+helper; the bundle answers with nothing, so the box stays empty and none of
+those tests reach the Generate button. The editor also renders the Stash row, so
+the same tests provide a `StashClient` that answers with nothing, a `DomainMap`
+whose bundle has no mapping, and a settings controller with no key; none of
+those tests reach the Fetch button, and the row's own behaviour is in
+`test/stash_section_test.dart`. The editor also renders the Upload draft
+section, so the same tests provide a settings controller with a client that
+answers with nothing, and the fake launcher; none of those tests reach the
+Upload button or the link, and the section's own behaviour is in
+`test/draft_section_test.dart`. The pack tests cover the field list as the
+editor uses it: a photoset pack shows its own fields and none of the video ones,
+a video pack shows its own four aggregates as read-only and none of the photoset
+ones — the total first, and shown in the human form as the size field is —, a
+single photoset shows its own fields and the words its type uses for names the
+other types already have — Model and Set name — and none of the fields it does
+not have, the values the scan will write are read-only, an image folder shows
+only the four values the scan counts and the words its type uses for the three
+photo names — Images (total), Minimum and Maximum image resolution — with no
+left column, because it has no field the user writes, the section list is per
+type in all five directions — a photoset pack and a single photoset form have
+the Photoset section and no Stash or Screenshots section, a video pack form has
+the Video pack section and neither of the other two, an image folder form has
+the Image folder section and none of the others, including no Upload draft
+section because it has no title to send, a video form has the Screenshots
+section and no pack section — while the other four forms have the Upload draft
+section, which is the field list deciding rather than the widget, and while the
+poster box is in all five, the source row label is the one the release type has
+because a folder with videos is a different thing to pick than a folder with
+photosets, a folder with photos in it, or a folder with images in it, a new pack
+release starts with no values because its field list has no defaults of its own,
+and picking a directory records the source without creating an item — the items
+of a pack are what the scan writes. `test/release_store_test.dart` covers the
+two dates the manifest records: `create()` writes the creation date and the
+write that created the release is its first edit, both dates are read back from
+the file, a manifest without them or with a value that is not a date loads with
+none because the app writes what the file contains rather than a date it
+invented, saving stamps the last edit while keeping the creation date as it was,
+and the stamp the operations that write files inside a release make changes only
+the timestamp — the field values the user has not saved are not written, so a
+dirty tab keeps its values — and reports false when the manifest is not there or
+is not an object. It also covers the three keys that are not fields, dates or
+IDs: each is written and read back, and a manifest without one, or with a value
+this version does not know, reads as the default rather than being reported as
+an error — the shape the files were written with, a message with the signature,
+and a private torrent. `test/clone_controller_test.dart` covers the copy rules:
+the fields the user writes are copied and the six the app fills from the movie
+file are not, `sceneUrl` is copied although it has no form row, `draftUrl` is
+not copied because a run wrote it while `parentForum` is, the poster record is
+copied with its URLs and no other record is, the poster file is copied to the
+same relative path when it is on disk, and a record whose file is not there is
 written without a file, a source with no poster copies no manifest, and the
 three poster states are what the manifest says, while a poster record that
 belongs to an item is not the poster. The name must differ from the source's
 while the folder-name rules still apply, the default save path is the folder the
 source is in, a copy that fails removes the folder the create made, and only a
 successful create is recorded in the recent list.
-`test/field_validation_test.dart` covers the rules as a function over a field list: a required
-field with no value, including one the app fills, the optional fields being allowed to be empty,
-the three shapes a date may hold, the spaces around a value not being part of it, and the URL
-shape the Upload draft section's field is gated on — an absolute URL on the site with a positive
-`f` — and the shapes a request cannot be built from: an id on its own, a path with no host, a
-host the app does not name, a page that is not a forum, and a parameter that is not a number.
-The rule asked for one field is the rule in the list, which is what a section that owns its row
-asks for. A field list that has not stated its required set is not checked, and the problems are
-in the order the list lists the fields.
-`test/image_dimensions_test.dart` covers the header reader: the dimensions a JPEG, a PNG and each of
-the three WebP chunk types declare, that a header it does not understand is not guessed at, and that
-a JPEG whose frame marker is past the bound it reads is reported as unread.
-`test/masonry_test.dart` covers the placement: a photo at or above the span ratio takes two
-columns, one below it and one whose header could not be read take one, a span starts where both of
-its columns are free so the other keeps a gap, ties go to the lower column index, and a grid that
-caps its span at one puts every photo in one column and packs them as the shortest column, which is
-what the Screenshots grid asks for.
-`test/section_title_test.dart` covers the shared title row: the title is at the left and the action at
-the right edge, the title is centred on the row because the row is as tall as the action, that the
-action is at least `actionMinWidth` wide, and that with no action the row is only the title and is
-not taller than it — the shape a section shows when it has a placeholder instead of controls that
-can run. The minimum is read from the constant, so the test follows whatever value it is changed to.
-`test/photoset_scan_test.dart` covers the scan: a directory under the source is an item, a loose
-file at the top level is reported rather than counted, files outside the extension list are not
-counted, a subfolder inside a set is not read, and when the boundary it is given is the source the
-source itself is the item and its path is the source's own name, the order is the order the source
-gives, the minimum and the maximum are decided by pixel area across all photos, a photo whose
-header cannot be read is counted and reported, the formats are the distinct extensions among the
-counted photos lowercased and sorted, display names two items would share are reported rather than
-renamed, a source that is not there is a failure, and the scan reads through the reader interface —
-a test with a fake archive reader shows that adding a format does not change it. The ZIP fixtures
-are written by hand, because the point of the package is the cases a hand-written reader gets
-wrong: a stored entry, a deflated one, a data descriptor, a zip64 central directory, an encrypted
-entry with no password, and a file that is not an archive at all. A JPEG is included because its
-header needs a second read, which has to start from the beginning of the entry again rather than
-from where the first read ended.
-`test/photosets_test.dart` covers the controller and the section: the scan records the items and
-the per-item counts and returns the values for the editor's write path, kept to the names the
-type's field list has — a pack is not given the formats because it has no such field, and a single
-photoset is not given a count of sets because it has no such field — and a single photoset is the
-source itself, so the scan records one item named by the source. A re-scan replaces the items, the
-display name is derived from the path rather than stored, and the section shows the sets with
-their counts and reports what it could not take, including a name two items would share, and shows
-the strings of the type it is showing, and that its Scan and Pick buttons are in the title row rather
-than in a row of their own.
-`test/image_folder_test.dart` covers the controller and the section: the scan records the one item the picked
-folder is, copies every image into the release in filename order — the fixtures are written out of order, so the
-test shows the order is the name order and not the creation order — records them as `kind: photo` for that item,
-and returns the values it counted for the editor's write path; the picked folder is left as it is, because the
-copy is what makes a record uploadable. A file that is not an image is not counted and is reported by the
-feature rather than by the scan, and a re-scan replaces the photos this run writes while keeping the poster. The
-widget tests check that nothing is shown before a scan, that the section shows the images it copied with the
-count line, that the values go through the editor's write path rather than the section's, that what the run
-could not take is reported, that a run with no picked folder says which folder it needs, and that the
-Scan button is in the title row.
-`test/video_scan_test.dart` covers the walk: every video file is an item wherever it is, including the
-ones in subfolders, with the path relative to the source; a file outside the extension list is reported
-rather than counted, the list is matched case-insensitively, a file the probe cannot read is still an
-item and is reported, a subfolder with no video in it is reported, the resolutions are distinct and
-sorted numerically by height rather than as text, the formats are the distinct extensions lowercased and
-sorted — from the file name, not from what the probe reports as the container — the total sums the
-sizes the files have on disk rather than what the probe reports for the containers, so a file the
-probe cannot read is still counted, the probe is called once
-per item in the order the walk found them, a picked file is treated as a directory containing only
-itself, and a source that is not there is a failure. The probe is a fake, so these tests do not need
-ffprobe. A folder the walk could not read is not tested, as the photoset scan's unreadable entry is
-not: making a directory unreadable needs file permissions, which a test process may ignore — running as
-root it reads a mode 000 directory — so such a test could only pass for the wrong reason.
-`test/video_pack_test.dart` covers the controller and the section: the scan records the items and
-the values the probe reported for each and returns the aggregates for the editor's write path, a
-file that could not be probed is recorded with empty fields, a re-scan replaces the items, the
-section shows each video as a table row with its name, size and duration and shows the values the row
-does not only when the row is clicked, and a release opened with items shows them without a scan,
-because the section reads what the release stores. It also shows what the scan could not take — nothing
-before a scan — and a source that is not there as a message. For the generation it covers the run
-recording what it wrote for every item in the order the scan recorded them and reporting each record
-as its file is written — the test asserts the report arrives while the run is still going and that the
-reported records are the same ones the manifest holds at the end — a run with 0 writing only
-the screenlist, a file that failed not stopping the run, a tool that is not available stopping it, and a
-record whose file was deleted not being shown. The widget tests check the value columns are right-aligned
-and the name is not, the rows alternate with the tint on every other row and not on the header, the tint
-read from the row's own `Material` — the nearest one above its content, which is the surface the hover
-highlight is painted on — and covering the detail as well because the band belongs to the row, the slider
-starts at 0 with the range the pack allows, the button is disabled until there are items, the Scan and
-Generate buttons are in the title row while the row below it holds only the label, the slider and the
-count, the two flag
-columns show the checkmark and the count after a run and are empty before it, the files the run could not
-do are a report line that a re-scan clears, a tool that is not installed is a message, the open row shows
-the images the run wrote while a closed row shows none, a record whose file was deleted is not shown in
-the open row, and a tile's key changes when the run rewrites the file it shows. The tools are fakes that
-write the files the app decides by, so these tests do not need ffmpeg or mtn.
-`test/tab_strip_test.dart` covers the tab card clicks: the middle button closes a
-tab without selecting it, the primary button still selects it, and the hover tint on an
-unselected card is gone when the card is clicked while the pointer is still over it — the
-card is a stateful widget that paints the tint from its own hover state, so the test hovers
-it, reads the colour from its `Material`, clicks it, and reads the colour again.
-`test/tab_close_test.dart` covers the shared close flow: a clean tab closes without
-a popup, a dirty tab shows the three options, Cancel keeps it, Close without saving
-closes it, Save and close writes the manifest and closes it, a failed save keeps both
-the popup and the tab open, the flow selects the tab each popup names, and closing
-the app asks for each dirty tab (Cancel aborts, confirming all closes, a clean tab is
-skipped). The save is real file IO, so those tests run inside `runAsync` and stay in
-it for the whole flow: once a flow starts outside the fake-async zone, its
-continuations only run while that zone is active.
-`test/media_info_test.dart` covers the parser against a captured fixture: the six
-values formatted as `ai/release_editor.md` specifies, a part ffprobe does not report
-left out, the first stream of each type, and the container name.
-`test/file_size_test.dart` covers the size display: the byte count with its
-human-friendly form, a byte count too small to have a shorter form shown as the
-number alone, and a value that is not a number shown as it is. It also covers the
-human form alone, the form a fixed-width cell shows, and the same two edge cases
-through it.
-`test/native_tools_test.dart` runs the real binaries through `ToolRunner`:
-`ffmpeg -version` succeeds, a nonexistent executable reports `ToolRunNotAvailable`, a
-non-zero exit code reports `ToolRunFailure` with its code and output, and a call given a
-shorter window than the default is stopped at it: `sleep` on PATH with a 1s window
-reports `ToolRunTimeout`, and its exit entry records no code, which is what shows the
+`test/field_validation_test.dart` covers the rules as a function over a field
+list: a required field with no value, including one the app fills, the optional
+fields being allowed to be empty, the three shapes a date may hold, the spaces
+around a value not being part of it, and the URL shape the Upload draft
+section's field is gated on — an absolute URL on the site with a positive `f` —
+and the shapes a request cannot be built from: an id on its own, a path with no
+host, a host the app does not name, a page that is not a forum, and a parameter
+that is not a number. The rule asked for one field is the rule in the list,
+which is what a section that owns its row asks for. A field list that has not
+stated its required set is not checked, and the problems are in the order the
+list lists the fields. `test/image_dimensions_test.dart` covers the header
+reader: the dimensions a JPEG, a PNG and each of the three WebP chunk types
+declare, that a header it does not understand is not guessed at, and that a JPEG
+whose frame marker is past the bound it reads is reported as unread.
+`test/masonry_test.dart` covers the placement: a photo at or above the span
+ratio takes two columns, one below it and one whose header could not be read
+take one, a span starts where both of its columns are free so the other keeps a
+gap, ties go to the lower column index, and a grid that caps its span at one
+puts every photo in one column and packs them as the shortest column, which is
+what the Screenshots grid asks for. `test/section_title_test.dart` covers the
+shared title row: the title is at the left and the action at the right edge, the
+title is centred on the row because the row is as tall as the action, that the
+action is at least `actionMinWidth` wide, and that with no action the row is
+only the title and is not taller than it — the shape a section shows when it has
+a placeholder instead of controls that can run. The minimum is read from the
+constant, so the test follows whatever value it is changed to.
+`test/photoset_scan_test.dart` covers the scan: a directory under the source is
+an item, a loose file at the top level is reported rather than counted, files
+outside the extension list are not counted, a subfolder inside a set is not
+read, and when the boundary it is given is the source the source itself is the
+item and its path is the source's own name, the order is the order the source
+gives, the minimum and the maximum are decided by pixel area across all photos,
+a photo whose header cannot be read is counted and reported, the formats are the
+distinct extensions among the counted photos lowercased and sorted, display
+names two items would share are reported rather than renamed, a source that is
+not there is a failure, and the scan reads through the reader interface — a test
+with a fake archive reader shows that adding a format does not change it. The
+ZIP fixtures are written by hand, because the point of the package is the cases
+a hand-written reader gets wrong: a stored entry, a deflated one, a data
+descriptor, a zip64 central directory, an encrypted entry with no password, and
+a file that is not an archive at all. A JPEG is included because its header
+needs a second read, which has to start from the beginning of the entry again
+rather than from where the first read ended. `test/photosets_test.dart` covers
+the controller and the section: the scan records the items and the per-item
+counts and returns the values for the editor's write path, kept to the names the
+type's field list has — a pack is not given the formats because it has no such
+field, and a single photoset is not given a count of sets because it has no such
+field — and a single photoset is the source itself, so the scan records one item
+named by the source. A re-scan replaces the items, the display name is derived
+from the path rather than stored, and the section shows the sets with their
+counts and reports what it could not take, including a name two items would
+share, and shows the strings of the type it is showing, and that its Scan and
+Pick buttons are in the title row rather than in a row of their own.
+`test/image_folder_test.dart` covers the controller and the section: the scan
+records the one item the picked folder is, copies every image into the release
+in filename order — the fixtures are written out of order, so the test shows the
+order is the name order and not the creation order — records them as `kind:
+photo` for that item, and returns the values it counted for the editor's write
+path; the picked folder is left as it is, because the copy is what makes a
+record uploadable. A file that is not an image is not counted and is reported by
+the feature rather than by the scan, and a re-scan replaces the photos this run
+writes while keeping the poster. The widget tests check that nothing is shown
+before a scan, that the section shows the images it copied with the count line,
+that the values go through the editor's write path rather than the section's,
+that what the run could not take is reported, that a run with no picked folder
+says which folder it needs, and that the Scan button is in the title row.
+`test/video_scan_test.dart` covers the walk: every video file is an item
+wherever it is, including the ones in subfolders, with the path relative to the
+source; a file outside the extension list is reported rather than counted, the
+list is matched case-insensitively, a file the probe cannot read is still an
+item and is reported, a subfolder with no video in it is reported, the
+resolutions are distinct and sorted numerically by height rather than as text,
+the formats are the distinct extensions lowercased and sorted — from the file
+name, not from what the probe reports as the container — the total sums the
+sizes the files have on disk rather than what the probe reports for the
+containers, so a file the probe cannot read is still counted, the probe is
+called once per item in the order the walk found them, a picked file is treated
+as a directory containing only itself, and a source that is not there is a
+failure. The probe is a fake, so these tests do not need ffprobe. A folder the
+walk could not read is not tested, as the photoset scan's unreadable entry is
+not: making a directory unreadable needs file permissions, which a test process
+may ignore — running as root it reads a mode 000 directory — so such a test
+could only pass for the wrong reason. `test/video_pack_test.dart` covers the
+controller and the section: the scan records the items and the values the probe
+reported for each and returns the aggregates for the editor's write path, a file
+that could not be probed is recorded with empty fields, a re-scan replaces the
+items, the section shows each video as a table row with its name, size and
+duration and shows the values the row does not only when the row is clicked, and
+a release opened with items shows them without a scan, because the section reads
+what the release stores. It also shows what the scan could not take — nothing
+before a scan — and a source that is not there as a message. For the generation
+it covers the run recording what it wrote for every item in the order the scan
+recorded them and reporting each record as its file is written — the test
+asserts the report arrives while the run is still going and that the reported
+records are the same ones the manifest holds at the end — a run with 0 writing
+only the screenlist, a file that failed not stopping the run, a tool that is not
+available stopping it, and a record whose file was deleted not being shown. The
+widget tests check the value columns are right-aligned and the name is not, the
+rows alternate with the tint on every other row and not on the header, the tint
+read from the row's own `Material` — the nearest one above its content, which is
+the surface the hover highlight is painted on — and covering the detail as well
+because the band belongs to the row, the slider starts at 0 with the range the
+pack allows, the button is disabled until there are items, the Scan and Generate
+buttons are in the title row while the row below it holds only the label, the
+slider and the count, the two flag columns show the checkmark and the count
+after a run and are empty before it, the files the run could not do are a report
+line that a re-scan clears, a tool that is not installed is a message, the open
+row shows the images the run wrote while a closed row shows none, a record whose
+file was deleted is not shown in the open row, and a tile's key changes when the
+run rewrites the file it shows. The tools are fakes that write the files the app
+decides by, so these tests do not need ffmpeg or mtn. `test/tab_strip_test.dart`
+covers the tab card clicks: the middle button closes a tab without selecting it,
+the primary button still selects it, and the hover tint on an unselected card is
+gone when the card is clicked while the pointer is still over it — the card is a
+stateful widget that paints the tint from its own hover state, so the test
+hovers it, reads the colour from its `Material`, clicks it, and reads the colour
+again. `test/tab_close_test.dart` covers the shared close flow: a clean tab
+closes without a popup, a dirty tab shows the three options, Cancel keeps it,
+Close without saving closes it, Save and close writes the manifest and closes
+it, a failed save keeps both the popup and the tab open, the flow selects the
+tab each popup names, and closing the app asks for each dirty tab (Cancel
+aborts, confirming all closes, a clean tab is skipped). The save is real file
+IO, so those tests run inside `runAsync` and stay in it for the whole flow: once
+a flow starts outside the fake-async zone, its continuations only run while that
+zone is active. `test/media_info_test.dart` covers the parser against a captured
+fixture: the six values formatted as `ai/release_editor.md` specifies, a part
+ffprobe does not report left out, the first stream of each type, and the
+container name. `test/file_size_test.dart` covers the size display: the byte
+count with its human-friendly form, a byte count too small to have a shorter
+form shown as the number alone, and a value that is not a number shown as it is.
+It also covers the human form alone, the form a fixed-width cell shows, and the
+same two edge cases through it. `test/native_tools_test.dart` runs the real
+binaries through `ToolRunner`: `ffmpeg -version` succeeds, a nonexistent
+executable reports `ToolRunNotAvailable`, a non-zero exit code reports
+`ToolRunFailure` with its code and output, and a call given a shorter window
+than the default is stopped at it: `sleep` on PATH with a 1s window reports
+`ToolRunTimeout`, and its exit entry records no code, which is what shows the
 window is the one the call was given rather than the constant. One real
-`ffprobe` call on a generated file produces the values the editor shows, and one real
-`ffmpeg` call writes a full-resolution screenshot JPEG — the frame the Screenshots
-section and the video thumbnail both write — (`-g 1` makes every frame a key frame so the seek
-lands on one), and its dimensions are read from the JPEG header with the same reader the
-scans use, so the test shows the picture is not scaled down, and one real `mtn` call writes the screenlist JPEG — the generated video
-is long enough that mtn does not warn, because a warning makes it exit non-zero even
-when it wrote the file. Another real `mtn` call runs on a video that ends with a black
-section and succeeds, which is what shows the flags keep blank frames in the grid: with
-the default `-b 0.80` mtn would skip a shot there and exit non-zero. The same file
-covers the log the runner writes: a call that writes one line produces a line entry and
-then an exit entry with its code, the input is repeated on every entry so an entry
-stands on its own, and a last line with no newline is still recorded. Another test shows
-the environment reaching the child — `sh` on PATH echoes the variable the call was given —
-and that the recorded input holds no copy of it, which is why a credential is passed this
-way. The tests build the runner through `test/test_runner.dart`, which has an empty bundle
-directory, so every tool is read from PATH: one the app does not ship, and
-one that prefers the bundle but has nothing in it.
-`test/tool_locator_test.dart` covers the resolution rule: a tool with a
-bundle directory and no path fallback is read from the bundle, and a tool
-that is not in the bundle is `ToolNotFound` even when PATH has it; a tool
-with the fallback is read from the bundle when it is there and from PATH
-when it is not; a tool with no bundle directory is read from PATH. A file
-without the execute bits is not a tool, in the bundle as on PATH, so a tool
-with the fallback uses the system copy instead. On Windows the name with the
-`.exe` extension is the one found, in the bundle as on PATH — the case the
-resolver could not find before. The PATH and the platform are constructor
-parameters, so the test points them at a temporary directory and runs on
-either platform; the execute-bit tests are skipped on Windows, where there
-are no permission bits for the rule to check.
-`test/screenlist_rows_test.dart` covers the rows formula on its
-own, as the spec asks: below the minimum, exactly one frame per minute, a duration
-rounded up to a whole row, and above the maximum. It calls `ImageGenerator.screenlistRows`, the
-service that owns the rule now.
-`test/screenshots_test.dart` covers the Screenshots feature: the
-controller names the files `_rp_screenshotNN.jpg`, seeks to the centre of each equal
-segment of the duration, calls mtn once with the rows the duration gives, records the
-screenshots and the screenlist in `images.json` with the item they belong to and their kind,
-relative to the release
-directory, keeps the records of the other kinds and items when it regenerates, decides the
-screenlist by the file on disk rather than by the exit code, and
-reports an empty or missing path as `fileNotFound`, a screenlist that was not written as
-`screenlistFailed` and mtn not being installed as `mtnNotAvailable`; a run that does not
-finish still records and returns what it wrote (the tools are fakes there). It also covers the
-reporting: each record is reported when its file is written, not when the run ends, and the records
-reported are the same ones the manifest holds, in the same order.
-A run with 0 records only
-the screenlist, and a record whose file was deleted is not shown, because what a section shows is the
-records whose files are on disk. The widget
-tests check the slider range, the Generate button and that it is in the title row while the slider is
-not, that the label, the slider and the count are on one row, that the section shows the
-images the fake tools write, that the screenshots are still shown when the
-screenlist was not written, that the grid is two equal columns with the gap between them and the
-screenlist as its first tile at the top of the left one, that the name under a tile is centred, that
-the button becomes "Regenerate" once images exist, and that a tile's key
-changes on regeneration so the image re-resolves the rewritten file. It also covers the placeholder:
-with no item the section shows the placeholder saying to select a video first and shows no controls.
-It also covers the run as it goes:
-the fake writes one frame and then waits for the test, so the section is looked at in the middle of a
-run and shows only the frame it has been told about, and the function the editor passed it is called
-when the run ends, not while it runs.
-`test/uptooda_test.dart` covers the parser against a captured `rpstub` fixture: the four
-URLs are read from the fields the tool reports, `success: false` is an upload failure
-whether the process exited 0 or 1, output with no JSON is `noResult` (which is the unknown
-hoster case), and the runner results map to `toolNotAvailable` and `timeout`. Another test
-checks the arguments the spec fixes: one image, one hoster, `--code_lang json`,
-`--thumb_width 300`, and no `--code_type`. A last one checks that the environment a call is
-given reaches the runner unchanged, so a credential is not in the recorded arguments.
-`test/upload_controller_test.dart` covers the rules the upload spec states: an image
-already recorded for a hoster is skipped and one that failed is tried again, a hoster that
-is not selected is never called, the state read at open is what `images.json` holds for
-every hoster in the registry, so a run starts from what the hoster already has rather than
-from 0, a failed upload does not increase `done`, a hoster with nothing to upload
-reports a complete run, one image at a time per hoster while the hosters run at the same
-time (the fake counts what is in flight), a successful upload is written to
-`images.json` in the record shape, the work list is in the order the file lists the records,
-a poster record has no item because a poster belongs to the release, and the environment is
-built only for a hoster whose registry entry names a settings service — an empty value is
-not passed as a variable. The tests take the hosters from `hosters.dart`, so they test the
-same data the app uses. It also covers the last-edit stamp: a run that wrote a record stamps
-it and one that wrote nothing does not, with the store a fake that records the stamps.
-`test/upload_section_test.dart` covers the widget: the title row with the Upload button at the right,
-the hoster list is rendered with every
-hoster checked by default, only the checked hosters are passed to the controller, and with
-the `--dev` flag the real hosters are replaced by the mock ones, so the section lists only
-those and a run calls them. A bar is drawn for every hoster from the state read when the
-section is opened — a release opened with its images uploaded shows full bars, and a hoster that
-cannot run, or that has none of the release's images, still has a bar: an empty one with the count
-reading 0 / 0. It also covers the placeholder: a release with no images, and one with a poster but
-no screenshots, show the placeholder saying what has to happen first, no hoster list, and no button in
-their title row. It also
-covers the counters being read again when a generation run ends: the test takes the
-rebuild the section registers with the editor, changes what the store holds, calls it, and the bars show
-the new count. It also covers that a run here ends by telling the editor, because the run is
-itself what changes what `images.json` holds. It also covers the credential rule: a hoster whose value is empty is rendered with
-an inactive checkbox and the tooltip that says where to set it, and is not called; with a
-value its checkbox is active and the value reaches the call.
-The store is a fake there, given the manifest the section is opened with, so the run
-completes inside the fake-async zone instead of through `runAsync`, and the settings are a
-real controller given values directly, because reading them from the store is what
-`test/settings_test.dart` covers. `test/fake_secret_store.dart` is the
-credential-store fake both test files use.
-`test/style_test.dart` covers the style grammar: `{content}` as the wrapper, a value with no
-`{content}` emitted as it is, an empty value as no wrapper, a comment only at the start of a
-line, `{token}` as another key, a token cycle left as it is rather than resolved forever, and
-an undefined slot returning its content unchanged.
-`test/template_renderer_test.dart` covers the line rules: a variable produces its value, a
-skipped section produces no line at all, an inverted section renders when the value is empty,
-a style slot wraps its content, `{{blank}}` produces an empty line while an empty line in the
-template produces nothing, consecutive blanks collapse to one, leading and trailing blanks are
-trimmed, the result has no trailing newline, a block variable is inserted with its own lines —
-each of them subject to the same rules as a template line — and a section not closed on the same
-line is reported.
-`test/message_controller_test.dart` covers the value rules: a tracker and a release type become
-the folder and the file name, a template not in the bundle is reported, the title is rendered from
-the title template and written to `title.txt`, the title file of the release type is read before
-the tracker's and the tracker's is the fallback when the type has no file of its own, its
-parentheses are omitted when the site number is empty, a tracker with no title template still
-generates the message with an empty title, a type with no title (`hasTitle`) reads no title file and
-writes no `title.txt`, the poster comes from `posterHoster` whatever order the
-record holds and has no value when that hoster is absent, that the first poster record is the
-primary one, that with `--dev` the poster hoster is the first test hoster and the block names the
-test hosters with the second as the backup, the block is one spoiler per hoster then the backup
-poster with the screenlist as the last item, that a photo is rendered in the block like a
-screenshot, a hoster with nothing uploaded produces no spoiler, an image with no `thumb_url` is
-skipped, a poster on the poster hoster produces no backup spoiler, nothing uploaded produces an
-empty block so its line is dropped, and the text is written to `message.txt` with no trailing
-newline. The asset bundle is a fake that
-answers from a map, so the path rule is tested without the bundle on disk, and it throws the shape
-the real bundle throws for a key it does not have, so the store's guard is tested against what the
-app actually gets.
-`test/message_section_test.dart` covers the widget: the title row with the Generate button at the right,
-that the box
-and the title line show what their files contain, that clicking Generate replaces the box and writes
-both files, that a type with no title draws no title line and writes no title file, that an edit in
-the box writes the file immediately, and that each copy button puts its text on the clipboard — the
-clipboard is a platform channel, so the test records what the app writes to it. It also covers what is
-drawn when there is nothing to show: with the images uploaded and nothing generated the section is its
-title row with the button and the placeholder — the title row is the whole section, because the button
-is the part that can run — and the title line appears only when a title exists. It also covers the
-generation gate: with nothing uploaded to the poster hoster, and with a record that has no entry for
-it, the title row has no button and the placeholder says what has to happen first, and neither flag row
-is drawn in that state (rule 14) — the test uses the video pack, the type that can draw the shape row,
-so both rows are covered. The button and the rows appear when the editor calls the rebuild the section
-registered, which the test does by changing what the fake
-store holds and calling it. It also covers that the copy button for
-the box is at its top rather than in its middle.
-`test/pornolab_client_test.dart` covers the rules the client applies without making a request: a
-forum id read from a URL — the accepted shapes and the ones the rule refuses — the draft id read
-from a link the app stored, the link built from the site rather than from what was pasted, the
-form body encoded as UTF-8 and read back the same, a token read from either form the page writes
-it in, a body read as the charset the response declares — windows-1251 and UTF-8 as they say,
-Latin-1 for a charset the app has no codec for or none declared, including the token read from
-a page in the site's charset, which is the case that failed, the response headers the log records
-with the ones that carry a credential left out, and a response read as JSON for
-`draft_id`, for `error_code` 1, for a code the app does not know, and for a shape it does not
-read. The page is a trimmed fixture written as a string in the test, because the file the sample
-came from names a real account and is not in the repo. The
-header is checked against `app_info.dart`, so the name and the version the app sends are the ones
-the app has, and the name as one word rather than as the display name. A request that gets no
-answer is checked through a fake `HttpClient` that answers with an error instead of a connection —
-it has only a factory constructor, so it cannot be extended — and the test reads the log back to
-see the request entry and then the failure entry with the reason, so the log is what shows why a
-run could not be made. It also covers the login: the form body encoded from its Windows-1251 bytes,
-including the word the site's own form uses for its submit button, a value with
-non-ASCII characters, a character the codepage cannot represent, and an escape
-for a byte under 0x10, and the body with the captcha's two fields in the order
-the form declares them; the three parts read out of a page that asks for a code,
-and a page with only some of them not being a captcha; the `Cookie` value built
-from the `Set-Cookie` headers — attributes dropped, pairs joined, more than one
-header, an answer with no pairs; and the judgement of the three shapes. A wrong cookie on the page the token is
-read from is checked as the answer the site gives it: the 302 with an empty body,
-not followed, so the call ends there (`ai/uploading_draft.md` §6). Those are the
-shapes the tests hold rather than shapes observed on the site, as the rest of
-this feature's shapes are, except the captcha shape, which was read from a page
-the site gave, and the redirect a wrong cookie gets. The login entry is read
-back from the log to see the credentials
-as the marker and the form's two constants as their values, and no entry holds a
-cookie; a captcha entry records the code and the sid as their values while the
-cookie stays the marker. The first request a login makes is checked for carrying
-no `Cookie` header, and the request with a code for carrying the cookie the
-captcha page gave, and the token cache for being dropped by a login.
-`test/draft_section_test.dart` covers the section: the gates and the order the tooltip says them
-in — the message, a stored cookie, the forum — the row not being drawn while nothing has been
-generated and a link the release already holds still being shown there, the row showing the words
-of the shape rule, a value typed into it going through the editor's write path, a run sending the
-two files the Message section owns rather than the text in the box, the link a run answers with
-being written through the write path, a stored link's draft id being the one the next run uses, a
-run with no cookie stored not being made and saying where to log in, a cookie the site did not
-accept being said as the result it is with the run not made again, and a run that fails for any
-other reason being made once, a refused run saying what it
-refused, the link opening the browser through the fake launcher and a failure to open being shown
-as text, the title naming the tracker and the label above the link saying what it is, with the
-label not drawn when there is no link, the copy button writing the link to the clipboard through
-the mock platform channel, and the section rebuilding when the Message section changes what it
-shows. The client is a fake, so no test reaches the network; it is
-`test/fake_pornolab_client.dart`, the same one the settings tests use, because both
-controllers take it as a constructor parameter and the same fake is what a test
-reads the calls back from. The settings are the same fake `SecretStore` the
-settings tests use.
-`test/settings_test.dart` covers the settings: settings.json is written in the shape the format
-describes, a missing or unreadable file reads as the defaults, values of the wrong type fall back to
-the defaults, changing a setting writes the file immediately and notifies, the same value again is not
-a write, a file that cannot be written is reported as `writeFailed`, a stored path starting with `~`
-is expanded when the app uses it rather than when it is stored, and the expanded path is built with
-the context's separator, checked with a Windows context because a rule that reads the platform can
-only be tested on the platform it reads. The system language asks for no locale, and the settings tab
-is opened once rather than twice. For the credentials: a value goes to
-the store rather than to settings.json when the store is reachable, a value is stored plainly only
-when plain storage is allowed, clearing a field removes the entry rather than storing an empty string,
-and plainly stored values are read back when the store is not reachable. The widget tests cover the
-page: the section list shows both sections and selecting one shows that section's content, choosing a
-language writes the file, the default release directory field shows the setting and writes it when the
-field is submitted, when it loses focus, and when the page is removed, the Integration section shows
-the store state and the plain option, and a key typed into the field is written to the store,
-including text that is still in the field when the tab closes. The test builds the page inside the
-provider so it can remove the page while the provider stays, which is what closing a tab does.
-For the row the login is on: the field list is the four entries with the flag that says which of
-them the page obscures, the username shown plainly and the password masked, the three controls on
-one line — checked by where they are drawn, as the Message section's tests do, because the page has
-another row an ancestor finder would match —, the fields capped at the same width as the API key
-fields, and the same check at a window narrower than the three controls need shows them on three
-lines, because the width where the row stops is what the controls need rather than a page
-breakpoint. The fields are disabled while a cookie is stored and the button
-commits the fields before it calls the site, says Log in when no cookie is stored and Log out in the
-error colour when one is, is disabled while a credential is empty or a call runs, and shows the
-words for a refused login in the error colour and the word for a login that worked in the green the
-page uses for it, changes when a login is made from elsewhere, and a logout removes the
-value without calling the site and takes the word for the login that made the session away, because
-the space says the outcome of the last action. For the captcha the page shows when an answer asks for a code: the
-word, the image and the field for the code, the button gated on the code, the second call made with
-the captcha and what was typed into it, and a captcha kept only for the answer that asked for it.
-The image is not fetched, so the test reads the provider the widget was given rather than the image
-it resolves; building the widget starts a load, so that one test does reach the network, and the
-image widget's error builder is what keeps a load that does not work from being reported as an
-error. A test that types into a field and does not commit it closes the
-page first, because the commit at dispose time reaches a controller the provider has already
-disposed.
-The plugin is a method channel and cannot be exercised
-in a test, so these tests use a fake `SecretStore`; the reads and writes are real IO, so the
-interactions run through `tester.runAsync`.
-`test/stash_client_test.dart` covers the parser against a captured StashDB response: the values
-are read from the fields the schema names, a studio including the URLs the domain is read from
-with the site each URL is recorded under and that site's category, because those two are what
-say whether a URL is the studio's own site or a link to another database, and a site or a
-category the response does not report reads as an empty name; the image order is kept because
-the first image is the poster, a part the response does not report is an empty string rather
-than a guess, and the shapes a failed query can have are reported as their own cases. The
-transport is not covered, because it needs a real client; that is what the user tests against
-the live instance.
-`test/stash_controller_test.dart` covers the input rules — a UUID, or the last part of a scene
-URL, with a query or a fragment not read as part of the id — that an invalid input and a missing
-key are reported before anything is asked for, the mapping from a scene to fields — including the
-date field taking the release date and falling back to the production date, the subsite and site
-field reading the domain from the URL the preference order names (the Primary sources category,
-then the site named Studio, then the first URL with a host, and a URL with no host is never a
-candidate) with the name's capitalization when the name is the same word as the host and falling
-back to the name when there is no URL with a host, and the title with the site number cut off
-every occurrence of it and the ends of what is left trimmed — that the fields filled from the
-movie file are never filled from StashDB, that a value the import changed is the kind the widget
-maps to a message plus the parts the app keeps and the parts it cut, that a domain read from a
-URL outside the Primary sources category is a note naming the URL it was read from while one read
-from the URL the rule names produces none, that the poster preview is written to a file named
-after the scene and removed when the popup closes, and that a domain the bundled mapping has is
-what the field gets before the rule — including through a URL with capitals, `www.` or a path —
-while a studio with no URL has no domain to look up and so is not mapped. The mapping is read
-through a fake bundle, so a test that is not about the file is not also about the file.
-`test/domain_map_test.dart` covers the mapping service against a fake bundle: a key is read as the
-app computes the domain, while a value is used exactly as the file writes it, an entry whose value
-is not a string is not read, an asset the bundle does not have or that does not parse or is not an
-object gives an empty mapping rather than an error, and the file the app ships is checked as the
-mapping the app reads.
-`test/stash_section_test.dart` covers the widget: the input and the Fetch button, that nothing is shown
-until a scene has answered, that a successful fetch opens the popup with every value listed and its
-checkbox checked — the values are read from the mapping through the provider scope, so the popup shows
-what it holds after the read completes, and a domain the mapping has is what it shows and what Apply
-writes — that closing the popup without applying — by Cancel or by clicking outside it — writes
-nothing, that only the checked ones reach the callbacks, that the poster goes to the poster callback and
-not to the field one, that the poster row shows the image for the file the download reports and shows
-only its link when the download fails, that the image is below the link rather than beside it, at the
-width the row has and 240 px tall, fitted and drawn to the left, that a value the import changed is
-listed in its own subsection below the poster, under the "Import notes" title, as the message that says
-what was done to it followed by the value with the part it cut struck through and with no checkbox of
-its own, that a domain read from a URL outside the Primary sources category is listed with the URL it
-was read from, and that the two studios of one field each have their own note because the note's key
-includes its place in the list, and that a value it did not change leaves that subsection out, that the
-input has focus again after the popup closes, that the popup is capped at 1000 px, and that a failure is
-shown as a message. Its settings are a fake `SecretStore` with the values the test puts in it, its
-settings store is a fake too, its `AssetBundle` answers from a map so the mapping is what the test
-gives it rather than the file on disk, and its `ImageDownloader` records the paths it is asked to write
-to and writes nothing, so the poster row is checked as the widget it builds rather than as a decoded
+`ffprobe` call on a generated file produces the values the editor shows, and one
+real `ffmpeg` call writes a full-resolution screenshot JPEG — the frame the
+Screenshots section and the video thumbnail both write — (`-g 1` makes every
+frame a key frame so the seek lands on one), and its dimensions are read from
+the JPEG header with the same reader the scans use, so the test shows the
+picture is not scaled down, and one real `mtn` call writes the screenlist JPEG —
+the generated video is long enough that mtn does not warn, because a warning
+makes it exit non-zero even when it wrote the file. Another real `mtn` call runs
+on a video that ends with a black section and succeeds, which is what shows the
+flags keep blank frames in the grid: with the default `-b 0.80` mtn would skip a
+shot there and exit non-zero. The same file covers the log the runner writes: a
+call that writes one line produces a line entry and then an exit entry with its
+code, the input is repeated on every entry so an entry stands on its own, and a
+last line with no newline is still recorded. Another test shows the environment
+reaching the child — `sh` on PATH echoes the variable the call was given — and
+that the recorded input holds no copy of it, which is why a credential is passed
+this way. The tests build the runner through `test/test_runner.dart`, which has
+an empty bundle directory, so every tool is read from PATH: one the app does not
+ship, and one that prefers the bundle but has nothing in it.
+`test/tool_locator_test.dart` covers the resolution rule: a tool with a bundle
+directory and no path fallback is read from the bundle, and a tool that is not
+in the bundle is `ToolNotFound` even when PATH has it; a tool with the fallback
+is read from the bundle when it is there and from PATH when it is not; a tool
+with no bundle directory is read from PATH. A file without the execute bits is
+not a tool, in the bundle as on PATH, so a tool with the fallback uses the
+system copy instead. On Windows the name with the `.exe` extension is the one
+found, in the bundle as on PATH — the case the resolver could not find before.
+The PATH and the platform are constructor parameters, so the test points them at
+a temporary directory and runs on either platform; the execute-bit tests are
+skipped on Windows, where there are no permission bits for the rule to check.
+`test/screenlist_rows_test.dart` covers the rows formula on its own, as the spec
+asks: below the minimum, exactly one frame per minute, a duration rounded up to
+a whole row, and above the maximum. It calls `ImageGenerator.screenlistRows`,
+the service that owns the rule now. `test/screenshots_test.dart` covers the
+Screenshots feature: the controller names the files `_rp_screenshotNN.jpg`,
+seeks to the centre of each equal segment of the duration, calls mtn once with
+the rows the duration gives, records the screenshots and the screenlist in
+`images.json` with the item they belong to and their kind, relative to the
+release directory, keeps the records of the other kinds and items when it
+regenerates, decides the screenlist by the file on disk rather than by the exit
+code, and reports an empty or missing path as `fileNotFound`, a screenlist that
+was not written as `screenlistFailed` and mtn not being installed as
+`mtnNotAvailable`; a run that does not finish still records and returns what it
+wrote (the tools are fakes there). It also covers the reporting: each record is
+reported when its file is written, not when the run ends, and the records
+reported are the same ones the manifest holds, in the same order. A run with 0
+records only the screenlist, and a record whose file was deleted is not shown,
+because what a section shows is the records whose files are on disk. The widget
+tests check the slider range, the Generate button and that it is in the title
+row while the slider is not, that the label, the slider and the count are on one
+row, that the section shows the images the fake tools write, that the
+screenshots are still shown when the screenlist was not written, that the grid
+is two equal columns with the gap between them and the screenlist as its first
+tile at the top of the left one, that the name under a tile is centred, that the
+button becomes "Regenerate" once images exist, and that a tile's key changes on
+regeneration so the image re-resolves the rewritten file. It also covers the
+placeholder: with no item the section shows the placeholder saying to select a
+video first and shows no controls. It also covers the run as it goes: the fake
+writes one frame and then waits for the test, so the section is looked at in the
+middle of a run and shows only the frame it has been told about, and the
+function the editor passed it is called when the run ends, not while it runs.
+`test/uptooda_test.dart` covers the parser against a captured `rpstub` fixture:
+the four URLs are read from the fields the tool reports, `success: false` is an
+upload failure whether the process exited 0 or 1, output with no JSON is
+`noResult` (which is the unknown hoster case), and the runner results map to
+`toolNotAvailable` and `timeout`. Another test checks the arguments the spec
+fixes: one image, one hoster, `--code_lang json`, `--thumb_width 300`, and no
+`--code_type`. A last one checks that the environment a call is given reaches
+the runner unchanged, so a credential is not in the recorded arguments.
+`test/upload_controller_test.dart` covers the rules the upload spec states: an
+image already recorded for a hoster is skipped and one that failed is tried
+again, a hoster that is not selected is never called, the state read at open is
+what `images.json` holds for every hoster in the registry, so a run starts from
+what the hoster already has rather than from 0, a failed upload does not
+increase `done`, a hoster with nothing to upload reports a complete run, one
+image at a time per hoster while the hosters run at the same time (the fake
+counts what is in flight), a successful upload is written to `images.json` in
+the record shape, the work list is in the order the file lists the records, a
+poster record has no item because a poster belongs to the release, and the
+environment is built only for a hoster whose registry entry names a settings
+service — an empty value is not passed as a variable. The tests take the hosters
+from `hosters.dart`, so they test the same data the app uses. It also covers the
+last-edit stamp: a run that wrote a record stamps it and one that wrote nothing
+does not, with the store a fake that records the stamps.
+`test/upload_section_test.dart` covers the widget: the title row with the Upload
+button at the right, the hoster list is rendered with every hoster checked by
+default, only the checked hosters are passed to the controller, and with the
+`--dev` flag the real hosters are replaced by the mock ones, so the section
+lists only those and a run calls them. A bar is drawn for every hoster from the
+state read when the section is opened — a release opened with its images
+uploaded shows full bars, and a hoster that cannot run, or that has none of the
+release's images, still has a bar: an empty one with the count reading 0 / 0. It
+also covers the placeholder: a release with no images, and one with a poster but
+no screenshots, show the placeholder saying what has to happen first, no hoster
+list, and no button in their title row. It also covers the counters being read
+again when a generation run ends: the test takes the rebuild the section
+registers with the editor, changes what the store holds, calls it, and the bars
+show the new count. It also covers that a run here ends by telling the editor,
+because the run is itself what changes what `images.json` holds. It also covers
+the credential rule: a hoster whose value is empty is rendered with an inactive
+checkbox and the tooltip that says where to set it, and is not called; with a
+value its checkbox is active and the value reaches the call. The store is a fake
+there, given the manifest the section is opened with, so the run completes
+inside the fake-async zone instead of through `runAsync`, and the settings are a
+real controller given values directly, because reading them from the store is
+what `test/settings_test.dart` covers. `test/fake_secret_store.dart` is the
+credential-store fake both test files use. `test/style_test.dart` covers the
+style grammar: `{content}` as the wrapper, a value with no `{content}` emitted
+as it is, an empty value as no wrapper, a comment only at the start of a line,
+`{token}` as another key, a token cycle left as it is rather than resolved
+forever, and an undefined slot returning its content unchanged.
+`test/template_renderer_test.dart` covers the line rules: a variable produces
+its value, a skipped section produces no line at all, an inverted section
+renders when the value is empty, a style slot wraps its content, `{{blank}}`
+produces an empty line while an empty line in the template produces nothing,
+consecutive blanks collapse to one, leading and trailing blanks are trimmed, the
+result has no trailing newline, a block variable is inserted with its own lines
+— each of them subject to the same rules as a template line — and a section not
+closed on the same line is reported. `test/message_controller_test.dart` covers
+the value rules: a tracker and a release type become the folder and the file
+name, a template not in the bundle is reported, the title is rendered from the
+title template and written to `title.txt`, the title file of the release type is
+read before the tracker's and the tracker's is the fallback when the type has no
+file of its own, its parentheses are omitted when the site number is empty, a
+tracker with no title template still generates the message with an empty title,
+a type with no title (`hasTitle`) reads no title file and writes no `title.txt`,
+the poster comes from `posterHoster` whatever order the record holds and has no
+value when that hoster is absent, that the first poster record is the primary
+one, that with `--dev` the poster hoster is the first test hoster and the block
+names the test hosters with the second as the backup, the block is one spoiler
+per hoster then the backup poster with the screenlist as the last item, that a
+photo is rendered in the block like a screenshot, a hoster with nothing uploaded
+produces no spoiler, an image with no `thumb_url` is skipped, a poster on the
+poster hoster produces no backup spoiler, nothing uploaded produces an empty
+block so its line is dropped, and the text is written to `message.txt` with no
+trailing newline. The asset bundle is a fake that answers from a map, so the
+path rule is tested without the bundle on disk, and it throws the shape the real
+bundle throws for a key it does not have, so the store's guard is tested against
+what the app actually gets. `test/message_section_test.dart` covers the widget:
+the title row with the Generate button at the right, that the box and the title
+line show what their files contain, that clicking Generate replaces the box and
+writes both files, that a type with no title draws no title line and writes no
+title file, that an edit in the box writes the file immediately, and that each
+copy button puts its text on the clipboard — the clipboard is a platform
+channel, so the test records what the app writes to it. It also covers what is
+drawn when there is nothing to show: with the images uploaded and nothing
+generated the section is its title row with the button and the placeholder — the
+title row is the whole section, because the button is the part that can run —
+and the title line appears only when a title exists. It also covers the
+generation gate: with nothing uploaded to the poster hoster, and with a record
+that has no entry for it, the title row has no button and the placeholder says
+what has to happen first, and neither flag row is drawn in that state (rule 14)
+— the test uses the video pack, the type that can draw the shape row, so both
+rows are covered. The button and the rows appear when the editor calls the
+rebuild the section registered, which the test does by changing what the fake
+store holds and calling it. It also covers that the copy button for the box is
+at its top rather than in its middle. `test/pornolab_client_test.dart` covers
+the rules the client applies without making a request: a forum id read from a
+URL — the accepted shapes and the ones the rule refuses — the draft id read from
+a link the app stored, the link built from the site rather than from what was
+pasted, the form body encoded as UTF-8 and read back the same, a token read from
+either form the page writes it in, a body read as the charset the response
+declares — windows-1251 and UTF-8 as they say, Latin-1 for a charset the app has
+no codec for or none declared, including the token read from a page in the
+site's charset, which is the case that failed, the response headers the log
+records with the ones that carry a credential left out, and a response read as
+JSON for `draft_id`, for `error_code` 1, for a code the app does not know, and
+for a shape it does not read. The page is a trimmed fixture written as a string
+in the test, because the file the sample came from names a real account and is
+not in the repo. The header is checked against `app_info.dart`, so the name and
+the version the app sends are the ones the app has, and the name as one word
+rather than as the display name. A request that gets no answer is checked
+through a fake `HttpClient` that answers with an error instead of a connection —
+it has only a factory constructor, so it cannot be extended — and the test reads
+the log back to see the request entry and then the failure entry with the
+reason, so the log is what shows why a run could not be made. It also covers the
+login: the form body encoded from its Windows-1251 bytes, including the word the
+site's own form uses for its submit button, a value with non-ASCII characters, a
+character the codepage cannot represent, and an escape for a byte under 0x10,
+and the body with the captcha's two fields in the order the form declares them;
+the three parts read out of a page that asks for a code, and a page with only
+some of them not being a captcha; the `Cookie` value built from the `Set-Cookie`
+headers — attributes dropped, pairs joined, more than one header, an answer with
+no pairs; and the judgement of the three shapes. A wrong cookie on the page the
+token is read from is checked as the answer the site gives it: the 302 with an
+empty body, not followed, so the call ends there (`ai/uploading_draft.md` §6).
+Those are the shapes the tests hold rather than shapes observed on the site, as
+the rest of this feature's shapes are, except the captcha shape, which was read
+from a page the site gave, and the redirect a wrong cookie gets. The login entry
+is read back from the log to see the credentials as the marker and the form's
+two constants as their values, and no entry holds a cookie; a captcha entry
+records the code and the sid as their values while the cookie stays the marker.
+The first request a login makes is checked for carrying no `Cookie` header, and
+the request with a code for carrying the cookie the captcha page gave, and the
+token cache for being dropped by a login. `test/draft_section_test.dart` covers
+the section: the gates and the order the tooltip says them in — the message, a
+stored cookie, the forum — the row not being drawn while nothing has been
+generated and a link the release already holds still being shown there, the row
+showing the words of the shape rule, a value typed into it going through the
+editor's write path, a run sending the two files the Message section owns rather
+than the text in the box, the link a run answers with being written through the
+write path, a stored link's draft id being the one the next run uses, a run with
+no cookie stored not being made and saying where to log in, a cookie the site
+did not accept being said as the result it is with the run not made again, and a
+run that fails for any other reason being made once, a refused run saying what
+it refused, the link opening the browser through the fake launcher and a failure
+to open being shown as text, the title naming the tracker and the label above
+the link saying what it is, with the label not drawn when there is no link, the
+copy button writing the link to the clipboard through the mock platform channel,
+and the section rebuilding when the Message section changes what it shows. The
+client is a fake, so no test reaches the network; it is
+`test/fake_pornolab_client.dart`, the same one the settings tests use, because
+both controllers take it as a constructor parameter and the same fake is what a
+test reads the calls back from. The settings are the same fake `SecretStore` the
+settings tests use. `test/settings_test.dart` covers the settings: settings.json
+is written in the shape the format describes, a missing or unreadable file reads
+as the defaults, values of the wrong type fall back to the defaults, changing a
+setting writes the file immediately and notifies, the same value again is not a
+write, a file that cannot be written is reported as `writeFailed`, a stored path
+starting with `~` is expanded when the app uses it rather than when it is
+stored, and the expanded path is built with the context's separator, checked
+with a Windows context because a rule that reads the platform can only be tested
+on the platform it reads. The system language asks for no locale, and the
+settings tab is opened once rather than twice. For the credentials: a value goes
+to the store rather than to settings.json when the store is reachable, a value
+is stored plainly only when plain storage is allowed, clearing a field removes
+the entry rather than storing an empty string, and plainly stored values are
+read back when the store is not reachable. The widget tests cover the page: the
+section list shows both sections and selecting one shows that section's content,
+choosing a language writes the file, the default release directory field shows
+the setting and writes it when the field is submitted, when it loses focus, and
+when the page is removed, the Integration section shows the store state and the
+plain option, and a key typed into the field is written to the store, including
+text that is still in the field when the tab closes. The test builds the page
+inside the provider so it can remove the page while the provider stays, which is
+what closing a tab does. For the row the login is on: the field list is the four
+entries with the flag that says which of them the page obscures, the username
+shown plainly and the password masked, the three controls on one line — checked
+by where they are drawn, as the Message section's tests do, because the page has
+another row an ancestor finder would match —, the fields capped at the same
+width as the API key fields, and the same check at a window narrower than the
+three controls need shows them on three lines, because the width where the row
+stops is what the controls need rather than a page breakpoint. The fields are
+disabled while a cookie is stored and the button commits the fields before it
+calls the site, says Log in when no cookie is stored and Log out in the error
+colour when one is, is disabled while a credential is empty or a call runs, and
+shows the words for a refused login in the error colour and the word for a login
+that worked in the green the page uses for it, changes when a login is made from
+elsewhere, and a logout removes the value without calling the site and takes the
+word for the login that made the session away, because the space says the
+outcome of the last action. For the captcha the page shows when an answer asks
+for a code: the word, the image and the field for the code, the button gated on
+the code, the second call made with the captcha and what was typed into it, and
+a captcha kept only for the answer that asked for it. The image is not fetched,
+so the test reads the provider the widget was given rather than the image it
+resolves; building the widget starts a load, so that one test does reach the
+network, and the image widget's error builder is what keeps a load that does not
+work from being reported as an error. A test that types into a field and does
+not commit it closes the page first, because the commit at dispose time reaches
+a controller the provider has already disposed. The plugin is a method channel
+and cannot be exercised in a test, so these tests use a fake `SecretStore`; the
+reads and writes are real IO, so the interactions run through `tester.runAsync`.
+`test/stash_client_test.dart` covers the parser against a captured StashDB
+response: the values are read from the fields the schema names, a studio
+including the URLs the domain is read from with the site each URL is recorded
+under and that site's category, because those two are what say whether a URL is
+the studio's own site or a link to another database, and a site or a category
+the response does not report reads as an empty name; the image order is kept
+because the first image is the poster, a part the response does not report is an
+empty string rather than a guess, and the shapes a failed query can have are
+reported as their own cases. The transport is not covered, because it needs a
+real client; that is what the user tests against the live instance.
+`test/stash_controller_test.dart` covers the input rules — a UUID, or the last
+part of a scene URL, with a query or a fragment not read as part of the id —
+that an invalid input and a missing key are reported before anything is asked
+for, the mapping from a scene to fields — including the date field taking the
+release date and falling back to the production date, the subsite and site field
+reading the domain from the URL the preference order names (the Primary sources
+category, then the site named Studio, then the first URL with a host, and a URL
+with no host is never a candidate) with the name's capitalization when the name
+is the same word as the host and falling back to the name when there is no URL
+with a host, and the title with the site number cut off every occurrence of it
+and the ends of what is left trimmed — that the fields filled from the movie
+file are never filled from StashDB, that a value the import changed is the kind
+the widget maps to a message plus the parts the app keeps and the parts it cut,
+that a domain read from a URL outside the Primary sources category is a note
+naming the URL it was read from while one read from the URL the rule names
+produces none, that the poster preview is written to a file named after the
+scene and removed when the popup closes, and that a domain the bundled mapping
+has is what the field gets before the rule — including through a URL with
+capitals, `www.` or a path — while a studio with no URL has no domain to look up
+and so is not mapped. The mapping is read through a fake bundle, so a test that
+is not about the file is not also about the file. `test/domain_map_test.dart`
+covers the mapping service against a fake bundle: a key is read as the app
+computes the domain, while a value is used exactly as the file writes it, an
+entry whose value is not a string is not read, an asset the bundle does not have
+or that does not parse or is not an object gives an empty mapping rather than an
+error, and the file the app ships is checked as the mapping the app reads.
+`test/stash_section_test.dart` covers the widget: the input and the Fetch
+button, that nothing is shown until a scene has answered, that a successful
+fetch opens the popup with every value listed and its checkbox checked — the
+values are read from the mapping through the provider scope, so the popup shows
+what it holds after the read completes, and a domain the mapping has is what it
+shows and what Apply writes — that closing the popup without applying — by
+Cancel or by clicking outside it — writes nothing, that only the checked ones
+reach the callbacks, that the poster goes to the poster callback and not to the
+field one, that the poster row shows the image for the file the download reports
+and shows only its link when the download fails, that the image is below the
+link rather than beside it, at the width the row has and 240 px tall, fitted and
+drawn to the left, that a value the import changed is listed in its own
+subsection below the poster, under the "Import notes" title, as the message that
+says what was done to it followed by the value with the part it cut struck
+through and with no checkbox of its own, that a domain read from a URL outside
+the Primary sources category is listed with the URL it was read from, and that
+the two studios of one field each have their own note because the note's key
+includes its place in the list, and that a value it did not change leaves that
+subsection out, that the input has focus again after the popup closes, that the
+popup is capped at 1000 px, and that a failure is shown as a message. Its
+settings are a fake `SecretStore` with the values the test puts in it, its
+settings store is a fake too, its `AssetBundle` answers from a map so the
+mapping is what the test gives it rather than the file on disk, and its
+`ImageDownloader` records the paths it is asked to write to and writes nothing,
+so the poster row is checked as the widget it builds rather than as a decoded
 image and the test still does no file IO and does not need `tester.runAsync`.
-`test/recent_releases_test.dart` covers the index: the file is written in the shape §7 describes, a
-missing or unreadable file reads as an empty list, a value the model cannot read is not kept, recording
-the same directory updates the entry rather than adding a row, the 51st entry drops the one opened least
-recently, the sort orders by the column it is given and breaks a tie by the directory path, sorting does
-not change the order the list holds, a row whose manifest is gone is reported as unavailable, and the scan
-lists only the subdirectories that hold a `release.json`, reads a directory that is not there as nothing
-found, keeps a folder in both the index and the scan as one row with the index values, and writes nothing
-to the file. It also covers the tab rules: the startup read opens the recent tab once, and opening a
-release that is already open selects the tab that exists rather than adding a second one. The widget tests
-cover the page: a row for each entry, the marker on a row whose folder is gone, a row the scan found
-showing the name and the path and nothing else, a header click sorting the table by that column, and that
-a row click opens the release it names. The store is pointed at a temp directory and so are the settings
-the page reads, so the scan is asked for the temp directory rather than the user's; the reads and writes
-are real IO, so the widget tests run them through `tester.runAsync`.
+`test/recent_releases_test.dart` covers the index: the file is written in the
+shape §7 describes, a missing or unreadable file reads as an empty list, a value
+the model cannot read is not kept, recording the same directory updates the
+entry rather than adding a row, the 51st entry drops the one opened least
+recently, the sort orders by the column it is given and breaks a tie by the
+directory path, sorting does not change the order the list holds, a row whose
+manifest is gone is reported as unavailable, and the scan lists only the
+subdirectories that hold a `release.json`, reads a directory that is not there
+as nothing found, keeps a folder in both the index and the scan as one row with
+the index values, and writes nothing to the file. It also covers the tab rules:
+the startup read opens the recent tab once, and opening a release that is
+already open selects the tab that exists rather than adding a second one. The
+widget tests cover the page: a row for each entry, the marker on a row whose
+folder is gone, a row the scan found showing the name and the path and nothing
+else, a header click sorting the table by that column, and that a row click
+opens the release it names. The store is pointed at a temp directory and so are
+the settings the page reads, so the scan is asked for the temp directory rather
+than the user's; the reads and writes are real IO, so the widget tests run them
+through `tester.runAsync`. `test/window_size_test.dart` covers the window-size
+record: the file is written in the shape §7 describes, a missing or unreadable
+file reads as nothing, a line this version does not read reads as nothing — a
+version the app does not write, a number that is not a whole number, a size that
+is not positive, a line that is not three numbers — and a line this version does
+read reads as the size it states. Recording the size the window has writes the
+file, the same size as the one already recorded is not written again, a size the
+app cannot store is not recorded and leaves what was recorded as it was, and a
+file that cannot be written is reported rather than swallowed. The store is
+pointed at a temp directory, so the file is the app data directory's file with
+the name the format gives it. The window is `test/fake_window_gateway.dart`, the
+fake the window tests use, because the plugin is a method channel and cannot be
+exercised in a test; it answers with the size it is given, which is all the
+feature asks the window for. What these tests cannot cover is the runners
+reading the same file: there is no test host for the C and C++ runners, so the
+version constant, the rules about a line, and the directory are written the same
+way in all three readers — one rule with three implementations, not three rules.
 `test/system_check_test.dart` covers the check: each result kind is mapped from
 the tool's typed result, the first line with text is the version as the tool
 wrote it, a call that printed nothing is reported rather than guessed at, the
@@ -4265,31 +4524,29 @@ the spinner in the icon column until its own result arrives while the rows that
 answered show what they reported. The tool wrappers are fakes that answer with a
 result the test gives, so these tests do not need the tools installed; the one
 test that checks where the log is written runs the real ffmpeg through
-`testRunner()`, as the native tool tests
-do.
-`test/torrent_file_test.dart` covers the bencode reader: the flag is read from the
-`info` dictionary, a flag of 0 is false, a file whose `info` has no `private` key
-is not private, a value there that is not an integer is not a flag and is not
-guessed at, bytes that are not a bencoded dictionary are reported as unreadable,
-and a key that is not the flag — one outside `info`, one inside a nested
-dictionary, one inside a list — is skipped rather than read. The fixtures are built
-from the parts in `test/test_bencode.dart`, the file both this test and the section
-test use, so a dictionary is closed by the same rule the format has and the two
-fixtures cannot disagree.
-`test/mkbrr_test.dart` covers the wrapper: the arguments the spec fixes — the
-source, `--private=` with the value the call is given, and `--output` with the
-path the app asked for rather than the tool's default; for a modify, the file it
-is asked for, `--private=` again, and the name and the directory as two arguments
-rather than one path, because the tool's default output directory is the working
-directory the runner does not set — the typed results, the window the create call
-asks the runner for (60 minutes, while the version call keeps the default), that
-the line a failed modify prints is the reason and not the exit code, and the
-progress reader against a captured sample of the tool's output: the percentage is
-read from each carriage-return-separated segment, the rate from the bracket
-before it and the time left from the pair after it, a field a segment did not
-have is null, a segment with no percentage is not progress, a segment split
-across two reads is still read, and the last segment, which has no carriage
-return after it, is read after the process ends.
+`testRunner()`, as the native tool tests do. `test/torrent_file_test.dart`
+covers the bencode reader: the flag is read from the `info` dictionary, a flag
+of 0 is false, a file whose `info` has no `private` key is not private, a value
+there that is not an integer is not a flag and is not guessed at, bytes that are
+not a bencoded dictionary are reported as unreadable, and a key that is not the
+flag — one outside `info`, one inside a nested dictionary, one inside a list —
+is skipped rather than read. The fixtures are built from the parts in
+`test/test_bencode.dart`, the file both this test and the section test use, so a
+dictionary is closed by the same rule the format has and the two fixtures cannot
+disagree. `test/mkbrr_test.dart` covers the wrapper: the arguments the spec
+fixes — the source, `--private=` with the value the call is given, and
+`--output` with the path the app asked for rather than the tool's default; for a
+modify, the file it is asked for, `--private=` again, and the name and the
+directory as two arguments rather than one path, because the tool's default
+output directory is the working directory the runner does not set — the typed
+results, the window the create call asks the runner for (60 minutes, while the
+version call keeps the default), that the line a failed modify prints is the
+reason and not the exit code, and the progress reader against a captured sample
+of the tool's output: the percentage is read from each carriage-return-separated
+segment, the rate from the bracket before it and the time left from the pair
+after it, a field a segment did not have is null, a segment with no percentage
+is not progress, a segment split across two reads is still read, and the last
+segment, which has no carriage return after it, is read after the process ends.
 `test/torrent_section_test.dart` covers the section: the title row with the
 Create button, the bar and the percentage as the callback reports them, the rate
 and the time left as the lines that are drawn only when the segment had them,
@@ -4298,44 +4555,42 @@ name, each result mapped to its message, the file already on disk when a release
 is opened again and a file named after an older release name, which is not the
 one this release would write, the link that opens the release directory and the
 message a failed open shows, and that there is no link while nothing has run and
-no file is found. It also covers the placeholder: with no source picked the title
-row has no button, draws no flag row (rule 14), and the section says what
-has to be picked first, with the
-wording the release type decides — a file for a single video, a folder for a
-pack — and that the button appears when the editor calls the rebuild the section
-registered. It also covers the flag row: that it is the first thing under the
-title, that it shows the value the record has, and that when a file is on disk it
-shows the value the file states rather than what the record says; a file that
-cannot be read is reported as such and the row is inactive. The row is not
-drawn when there is neither a source nor a file (rule 14), and it is drawn for
-a file that is already there even when no source has been picked. Changing the flag with
-no file goes through the change path without asking; with a file the section asks
-first, a decline writes nothing and the row goes back to what the file states, and
-an agreement runs the tool and the value goes through the save path, not the
-change path, which is what the test records. A change the
-tool could not make says the reason it gave and leaves the row as it was, and the
-row is inactive while a run is going. The tool and the folder opener are fakes that answer with the
-result the test gives. The existing-file test puts the file on disk before
-`pumpWidget`, and the check the widget makes while it builds is a synchronous
-one, so it works in the fake-async zone. Each mapping is its own test, because
-the section keeps the outcome as its own state: pumping the same widget again
-would still show the previous run's outcome.
-The model, store and controller tests are
-plain tests, not widget tests, so real IO completes without `tester.runAsync`; the same is true of the
-video pack tests, which need ffmpeg, ffprobe and mtn on PATH, because the test runner gives them an
-empty bundle directory. Real file IO inside a
-widget test has to go through `tester.runAsync` — the test body runs in a
-fake-async zone, so awaiting a plain `dart:io` call there hangs. A widget test also
-has to put the file on disk before `pumpWidget`: `tester.pump()` does not rebuild a
-widget whose subtree is unchanged, so a box built for a missing file would still show
-nothing. `dart_test.yaml`
-sets a 30s per-test timeout so a hang is reported instead of blocking the run for
-the default ten minutes, and caps the runner at `concurrency: 2` so a full run
-leaves headroom for the desktop instead of freezing it.
-The only CI config is `.github/workflows/windows-release.yml`, the release (§9).
-The suite is not run by CI, so the tool preconditions the tests state are met by
-the machine the tests are run on. `analysis_options.yaml` includes
-`package:flutter_lints/flutter.yaml` and excludes `build/`, `windows/`,
+no file is found. It also covers the placeholder: with no source picked the
+title row has no button, draws no flag row (rule 14), and the section says what
+has to be picked first, with the wording the release type decides — a file for a
+single video, a folder for a pack — and that the button appears when the editor
+calls the rebuild the section registered. It also covers the flag row: that it
+is the first thing under the title, that it shows the value the record has, and
+that when a file is on disk it shows the value the file states rather than what
+the record says; a file that cannot be read is reported as such and the row is
+inactive. The row is not drawn when there is neither a source nor a file (rule
+14), and it is drawn for a file that is already there even when no source has
+been picked. Changing the flag with no file goes through the change path without
+asking; with a file the section asks first, a decline writes nothing and the row
+goes back to what the file states, and an agreement runs the tool and the value
+goes through the save path, not the change path, which is what the test records.
+A change the tool could not make says the reason it gave and leaves the row as
+it was, and the row is inactive while a run is going. The tool and the folder
+opener are fakes that answer with the result the test gives. The existing-file
+test puts the file on disk before `pumpWidget`, and the check the widget makes
+while it builds is a synchronous one, so it works in the fake-async zone. Each
+mapping is its own test, because the section keeps the outcome as its own state:
+pumping the same widget again would still show the previous run's outcome. The
+model, store and controller tests are plain tests, not widget tests, so real IO
+completes without `tester.runAsync`; the same is true of the video pack tests,
+which need ffmpeg, ffprobe and mtn on PATH, because the test runner gives them
+an empty bundle directory. Real file IO inside a widget test has to go through
+`tester.runAsync` — the test body runs in a fake-async zone, so awaiting a plain
+`dart:io` call there hangs. A widget test also has to put the file on disk
+before `pumpWidget`: `tester.pump()` does not rebuild a widget whose subtree is
+unchanged, so a box built for a missing file would still show nothing.
+`dart_test.yaml` sets a 30s per-test timeout so a hang is reported instead of
+blocking the run for the default ten minutes, and caps the runner at
+`concurrency: 2` so a full run leaves headroom for the desktop instead of
+freezing it. The only CI config is `.github/workflows/windows-release.yml`, the
+release (§9). The suite is not run by CI, so the tool preconditions the tests
+state are met by the machine the tests are run on. `analysis_options.yaml`
+includes `package:flutter_lints/flutter.yaml` and excludes `build/`, `windows/`,
 `macos/`, `linux/` from analysis.
 
 ---
@@ -4443,6 +4698,18 @@ From `lib/TODO.MD` (deduplicated) and the gaps in §2:
     - the section is gated on `Tracker.pornolab`, which is always true while `Tracker` has
       one value. It is kept because it is the rule the spec states and the first place a
       second tracker would be decided by.
+
+9. Window size: implemented (`ai/doc.md` §7). What is left:
+   - position is not recorded, and the maximized state is not part of the
+     record, so a window closed maximized is remembered at the size it was
+     maximized to rather than the size it had before. Recording either needs a
+     rule for what a maximized window's size is, and the toolkit reports the
+     size it has, not the size the user chose.
+   - the Linux and Windows runners read the record before they create the
+     window; the macOS runner does not, so on macOS nothing applies the recorded
+     size (`lib/TODO.MD`). Doing it there is the same reading as the other two
+     in Swift, with `path_provider`'s macOS directory rule reproduced, which is
+     what §7 keeps as one rule with three implementations.
 
 ---
 
