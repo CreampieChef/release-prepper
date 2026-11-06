@@ -1337,7 +1337,6 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
     final columns = _columns();
 
     return Focus(
-      autofocus: true,
       onKeyEvent: _handleKey,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),

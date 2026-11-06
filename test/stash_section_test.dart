@@ -268,8 +268,8 @@ void main() {
     },
   );
 
-  // A value the import changed is its own subsection below the poster: the title
-  // "Import notes", then the message that says what was done to the value
+  // A value the import changed is its own subsection below the poster: the
+  // title "Import notes", then the message that says what was done to the value
   // followed by the value as the scene reported it, with the part the app cut
   // struck through. It has no checkbox, because it is not something to apply:
   // the row above is the value.
@@ -489,9 +489,10 @@ void main() {
     );
   });
 
-  // The popup is a route, so its focus scope is outside the subtree the
-  // editor's Ctrl+S handler is in; the row takes focus back to its input when
-  // the popup closes, which is what makes the key reach the editor again.
+  // The row owns the focus of its input. The popup is a route, so its focus
+  // scope is outside the row's, and the row asks for its input back when the
+  // popup closes; what the framework would give it back to is whatever had
+  // focus before the popup.
   testWidgets('the input has focus again after the popup closes', (
     tester,
   ) async {

@@ -49,7 +49,7 @@ class MainMenu extends StatelessWidget {
   /// framework renders the shortcut label with the item's own text style and a
   /// fixed spacing, which cannot be styled from outside. And `MenuItemButton`
   /// only shows a hint — it does not handle the key; the keys are handled by
-  /// `TabShortcuts`, so nothing is lost by drawing the hint here.
+  /// `AppShortcuts`, so nothing is lost by drawing the hint here.
   Widget _itemLabel(BuildContext context, String label, String hint) {
     final theme = Theme.of(context);
 
@@ -99,7 +99,7 @@ class MainMenu extends StatelessWidget {
           SubmenuButton(
             menuChildren: [
               // The hints are drawn by `_itemLabel`; the keys themselves are
-              // handled by `TabShortcuts`, and both the item and its key call
+              // handled by `AppShortcuts`, and both the item and its key call
               // the same callback.
               MenuItemButton(
                 onPressed: controller.onNewRelease,
@@ -154,14 +154,14 @@ class MainMenu extends StatelessWidget {
                 ),
               ),
               // Settings has no hotkey, so its item shows no hint: the hints
-              // drawn here are the keys `TabShortcuts` handles, and there is no
+              // drawn here are the keys `AppShortcuts` handles, and there is no
               // key for this one.
               MenuItemButton(
                 onPressed: controller.onSettings,
                 child: Text(l10n.settings),
               ),
               // Recent releases has no hotkey either, for the same reason
-              // Settings has none: there is no key `TabShortcuts` handles for
+              // Settings has none: there is no key `AppShortcuts` handles for
               // it.
               MenuItemButton(
                 onPressed: controller.onRecentReleases,
@@ -173,7 +173,7 @@ class MainMenu extends StatelessWidget {
           SubmenuButton(
             menuChildren: [
               // System Check has no hotkey either, for the same reason Settings
-              // and Recent releases have none: there is no key `TabShortcuts`
+              // and Recent releases have none: there is no key `AppShortcuts`
               // handles for it.
               MenuItemButton(
                 onPressed: controller.onSystemCheck,

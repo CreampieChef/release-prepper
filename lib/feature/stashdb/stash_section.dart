@@ -32,9 +32,10 @@ import 'stash_controller.dart';
 /// the image below its link, from the file the controller fetches it into.
 ///
 /// The row owns the focus of its input and takes it back when the popup closes,
-/// because the popup is a route and its focus scope is outside the subtree
-/// `TabShortcuts` covers; without that the save key stops reaching the editor
-/// after an import.
+/// because the popup is a route and its focus scope is outside the row's, and
+/// what the framework gives focus back to is whatever had it before the popup,
+/// not the row's input. The save key reaches the editor from wherever the focus
+/// is, so this is not what the key depends on.
 class StashSection extends StatefulWidget {
   const StashSection({
     required this.releaseType,
@@ -74,9 +75,8 @@ class _StashSectionState extends State<StashSection> {
 
   /// The focus of the row's own input, which the row owns as the settings page
   /// owns the focus of its fields. It is what the popup gives focus back to
-  /// when it closes: the popup is a route, so its focus scope is outside
-  /// `TabShortcuts`, and focus left outside that subtree is why the save key
-  /// stopped reaching the editor after an import.
+  /// when it closes, because the popup is a route and its focus scope is
+  /// outside the row's.
   late final FocusNode _inputFocus;
 
   bool _busy = false;
@@ -171,9 +171,9 @@ class _StashSectionState extends State<StashSection> {
 
     if (!mounted) return;
 
-    // The popup took focus because it is a route, and focus is not given back
-    // to the row when it closes; the save key reaches the editor only through
-    // the focus chain, so the row takes it back here.
+    // The popup took focus because it is a route, and what the framework gives
+    // focus back to is whatever had it before the popup, so the row asks for
+    // its own input here.
     _inputFocus.requestFocus();
   }
 

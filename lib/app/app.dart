@@ -5,7 +5,8 @@ import 'package:provider/provider.dart';
 import '../feature/main_menu.dart';
 import '../feature/settings/settings_controller.dart';
 import '../feature/tab/app_close.dart';
-import '../feature/tab/tab_shortcuts.dart';
+import '../feature/tab/app_shortcuts.dart';
+import '../feature/tab/tab_navigation.dart';
 import '../feature/tab/tab_strip.dart';
 import '../feature/tab/tab_view.dart';
 import '../l10n/app_localizations.dart';
@@ -26,6 +27,11 @@ class App extends StatelessWidget {
 /// which is why this is its own widget: `App.build` runs above the providers it
 /// installs. This is the one thing `app.dart` reads from the provider scope,
 /// and it is recorded as a deviation from rule 8 in `ai/doc.md` §4.
+///
+/// It also places `AppShortcuts` above the `Navigator`, which is the only place
+/// that is an ancestor of every focus scope in the app, a popup route's
+/// included. It builds the placement, not the shortcuts: those are the
+/// feature's.
 class AppRoot extends StatelessWidget {
   const AppRoot({super.key});
 
@@ -58,6 +64,14 @@ class AppRoot extends StatelessWidget {
       // Null asks for the system locale, which is what the settings' `system`
       // option means.
       locale: settings.locale,
+      // The app's Ctrl keys are placed here rather than inside `home`, because
+      // a popup route is a child of the `Navigator`: a key reaches the app's
+      // shortcuts only from an ancestor of the route's focus scope, and `home`
+      // is below it. `builder` runs inside `Localizations`, so the localized
+      // strings the flows use are still resolved, and `MaterialApp` puts the
+      // `ScaffoldMessenger` those flows show a message through above it.
+      builder: (context, child) =>
+          AppShortcuts(child: child ?? const SizedBox.shrink()),
       home: const TabsPage(),
     );
   }
@@ -70,19 +84,19 @@ class TabsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // TabShortcuts is inside the Scaffold, not around it: the save flow shows a
-    // message through ScaffoldMessenger, which the Scaffold provides.
+    // The page keys belong to the content area rather than to a page, because a
+    // page has no scroll controller of its own: `TabNavigation` owns the one
+    // the pages resolve to. The Ctrl keys are not placed here either — they are
+    // at the app level, in `AppRoot`.
     return AppCloseHandler(
       child: Scaffold(
-        body: TabShortcuts(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const MainMenu(),
-              const TabStrip(),
-              Expanded(child: const TabView()),
-            ],
-          ),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const MainMenu(),
+            const TabStrip(),
+            Expanded(child: TabNavigation(child: const TabView())),
+          ],
         ),
       ),
     );

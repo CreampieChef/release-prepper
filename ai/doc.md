@@ -75,7 +75,7 @@ What is left unfinished is not a compile error but missing behaviour:
   right-aligned with a minimum gap — because
   `MenuItemButton` renders its own shortcut label with the item's text style and
   a fixed spacing that cannot be styled from outside, and it only shows a hint:
-  the keys are handled by `TabShortcuts`, and the items and the keys call the
+  the keys are handled by `AppShortcuts`, and the items and the keys call the
   same callbacks. `Settings`, `Recent releases` and `System Check` show no hint,
   because there is no key for any of them, and `Clone Release` shows none for the same reason.
   Save writes the selected tab through
@@ -86,6 +86,28 @@ What is left unfinished is not a compile error but missing behaviour:
   tab is open. Clone Release acts on the selected tab and is enabled only when
   that tab is a single-video editor tab, because that is the only type the clone
   feature covers.
+- The Ctrl keys are answered at the app level, by `AppShortcuts` placed in
+  `MaterialApp.builder`, so it is an ancestor of every focus scope in the app, a
+  popup route's included, and a key reaches it from wherever the focus is — one
+  map for the whole app, where the same behaviour used to be patched one widget
+  at a time. A handler nearer in the focus chain is asked first, so the editor's
+  own Ctrl+S keeps its fields and this map is the fallback for the rest. PageUp,
+  PageDown, Home and End move the page the content area shows: one page height,
+  or its top and its bottom, with the move a browser's smooth scrolling makes —
+  a fraction of a second, stopping gently rather than all at once. A press that
+  arrives during a move starts from where the page is, so pressing the key
+  several times reads as one continuous move. They belong to the content area
+  rather than to a page, because a page has no controller of its own —
+  `TabNavigation` owns the one the pages resolve to, and asks for the
+  inheritance on every platform, which a desktop app needs since that is on by
+  default only for the mobile ones. A focused text input keeps these keys for
+  its caret, and a key with a modifier is the field's too. A focus on the menu
+  bar or the tab strip is outside the content area, so nothing moves, as it is
+  today. A key reaches a handler only through the focus chain, so
+  `TabNavigation` is the default focus of its subtree — a page with nothing
+  focusable in it, such as the recent list, has no node below it to be asked
+  from — and it is not a stop for traversal, so Tab still reaches the first
+  field.
 - Open Release covers the happy path and the invalid-folder error (error popup with
   `Close` / `Choose another folder`, which repeats the pick). Cancel is not treated
   as an error. There is no busy/disabled state on the menu item, and the folder is
@@ -170,10 +192,10 @@ the user picked is its own row, not a field, because the item is the file
   draft section's, because a field is where the action that uses it is. Field state lives in
   `ReleaseEditorController`; the
   form
-  is filled from `release.json` on open, Ctrl+S saves it back — when focus is
-  outside the editor the same key reaches the shared save flow through
-  `TabShortcuts` — and a change marks the tab with an unsaved-changes dot in the
-  tab strip. The form does not validate a field before the user asks for a
+  is filled from `release.json` on open, Ctrl+S saves it back — a handler nearer
+  in the focus chain is asked first, so this one wins while focus is inside
+  the editor and the app-level `AppShortcuts` is the fallback for the rest — and
+  a change marks the tab with an unsaved-changes dot in the tab strip. The form does not validate a field before the user asks for a
   message; the fields a message reads are checked when they ask, for the type
   whose rules are known, and after a generation is refused the rows the user
   can fill show the rule as it stands, so an error goes away when the field is
@@ -201,10 +223,12 @@ the user picked is its own row, not a field, because the item is the file
   Primary sources category, whose message says the domain was read from another link and is
   followed by that link. The second kind can appear twice for the one field, once for each of
   the two studios, so a note's key includes its place in the list rather than the field alone.
-  The row owns the focus of its input and
-  takes it back when the popup closes, because the popup is a route and its focus scope is
-  outside the subtree `TabShortcuts` covers, and a key reaches that subtree only through the
-  focus chain; without taking focus back, Ctrl+S stops working after an import. The fields it can
+  The row owns the focus of its input and takes it back when the popup closes,
+  because the popup is a route and its focus scope is outside the row's: what
+  the framework gives back is whatever had focus before the popup, not the row's
+  input. The save key reaches the editor from wherever the focus is, so this is
+  not what the key depends on; it is what owning the input's focus means here.
+  The fields it can
   fill are cast, video title, site number, subsite and site, production date, tags and
   description, and the poster. The six fields the app reads from the movie file are not StashDB's
   to fill, and additional information has no StashDB value at all. Cast is the credit as the scene
@@ -845,13 +869,34 @@ lib/
                                 app-level tabs are, and the two wizards by their
                                 menu keys, because a wizard has no release to name
                                 it
-      tab_shortcuts.dart        TabShortcuts: the app's shortcuts — Ctrl+N
+      app_shortcuts.dart        AppShortcuts: the app's Ctrl keys — Ctrl+N
                                 creates a new release, Ctrl-O opens a release
                                 through the shared open flow, Ctrl+S saves the
                                 current tab through the shared save flow, Ctrl-W
                                 closes the current tab through the shared close
-                                flow. It sits inside the `Scaffold` so the save
-                                flow can show a message.
+                                flow. Placed by `AppRoot` in
+                                `MaterialApp.builder`, so it is an ancestor of
+                                every focus scope in the app and the keys reach
+                                it from a popup route too; a widget that handles
+                                a key itself is nearer in the focus chain, so it
+                                keeps what it does.
+      tab_navigation.dart TabNavigation: PageUp, PageDown, Home and End
+                                move the page the content area shows — one page
+                                height, or its top and its bottom, with the move
+                                a browser's smooth scrolling makes, and a press
+                                during a move starting from where the page is.
+                                It owns the `ScrollController` the pages resolve
+                                to (a deviation from rule 2 and rule 7, recorded
+                                below) and asks for the inheritance on every
+                                platform, which a desktop app needs. It is the
+                                default focus of its subtree, because a key
+                                reaches a handler only through the focus chain
+                                and a page with nothing focusable has nothing
+                                below it; it is not a stop for traversal. It
+                                declines a key when a text input is focused or
+                                when the key has a modifier, and it is not asked
+                                at all when the focus is outside the content
+                                area.
       app_close.dart            AppCloseHandler: keeps the window open when the
                                 close button is pressed (prevent-close), runs
                                 the popup once per dirty tab, and closes the app
@@ -2323,6 +2368,18 @@ not treat those rules as describing the code as it is today).
 - Rule 8: `AppRoot` in `app.dart` reads `SettingsController` for the locale, which is the one
   thing `app.dart` reads from the provider scope. It has to be its own widget rather than part of
   `App`, because `App.build` runs above the providers `App` installs.
+- Rule 2 and rule 7: `TabNavigation` has no controller and it owns a
+  `ScrollController`, which is a `Listenable`. There is nothing for a controller
+  to own here: the widget holds the one object its subtree resolves to, as
+  `SettingsPage` and `StashSection` hold the `FocusNode`s of the fields they own
+  — a widget's own `Listenable`, disposed by the widget, which is not the shared
+  state rule 7 is about. Rule 7 stays intact for tab state.
+- Rule 10: `TabNavigation` reads `FocusManager.instance` to answer whether a
+  text input is focused, because the focus chain gives the widget its own node
+  and the focused one is elsewhere. It is the same kind of exception as
+  `windowManager` and `rootBundle`: a top-level the framework owns, read only to
+  answer one question, and the widget that reads it is the widget the question
+  is about.
 
 ---
 
@@ -2367,18 +2424,23 @@ same reason the credential store's is) and `WindowController`.
 startup tab goes through it. `SystemCheckController` is a provider entry too,
 because the check is app-level rather than per release; it is given the four
 tool wrappers and the app data directory as a function, for the same reason
-`SettingsStore` is given one. `TabsPage` is stateless: its `build` places
-`AppCloseHandler` around a `Scaffold` whose body is `TabShortcuts` around a
-`Column` of `MainMenu`, `TabStrip`, `Expanded(TabView)`. It builds nothing and
-resolves nothing; the two wrappers are feature widgets that own the window-close
-and the keyboard-shortcut behaviour. `TabShortcuts` is inside the `Scaffold`,
-not around it, because the save flow shows its message through
-`ScaffoldMessenger`, which the `Scaffold` provides.
+`TabsPage` is stateless: its `build` places `AppCloseHandler` around a
+`Scaffold` whose body is a `Column` of `MainMenu`, `TabStrip`,
+`Expanded(TabNavigation(TabView))`. It builds nothing and resolves nothing; the
+two wrappers are feature widgets that own the window-close and the page-key
+behaviour, and the default focus of the content area, which is what a page with
+nothing focusable in it is reached from. The Ctrl keys are not placed here:
+`AppShortcuts` is placed by `AppRoot` in `MaterialApp.builder`, which is the
+only place that is an ancestor of every focus scope in the app, a popup route's
+included — `home` is below the `Navigator`, so a key that comes from a route
+cannot reach a map inside it. The save flow shows its message through
+`ScaffoldMessenger`, and `MaterialApp` puts the one it provides above `builder`,
+so a message shown by an app-level action resolves even when a popup is open.
 
 **Resolution:** widgets read their dependencies from the provider scope —
 `MainMenu` reads `MainMenuController` and watches `TabManager` for the Save item's
 enabled state, `TabStrip` and `TabView` watch `TabManager`, `TabStrip`,
-`TabShortcuts` and `AppCloseHandler` read `TabCloseController`, `TabShortcuts`
+`AppShortcuts` and `AppCloseHandler` read `TabCloseController`, `AppShortcuts`
 reads `MainMenuController` for its Ctrl-O and Ctrl+S bindings, `ReleaseWizard`
 builds its own controller in `initState` with the
 store from the scope. `AppRoot` watches `SettingsController` for the locale and `SettingsPage`
@@ -2465,8 +2527,9 @@ error inside itself, so the user can retry or pick another option rather than lo
 the work. The popup therefore only returns a choice that really closed the tab, or
 Cancel.
 
-`TabShortcuts` wraps the content and maps Ctrl-W to closing the current tab
-through that flow, so it works regardless of which tab is focused.
+`AppShortcuts` is an ancestor of every focus scope, so it maps Ctrl-W to closing
+the current tab through that flow regardless of which tab is focused, a popup
+route's focus scope included.
 `AppCloseHandler` registers the `window_manager` window-close listener and sets
 `setPreventClose(true)` so the toolkit does not close the window on its own; on
 the close event it runs the only if none is cancelled. A clean tab is skipped.
@@ -2634,11 +2697,15 @@ field — the probe, the date picker, the file picker — do update it. The cont
 marks the tab dirty through `TabManager`, which is the only
 listener, so the widget does not listen to the controller at all.
 
-Ctrl+S is handled by a `Focus` wrapper in the widget: key events reach it from the
-focused text field through the focus chain. Saving writes the manifest and clears
-the flag; a failed write shows a localized message. A popup is a route, so its focus
-scope is outside this subtree; the Stash row takes focus back to its input when its
-popup closes, which is what keeps the key reaching this handler after an import.
+Ctrl+S is handled by a `Focus` wrapper in the widget: key events reach it from
+the focused text field through the focus chain, and this is the nearer handler,
+so the key is answered here while a field inside the editor has focus. The
+editor does not ask for focus itself — the content area is the default focus of
+its subtree — so with nothing inside the editor focused the app-level map
+answers the key. Saving writes the manifest and clears the flag; a failed write
+shows a localized message. `AppShortcuts` is an ancestor of every focus scope,
+so a popup route's focus scope reaches it too. The Stash row still takes focus
+back to its input when its popup closes, because it owns that input's focus.
 
 Every field is a text box except: the source row, which has a picker button at the end of the
 row — `FilePicker.pickFile()` for a type whose source is a file, `FilePicker.getDirectoryPath()`
@@ -3164,7 +3231,7 @@ the right edge. `MenuItemButton` cannot style its own shortcut label — it rend
 it with the item's text style and a fixed spacing — and it does not handle the
 key either: `MenuItemButton.shortcut` only shows a hint, so the hint is drawn by
 the widget from `AppLocalizations` keys and the keys are handled by
-`TabShortcuts`. The items and the keys call the same callbacks, so a menu action
+`AppShortcuts`. The items and the keys call the same callbacks, so a menu action
 and its shortcut do the same thing: `Close tab` calls the shared close flow, the
 same path as Ctrl-W and the strip. `Save` is disabled when the selected tab is
 not an editor tab and `Close tab` when no tab is open, which is why `MainMenu`
@@ -3222,8 +3289,12 @@ scope.
 whether it succeeded. The shared save flow `saveCurrentTab` in `main_menu.dart`
 does nothing for a tab that cannot be saved (no tabs, or a wizard with no
 release) and maps a failed write to `releaseSaveFailed`; it is used by the menu
-item and by Ctrl+S. The editor's own Ctrl+S handler wins when a field is focused,
-so the shortcut only runs when focus is elsewhere; both paths reach the same save.
+item and by Ctrl+S. The editor's own Ctrl+S handler is nearer in the focus
+chain, so it wins while a field inside the editor has focus, and the app-level
+map answers the key otherwise — which is what the per-widget patches used to do
+one case at a time. Both paths write the manifest through the same store, but
+only the app-level one records the recent entry with the date the write stamped
+(`ai/recent_releases.md` §3); the editor's own path does not.
 
 **The recent list:** `RecentReleasesController.record(release)` is the entry rule — the entry for the
 release's directory is updated or added, the entry opened least recently leaves when the list reaches 50,
@@ -4276,7 +4347,39 @@ tab each popup names, and closing the app asks for each dirty tab (Cancel
 aborts, confirming all closes, a clean tab is skipped). The save is real file
 IO, so those tests run inside `runAsync` and stay in it for the whole flow: once
 a flow starts outside the fake-async zone, its continuations only run while that
-zone is active. `test/media_info_test.dart` covers the parser against a captured
+zone is active.
+
+`test/tab_navigation_test.dart` covers the content area's page keys. It runs on
+`TargetPlatform.linux`, because a widget test reports a mobile platform where a
+scroll view inherits the primary controller by default, and the inheritance the
+widget asks for is what makes a page resolve to the one the content area owns;
+the override is cleared inside the test, since the framework checks the debug
+variables before it runs `tearDown`. It covers a page resolving to that
+controller, the default focus reaching a page that has nothing focusable in it,
+which is the shape the recent list has, Tab still reaching the first field
+through it, a page move of one page height, a move past what the page has
+stopping at its end, Home and End reaching the top and the bottom, a press that
+arrives during a move starting from where the page is rather than from where the
+first move was going, a focused text field keeping the keys for its caret, a
+focus outside the content area reaching no page, and the empty state, where
+nothing has attached a position so the key is declined rather than answered with
+one that does not exist. Since a key starts a move rather than answering with
+where it ended, the positions are read after the move finishes; the mid-
+animation read is on the frame after the one the move starts on, because that
+frame does not move the page, and repeated presses are settled one at a time so
+they add up rather than cancel each other in a single frame. The declined cases
+read the key result, which is what shows nothing handled them, and the focus-
+outside test asks for focus on purpose because the content area would otherwise
+hold it. The field tests compare against the position the page had before the
+key was pressed, because showing the caret can move the page; the field is
+placed below what one page shows, so focusing it is what moves the page.`test/app_shortcuts_test.dart` covers the app-level placement: the keys are
+reached from a focus inside the app and from a focus inside a popup route, a
+nearer handler is asked first, and Ctrl+S reaches the shared save flow with a
+popup open. The app is built as `app.dart` builds it, with the widget placed in
+`MaterialApp.builder`; the save is real file IO, so it runs inside `runAsync`
+like the close flow's tests.
+
+`test/media_info_test.dart` covers the parser against a captured
 fixture: the six values formatted as `ai/release_editor.md` specifies, a part
 ffprobe does not report left out, the first stream of each type, and the
 container name. `test/file_size_test.dart` covers the size display: the byte
