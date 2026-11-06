@@ -7,24 +7,27 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../service/network/pornolab_client.dart';
 import '../pornolab_results.dart';
+import '../tab/tab_manager.dart';
 import 'settings.dart';
 import 'settings_controller.dart';
-
-/// The sections the Settings page has. The left side lists them in this order,
-/// so a new section is an entry here plus a case in `_content`. Private to this
-/// file: nothing outside the page needs it.
-enum _SettingsSection { general, releases, integration }
 
 /// The Settings page: the section list on the left, the selected section on the
 /// right.
 ///
-/// Which section is shown is widget state, like the hoster selection in the
-/// Upload section; the settings themselves belong to `SettingsController`. The
-/// sections are private widgets of this page because they share its controller
-/// — a section with its own fields and its own state is the point where it
-/// would become a file of its own.
+/// Which section is shown is the tab's state, not the page's: the page is given
+/// the tab it belongs to and reads the selection from the `AppTab` record, the
+/// way the editor reports its unsaved changes to the tab. That is what makes
+/// the selection survive a tab switch: the tab view builds only the active tab,
+/// so this widget is thrown away and rebuilt on every switch, and a value it
+/// held itself would not survive being thrown away. The settings themselves
+/// belong to `SettingsController`. The sections are private widgets of this
+/// page because they share its controller — a section with its own fields and
+/// its own state is the point where it would become a file of its own.
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key});
+  const SettingsPage({required this.tabId, super.key});
+
+  /// The tab whose record the section is read from and written back to.
+  final String tabId;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -70,7 +73,23 @@ class _SettingsPageState extends State<SettingsPage> {
     SettingsField.pornolabPassword,
   ];
 
-  _SettingsSection _section = _SettingsSection.general;
+  /// The section the tab's record says to show. The selection lives on the tab
+  /// record rather than in this `State`, because the tab outlives the widget:
+  /// the tab view builds only the active tab, so this page is thrown away on
+  /// every switch and a value it held itself would not survive being thrown
+  /// away. `build` resolves `TabManager` from the provider scope and passes it
+  /// here, so the record is both what the page shows and what a click writes
+  /// back to.
+  SettingsSection _section(TabManager tabManager) => tabManager.tabs
+      .firstWhere((tab) => tab.id == widget.tabId)
+      .settingsSection;
+
+  /// A click writes the choice to the tab instead of keeping it, which is what
+  /// makes it still there when the user comes back to this tab. Writing it is
+  /// the rebuild, so there is no local state to set as well.
+  void _selectSection(TabManager tabManager, SettingsSection section) {
+    tabManager.setSettingsSection(widget.tabId, section);
+  }
 
   /// Resolved once, because `dispose()` needs it and by then the element is
   /// gone, so `context` cannot be used.
@@ -225,11 +244,11 @@ class _SettingsPageState extends State<SettingsPage> {
     super.dispose();
   }
 
-  String _title(_SettingsSection section, AppLocalizations l10n) =>
+  String _title(SettingsSection section, AppLocalizations l10n) =>
       switch (section) {
-        _SettingsSection.general => l10n.settingsGeneralSectionTitle,
-        _SettingsSection.releases => l10n.settingsReleasesSectionTitle,
-        _SettingsSection.integration => l10n.settingsIntegrationSectionTitle,
+        SettingsSection.general => l10n.settingsGeneralSectionTitle,
+        SettingsSection.releases => l10n.settingsReleasesSectionTitle,
+        SettingsSection.integration => l10n.settingsIntegrationSectionTitle,
       };
 
   String _fieldLabel(SettingsField field, AppLocalizations l10n) =>
@@ -252,13 +271,17 @@ class _SettingsPageState extends State<SettingsPage> {
         : l10n.pornolabLoginAccepted;
   }
 
-  Widget _sectionRow(_SettingsSection section, AppLocalizations l10n) {
+  Widget _sectionRow(
+    TabManager tabManager,
+    SettingsSection section,
+    AppLocalizations l10n,
+  ) {
     final theme = Theme.of(context);
-    final selected = section == _section;
+    final selected = section == _section(tabManager);
 
     return InkWell(
       key: ValueKey('settings-section-${section.name}'),
-      onTap: () => setState(() => _section = section),
+      onTap: () => _selectSection(tabManager, section),
       // A navigation row is flat and shows its own selected state; it is not a
       // button.
       child: Container(
@@ -276,13 +299,13 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _sectionList(AppLocalizations l10n) {
+  Widget _sectionList(TabManager tabManager, AppLocalizations l10n) {
     return Column(
       key: const ValueKey('settingsSections'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final section in _SettingsSection.values)
-          _sectionRow(section, l10n),
+        for (final section in SettingsSection.values)
+          _sectionRow(tabManager, section, l10n),
       ],
     );
   }
@@ -678,7 +701,11 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _content(SettingsController settings, AppLocalizations l10n) {
+  Widget _content(
+    SettingsController settings,
+    AppLocalizations l10n,
+    SettingsSection section,
+  ) {
     final theme = Theme.of(context);
 
     return SingleChildScrollView(
@@ -688,12 +715,12 @@ class _SettingsPageState extends State<SettingsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(_title(_section, l10n), style: theme.textTheme.titleMedium),
+            Text(_title(section, l10n), style: theme.textTheme.titleMedium),
             const SizedBox(height: 12),
-            switch (_section) {
-              _SettingsSection.general => _generalSection(settings, l10n),
-              _SettingsSection.releases => _releasesSection(settings, l10n),
-              _SettingsSection.integration => _integrationSection(
+            switch (section) {
+              SettingsSection.general => _generalSection(settings, l10n),
+              SettingsSection.releases => _releasesSection(settings, l10n),
+              SettingsSection.integration => _integrationSection(
                 settings,
                 l10n,
               ),
@@ -842,12 +869,14 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final settings = context.watch<SettingsController>();
+    final tabManager = context.watch<TabManager>();
+    final section = _section(tabManager);
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final list = Padding(
           padding: const EdgeInsets.all(12),
-          child: _sectionList(l10n),
+          child: _sectionList(tabManager, l10n),
         );
 
         if (constraints.maxWidth < _twoColumnMinWidth) {
@@ -855,7 +884,7 @@ class _SettingsPageState extends State<SettingsPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               list,
-              Expanded(child: _content(settings, l10n)),
+              Expanded(child: _content(settings, l10n, section)),
             ],
           );
         }
@@ -864,7 +893,7 @@ class _SettingsPageState extends State<SettingsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(width: 200, child: list),
-            Expanded(child: _content(settings, l10n)),
+            Expanded(child: _content(settings, l10n, section)),
           ],
         );
       },

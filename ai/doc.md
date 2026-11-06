@@ -677,7 +677,13 @@ data (`ai/release_structure.md` §4). The URLs are stored per image and per host
   The language applies live, which is why `SettingsController` is a
   `ChangeNotifier` (see §4). The tab is opened once: the menu item selects the
   one already open, because settings are app-level and a second tab would show
-  the same thing twice.
+  the same thing twice. Which section the settings tab shows is remembered
+  while that tab is open, so coming back to it from another tab shows the
+  section the user was on: the selection is the tab's state, not the page's,
+  because the content area builds only the active tab and the page is thrown
+  away on a switch. It is not stored in settings.json, because it is what the
+  user was looking at and not a setting, and a settings tab that was closed
+  shows the first section again, because the record the choice was on is gone.
 - The app remembers the size the window had at the end of the run (`ai/doc.md`
   §7). It is the app's second app-level record and the only one with no page:
   nothing on the Settings page writes it, because the value is not something the
@@ -820,7 +826,10 @@ lib/
                                 by switching on `AppTabKind`, including
                                 `SystemCheckPage`. The clone wizard is given the
                                 source its tab carries, which is the only thing a
-                                clone tab holds.
+                                clone tab holds. Keying the content by tab id is
+                                why state that has to survive a switch is on the
+                                tab record and not in the page: the page for a
+                                tab is built only while that tab is active.
       tab_close_controller.dart TabCloseController: the side effects of closing a
                                   tab (select it, save its release, or close it);
                                   typed result, no listener, no context. A save that wrote the
@@ -1413,6 +1422,13 @@ lib/
                                   the separator and a rule that reads the
                                   platform can only be tested on the platform it
                                   reads
+                                  SettingsSection is the sections the page has, in
+                                  the order its left side lists them. It is not
+                                  private to the page, because the section a
+                                  settings tab shows is the tab's state, held on
+                                  the `AppTab` record, so the selection is still
+                                  there when the user comes back to the tab from
+                                  another one.
                                   SettingsField is the fields the Integration
                                   section has, named by the key the credential
                                   store uses, with the flag that says which of
@@ -1459,10 +1475,17 @@ lib/
                                   §4)
       settings_page.dart          SettingsPage: the section list on the left and
                                   the selected section on the right, with every
-                                  field capped at 400 px. Which section is shown
-                                  is widget state; the sections are private
-                                  widgets of this page because they share its
-                                  controller. The page owns the field
+                                  field capped at 400 px. Which section is
+                                  shown is the tab's state, read from the
+                                  `AppTab` record and written back through
+                                  `TabManager`, the way the editor reports its
+                                  dirty flag: the content area builds only the
+                                  active tab, so the page is thrown away on a
+                                  switch and a value it held itself would not
+                                  be there when the user comes back; the page
+                                  is given the tab id for that. The sections
+                                  are private widgets of this page because they
+                                  share its controller. The page owns the field
                                   controllers and their focus nodes, and commits
                                   a field on submit, on focus loss, and when it
                                   is disposed, which is what closing the tab
@@ -2179,8 +2202,12 @@ not treat those rules as describing the code as it is today).
 8. **`app.dart` composes, it does not implement.** It installs the provider
    scope and places `MainMenu`, `TabStrip`, `TabView`. It builds no object and
    renders no tab or menu UI itself.
-9. **`AppTab` is a plain data record** (`id`, `kind`, `release`, `hasUnsavedChanges`). No
-   `Listenable` inside it.
+9. **`AppTab` is a plain data record** (`id`, `kind`, `release`, `hasUnsavedChanges`,
+   `settingsSection`). No `Listenable` inside it. The last two are what a feature
+   reports to the tab rather than holds itself, because the tab outlives the widget that
+   shows them: the content area builds only the active tab, so a page is thrown away
+   when another tab is selected, and a value it kept would be gone before the user comes
+   back.
 10. **No static singletons.** Shared objects live only in the provider scope and
     are reached through `context`, never through a top-level variable. The hoster registry
     is the one exception, and it is a necessary one: it is data the tests read, so it stays
@@ -2355,13 +2382,16 @@ enabled state, `TabStrip` and `TabView` watch `TabManager`, `TabStrip`,
 reads `MainMenuController` for its Ctrl-O and Ctrl+S bindings, `ReleaseWizard`
 builds its own controller in `initState` with the
 store from the scope. `AppRoot` watches `SettingsController` for the locale and `SettingsPage`
-watches it for the fields it shows; which section the settings page shows is its own widget
-state, like the hoster selection in the Upload section. `StashSection` builds its own controller
+watches it for the fields it shows; which section the settings page shows is not its own state but
+the tab's, read from the `AppTab` record: the content area builds only the active tab, so the page
+is thrown away when another tab is selected, and a value it held itself would be gone by the time
+the user comes back — the same reason the editor's dirty flag is on the record.
+`StashSection` builds its own controller
 in `initState` with `StashClient` from the scope, and reads `SettingsController` for the key it
 passes to the call rather than holding it. `RecentReleasesPage` watches `RecentReleasesController` for
 the rows and reads `MainMenuController` for the row click, and asks the controller to check which rows
 are still there when it opens; which column the table is ordered by is its own widget state, like the
-section the settings page shows.
+hoster selection in the Upload section.
 `SystemCheckPage` reads `SystemCheckController` in `initState` and runs the
 check when it opens; the results are its own widget state, like the column the
 recent table is ordered by.
@@ -2374,7 +2404,10 @@ are app-level, so a second tab would show the same thing twice, and they select 
 open. `addReleaseEditor` does the same per release directory, because one release is one row of the
 recent list and one tab, and a second tab for the same folder would show the same release twice.
 `setUnsavedChanges(tabId, value)` is how the editor reports dirty state; the tab
-record is the only place that state lives.
+record is the only place that state lives. `setSettingsSection(tabId, section)` is how the settings
+page reports which section it shows, for the same reason: the content area builds only the active
+tab, so the page is gone when another tab is selected, and the section it was showing would be
+gone with it.
 `replaceWizardWithEditor` takes either wizard kind, because both become the editor
 of the release they made, and is a no-op if the wizard tab was closed while creation
 was in progress.

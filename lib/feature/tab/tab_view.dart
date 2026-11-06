@@ -11,7 +11,10 @@ import '../system_check/system_check_page.dart';
 import 'tab_manager.dart';
 
 /// The content area: renders the active tab, or the empty state when no tab is
-/// open. Keying the content by tab id rebuilds the widget when the tab changes.
+/// open. Keying the content by tab id rebuilds the widget when the tab changes,
+/// so a widget that has to keep something across a switch keeps it on the tab
+/// record, not in itself — the page that shows a settings section reports the
+/// selection to `AppTab` for that reason.
 class TabView extends StatelessWidget {
   const TabView({super.key});
 
@@ -32,7 +35,7 @@ class TabView extends StatelessWidget {
         release: tab.release!,
         tabId: tab.id,
       ),
-      AppTabKind.settings => const SettingsPage(),
+      AppTabKind.settings => SettingsPage(tabId: tab.id),
       AppTabKind.recentReleases => const RecentReleasesPage(),
       AppTabKind.systemCheck => const SystemCheckPage(),
     };

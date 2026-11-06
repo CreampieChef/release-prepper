@@ -10,6 +10,18 @@ import '../release/release.dart';
 /// adding a language means adding it here and to the arb files.
 enum AppLanguage { system, en, ru }
 
+/// The sections the Settings page has. The page lists them on the left in this
+/// order, so a new section is an entry here plus a case in the page's
+/// `_content`.
+///
+/// It is not private to the page, because which section a settings tab shows is
+/// the tab's state rather than the page's: `AppTab` holds it, so the selection
+/// is still there when the user comes back to the tab from another one. The tab
+/// view builds only the active tab, so the page is rebuilt on every switch.
+/// This is not a setting: nothing is stored, and a settings tab that was closed
+/// shows the first section, because the record the choice was kept on is gone.
+enum SettingsSection { general, releases, integration }
+
 /// The fields the Integration section has. The name is the key the credential
 /// store uses, so it is the record the app reads back.
 ///

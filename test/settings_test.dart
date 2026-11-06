@@ -56,20 +56,33 @@ void main() {
 
   // The page is built inside the provider so a test can remove the page while
   // the provider stays: that is what closing the tab does, and it is the point
-  // the dispose-time commit is for.
-  Widget app(SettingsController settings, {bool showPage = true}) =>
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<SettingsController>(create: (_) => settings),
-        ],
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(body: showPage ? SettingsPage() : const SizedBox()),
-        ),
-      );
+  // the dispose-time commit is for. Removing the page and building it again is
+  // also what switching to another tab and back does, because the tab view
+  // builds only the active tab — which is why the section the page shows is the
+  // tab's state, and the page needs a `TabManager` to read it from.
+  Widget app(
+    SettingsController settings,
+    TabManager tabManager, {
+    bool showPage = true,
+  }) => MultiProvider(
+    providers: [
+      ChangeNotifierProvider<SettingsController>(create: (_) => settings),
+      ChangeNotifierProvider<TabManager>(create: (_) => tabManager),
+    ],
+    child: MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(
+        body: showPage
+            ? SettingsPage(tabId: tabManager.tabs.first.id)
+            : const SizedBox(),
+      ),
+    ),
+  );
 
-  Future<void> pumpPage(
+  // Returns the tab manager, so a test can read the same record the page writes
+  // the selected section to.
+  Future<TabManager> pumpPage(
     WidgetTester tester,
     SettingsController settings,
   ) async {
@@ -82,7 +95,12 @@ void main() {
       await settings.load();
     });
 
-    await tester.pumpWidget(app(settings));
+    final tabManager = TabManager();
+    tabManager.addSettings();
+
+    await tester.pumpWidget(app(settings, tabManager));
+
+    return tabManager;
   }
 
   // A store with the two credentials already in it, so the fields are seeded
@@ -112,21 +130,26 @@ void main() {
   Future<void> closePage(
     WidgetTester tester,
     SettingsController settings,
+    TabManager tabManager,
   ) async {
-    await tester.pumpWidget(app(settings, showPage: false));
+    await tester.pumpWidget(app(settings, tabManager, showPage: false));
     await tester.pump();
   }
 
-  Future<void> integration(
+  // Returns the tab manager too, for the tests that read the record the page
+  // writes the section to.
+  Future<TabManager> integration(
     WidgetTester tester,
     SettingsController settings,
   ) async {
-    await pumpPage(tester, settings);
+    final tabManager = await pumpPage(tester, settings);
 
     await tester.tap(
       find.byKey(const ValueKey('settings-section-integration')),
     );
     await tester.pump();
+
+    return tabManager;
   }
 
   Future<void> releases(
@@ -470,7 +493,7 @@ void main() {
       FakeSecretStore(available: true),
     );
 
-    await pumpPage(tester, settings);
+    final tabManager = await pumpPage(tester, settings);
 
     expect(find.byKey(const ValueKey('settingsSections')), findsOneWidget);
     expect(
@@ -507,7 +530,73 @@ void main() {
 
     expect(find.text('StashDB API key'), findsOneWidget);
     expect(find.byKey(const ValueKey('appLanguage')), findsNothing);
+
+    // A click is not the page deciding for itself: it is a write to the tab
+    // record, which is what the page shows. That is what makes the selection
+    // survive the page being thrown away, as the next two tests are about.
+    expect(tabManager.tabs.first.settingsSection, SettingsSection.integration);
   });
+
+  // The tab view builds only the active tab, so switching away takes the page
+  // away and switching back builds a new one for the same tab. The page cannot
+  // hold the selection itself, because a new page has nothing; it is the tab
+  // record that is still there. Removing the page and building it again here is
+  // what a switch does to the widget.
+  testWidgets('the section is remembered across a tab switch', (tester) async {
+    final settings = controller(
+      directory.path,
+      FakeSecretStore(available: true),
+    );
+
+    final tabManager = await pumpPage(tester, settings);
+
+    await tester.tap(
+      find.byKey(const ValueKey('settings-section-integration')),
+    );
+    await tester.pump();
+
+    // Another tab is selected: the page is gone.
+    await tester.pumpWidget(app(settings, tabManager, showPage: false));
+    await tester.pump();
+
+    // And this tab is selected again: a new page for the same tab.
+    await tester.pumpWidget(app(settings, tabManager));
+    await tester.pump();
+
+    expect(find.text('StashDB API key'), findsOneWidget);
+    expect(find.byKey(const ValueKey('appLanguage')), findsNothing);
+  });
+
+  // Which section was selected is not stored, because it is what the user was
+  // looking at in this tab rather than a setting the app keeps. Closing the tab
+  // is the record going away, so the next settings tab shows the first section.
+  testWidgets(
+    'a settings tab opened after one was closed shows the first section',
+    (tester) async {
+      final settings = controller(
+        directory.path,
+        FakeSecretStore(available: true),
+      );
+
+      final tabManager = await pumpPage(tester, settings);
+
+      await tester.tap(
+        find.byKey(const ValueKey('settings-section-integration')),
+      );
+      await tester.pump();
+
+      await closePage(tester, settings, tabManager);
+
+      tabManager.closeTabAt(0);
+      tabManager.addSettings();
+
+      await tester.pumpWidget(app(settings, tabManager));
+      await tester.pump();
+
+      expect(find.text('App language'), findsOneWidget);
+      expect(find.text('StashDB API key'), findsNothing);
+    },
+  );
 
   testWidgets('choosing a language writes the settings file', (tester) async {
     final settings = controller(
@@ -795,7 +884,7 @@ void main() {
     final secrets = FakeSecretStore(available: true);
     final settings = controller(directory.path, secrets);
 
-    await pumpPage(tester, settings);
+    final tabManager = await pumpPage(tester, settings);
 
     await tester.tap(
       find.byKey(const ValueKey('settings-section-integration')),
@@ -807,7 +896,7 @@ void main() {
       'the-key',
     );
 
-    await tester.pumpWidget(app(settings, showPage: false));
+    await tester.pumpWidget(app(settings, tabManager, showPage: false));
 
     await tester.runAsync(() async {
       await Future.delayed(const Duration(milliseconds: 100));
@@ -854,7 +943,7 @@ void main() {
       FakeSecretStore(available: true),
     );
 
-    await integration(tester, settings);
+    final tabManager = await integration(tester, settings);
 
     // `TextFormField` keeps the flag on the text field it builds, so the test
     // reads the field the widget renders rather than the form field.
@@ -900,7 +989,7 @@ void main() {
 
     // The text is still in the fields here, so the test ends the way closing
     // the tab does.
-    await closePage(tester, settings);
+    await closePage(tester, settings, tabManager);
   });
 
   // Below the width where the three controls fit, each is its own row. The width

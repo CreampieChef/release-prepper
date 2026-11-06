@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../release/release.dart';
+import '../settings/settings.dart';
 
 enum AppTabKind {
   releaseWizard,
@@ -47,6 +48,17 @@ class AppTab {
   /// Set by the editor when a field changes and cleared when it saves. The tab
   /// strip shows a dot for it.
   bool hasUnsavedChanges = false;
+
+  /// Which section a settings tab shows. Like [hasUnsavedChanges], the tab is
+  /// the only place that state lives, so the page reports to it rather than
+  /// keeping its own: the tab view builds only the active tab, so a page that
+  /// is switched away from is thrown away and rebuilt when the user comes back,
+  /// and a value it held itself would not survive that. A settings tab that is
+  /// closed is the record going away, so the next one starts at the first
+  /// section; the choice is not stored, because it is what the user was looking
+  /// at in this tab rather than a setting. Every other tab carries the default,
+  /// because it has no sections and nothing reads or writes it.
+  SettingsSection settingsSection = SettingsSection.general;
 }
 
 class TabManager extends ChangeNotifier {
@@ -202,6 +214,22 @@ class TabManager extends ChangeNotifier {
     }
 
     _tabs[index].hasUnsavedChanges = value;
+    notifyListeners();
+  }
+
+  /// Records which section a settings tab shows, for the same reason
+  /// [setUnsavedChanges] is the place the editor reports to: the tab outlives
+  /// the page that shows it, so the selection is still there when the user
+  /// switches back to the tab. A settings tab that is closed takes the record
+  /// with it, so the next one starts at the first section.
+  void setSettingsSection(String tabId, SettingsSection section) {
+    final index = _tabs.indexWhere((tab) => tab.id == tabId);
+
+    if (index == -1 || _tabs[index].settingsSection == section) {
+      return;
+    }
+
+    _tabs[index].settingsSection = section;
     notifyListeners();
   }
 
