@@ -53,6 +53,11 @@ void main() {
       name: 'source',
       tracker: Tracker.pornolab,
       releaseType: ReleaseType.singleVideo,
+      // The flags off, so the copy is tested against a source that is not in
+      // the state a new release starts with: what the copy takes is the
+      // source's, not the default.
+      torrentPrivate: false,
+      includeAppSignature: false,
     );
 
     source.fields.setValue('cast', 'Alice');
@@ -148,6 +153,24 @@ void main() {
 
     expect(fields['parentForum'], source.fields.value('parentForum'));
     expect(fields['draftUrl'], '');
+  });
+
+  // The two flags are the source's, not the settings' defaults: the clone is
+  // the same scene at another resolution, so the post it writes and the torrent
+  // it builds are expected to be like the source's. What the settings say about
+  // new releases is what a release made from the wizard gets.
+  test('the two flags are copied from the source', () async {
+    final source = await sourceRelease();
+    final clone = await createClone(source);
+
+    final saved = readJson(p.join(clone.release.directoryPath, 'release.json'));
+
+    expect(saved['torrentPrivate'], isFalse);
+    expect(saved['includeAppSignature'], isFalse);
+
+    // The copy does not change the source.
+    expect(source.torrentPrivate, isFalse);
+    expect(source.includeAppSignature, isFalse);
   });
 
   test(

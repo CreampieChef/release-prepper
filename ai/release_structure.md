@@ -170,6 +170,13 @@ Rules:
   change to a file that is already there is written here at once, because
   the record has to agree with the file, and it does not make the tab
   dirty: the file is already changed, so there is nothing left to save.
+  Where the values a new release is written with come from is a settings choice
+  (the Settings page's Releases section); a clone is written with the source's,
+  because a clone is the same scene at another resolution. A default is what a
+  release is built with at the moment it is created, so changing it does not
+  rewrite a record that exists: the record keeps what it was written with, and
+  the flags on a release stay its own. The store is given the values rather than
+  deciding them, so the same write serves both paths.
   A manifest without any of the three, or with a value this version does not
   know, reads as the default — the shape those files were written with, a
   message with the signature, and a private torrent — because a shape and a flag

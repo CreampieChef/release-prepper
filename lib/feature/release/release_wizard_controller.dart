@@ -37,6 +37,8 @@ class ReleaseWizardController extends ChangeNotifier {
   ReleaseWizardController({
     required this.store,
     required this.defaultReleaseDirectory,
+    required this.defaultTorrentPrivate,
+    required this.defaultIncludeAppSignature,
     required this.recentReleases,
   });
 
@@ -46,6 +48,13 @@ class ReleaseWizardController extends ChangeNotifier {
   /// It comes from the settings, which are already loaded, so there is nothing
   /// to wait for here.
   final String defaultReleaseDirectory;
+
+  /// The two flags a new release is created with, read from the settings by the
+  /// widget for the same reason the directory is: the controller builds no
+  /// dependency of its own. They are defaults for the release being created, so
+  /// a release that exists is not affected by what they say now.
+  final bool defaultTorrentPrivate;
+  final bool defaultIncludeAppSignature;
 
   /// Recording the created release is its own feature's side effect, so it is
   /// called here rather than owned here (`ai/recent_releases.md` §3).
@@ -72,6 +81,8 @@ class ReleaseWizardController extends ChangeNotifier {
         name: name,
         tracker: tracker,
         releaseType: releaseType,
+        torrentPrivate: defaultTorrentPrivate,
+        includeAppSignature: defaultIncludeAppSignature,
       );
 
       // A release the app created is an entry in the recent list, the same as

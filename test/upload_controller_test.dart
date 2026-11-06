@@ -605,6 +605,8 @@ class _RecordingReleaseStore implements ReleaseStore {
     required String name,
     required Tracker tracker,
     required ReleaseType releaseType,
+    required bool torrentPrivate,
+    required bool includeAppSignature,
   }) async => throw UnsupportedError('this test does not create a release');
 
   @override

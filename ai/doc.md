@@ -101,16 +101,22 @@ What is left unfinished is not a compile error but missing behaviour:
   another one. The name must differ from the source's, because two releases with the same name
   are two rows of the recent list that cannot be told apart; the folder-name rules are the
   new-release wizard's. The tracker and the type are the source's and are not chosen here,
-  because a clone is the same release with a different video. On Create the app makes the
-  release as the new-release wizard does and then copies what the user wrote — every field
-  the user fills, including the scene link — and the poster: the primary poster record with
-  its URLs, and its file when it is on disk. The six fields the app fills from the movie file
-  are not copied, because they describe a different video, and no other record is copied,
-  because the clone generates and uploads its own images. A copy that cannot be written is a
-  failed create, and the folder the create made is removed, so a half-copied release is not
-  left behind. The form warns when the source has no poster, and warns separately when it
-  has one that has not been uploaded, because the point of uploading the poster first is that
-  the same poster is not uploaded twice for two releases.
+  because a clone is the same release with a different video; the same is true
+  of the two flags, so the clone is created with the source's Private flag and
+  the source's signature line rather than with the settings' defaults, because
+  the post it writes and the torrent it builds are expected to be like the
+  source's. On Create the app makes the release as the new-release wizard does
+  and then copies what the user wrote — every field the user fills, including
+  the scene link — and the poster: the primary poster record with its URLs, and
+  its file when it is on disk. The six fields the app fills from the movie file
+  are not copied, because they describe a different video, and no other record
+  is copied, because the clone generates and uploads its own images. A copy that
+  cannot be written is a failed create, and the folder the create made is
+  removed, so a half-copied release is not left behind. The create is given the
+  source's two flags, not the settings' defaults, so the clone starts as the
+  source is. The form warns when the source has no poster, and warns separately
+  when it has one that has not been uploaded, because the point of uploading the
+  poster first is that the same poster is not uploaded twice for two releases.
 - The editor is the Single video field form (`ai/release_editor.md`). The
   release name is the heading, with a tracker badge (its icon and name) and a
   release-type badge after it at a gap, because they say what the name is for.
@@ -612,47 +618,66 @@ data (`ai/release_structure.md` §4). The URLs are stored per image and per host
   can talk to more than one.
 - The Settings tab (`File` → `Settings`, `Icons.settings` in the tab strip) is a two-pane page:
   the section list on the left, the selected section on the right, with every field capped at
-  400 px. General has the app language selector (System language / English / Русский) and the
-  default release directory, which is what the new-release wizard prefills its save path with.
-  Integration holds the credentials for external services, with one field each for
-  StashDB, Postimages and the two PornoLab credentials. Which field is obscured is a
-  flag on the field entry rather than a rule of the section: every entry here is stored
-  in the credential store the same way, and the username is the one shown plainly. The
-  two credential fields and the button that runs the login are one row. The row's fields
-  are capped at the same 400 px as every other field on the page, so the row does not make
-  a field wider than the rest of the page; what it does is put the three controls on one
-  line when they fit and one control per line when they do not, because a field cannot show
-  its label at a width the label does not fit in. The width where it stops is what the
-  three controls need, with the button's part measured from the label the app shows, so it
-  moves with the language.
-  The fields are disabled while a session exists, because a credential cannot change
-  during one. The button is Log in when no cookie is stored and Log out when one is, the
-  second in the error colour the page already uses for a failed write. When an answer asks
-  for a code the section shows the image the code is read from and a field for it, capped
-  at the same 400 px, and the same button sends what is typed; the code is not a stored
-  value and is not committed as the fields are, because it belongs to the page that asked
-  for it (`ai/pornolab_login.md` §3). The cookie a login
-  gives is stored under the key `pornolabCookie`, and it is not a field the page draws:
-  the value the user used to paste is not read any more, and nothing was migrated. Those
-  values are not in `settings.json` — they live in the OS credential store (Keychain,
-  Credential Manager, the Secret Service), which is per machine, so a fresh machine has no
-  keys.
-  When that store cannot be reached the section says what to enable and offers storing the values
-  plainly in `settings.json`, marked as not recommended; a value is stored plainly only when the
-  user allows it, and the field then says where the value is — once for the row rather
-  than once for each field in it, because the note describes the row as a whole. The
-  StashDB field is read by the Stash section and the Postimages field by the Upload
-  section, which is what makes them real: the Upload section passes the Postimages value
-  to the tool through the environment variable `UPTOODA_HOSTER_API_KEY`, only for the
-  hosters whose script reads one (`ai/bundled_native_tools.md`), and the two credentials
-  are what the login the app makes itself is built from. Settings are
-  written as they change, so the settings tab has no dirty flag, is
-  not part of Ctrl+S, and closes without the unsaved-changes popup. A text field commits on submit,
-  when it loses focus, and when the tab closes: with no save step there is nothing that could hold
-  unsaved text, so a field that still has text when the tab closes writes it. The language applies
-  live, which is why `SettingsController` is a `ChangeNotifier` (see §4). The tab is opened once: the
-  menu item selects the one already open, because settings are app-level and a second tab would
-  show the same thing twice.
+  400 px. General has the app language selector (System language / English /
+  Русский). Releases is what the app does with a release it has not made yet:
+  the default release directory, which is what the new-release wizard prefills
+  its save path with, and the two flags a new release is built with — the
+  torrent Private flag and the app signature line, both on by default, because
+  that is the state the app has always created a release with. The folder button
+  is on the same line as the field, to its right. The field is capped at the
+  same 400 px as every other field on the page, so the row does not make it
+  wider than the rest of the page; what the row does is put the two controls on
+  one line when they fit and one control per line when they do not, because a
+  field cannot show its label at a width the label does not fit in. The point
+  where they stop fitting is what the two controls need, with the button's part
+  measured from the label the app shows, so it moves with the language, as the
+  login row's does. What this section holds are defaults, not rules: they are
+  what a release the app has not made yet is built with, and a release that
+  exists keeps what its own manifest holds, so changing a default here does not
+  rewrite a release, and the editor, the Message section and the Torrent section
+  still change the flags per release. Integration holds the credentials for
+  external services, with one field each for StashDB, Postimages and the two
+  PornoLab credentials. Which field is obscured is a flag on the field entry
+  rather than a rule of the section: every entry here is stored in the
+  credential store the same way, and the username is the one shown plainly. The
+  two credential fields and the button that runs the login are one row. The
+  row's fields are capped at the same 400 px as every other field on the page,
+  so the row does not make a field wider than the rest of the page; what it does
+  is put the three controls on one line when they fit and one control per line
+  when they do not, because a field cannot show its label at a width the label
+  does not fit in. The width where it stops is what the three controls need,
+  with the button's part measured from the label the app shows, so it moves with
+  the language. The fields are disabled while a session exists, because a
+  credential cannot change during one. The button is Log in when no cookie is
+  stored and Log out when one is, the second in the error colour the page
+  already uses for a failed write. When an answer asks for a code the section
+  shows the image the code is read from and a field for it, capped at the same
+  400 px, and the same button sends what is typed; the code is not a stored
+  value and is not committed as the fields are, because it belongs to the page
+  that asked for it (`ai/pornolab_login.md` §3). The cookie a login gives is
+  stored under the key `pornolabCookie`, and it is not a field the page draws:
+  the value the user used to paste is not read any more, and nothing was
+  migrated. Those values are not in `settings.json` — they live in the OS
+  credential store (Keychain, Credential Manager, the Secret Service), which is
+  per machine, so a fresh machine has no keys. When that store cannot be reached
+  the section says what to enable and offers storing the values plainly in
+  `settings.json`, marked as not recommended; a value is stored plainly only
+  when the user allows it, and the field then says where the value is — once for
+  the row rather than once for each field in it, because the note describes the
+  row as a whole. The StashDB field is read by the Stash section and the
+  Postimages field by the Upload section, which is what makes them real: the
+  Upload section passes the Postimages value to the tool through the environment
+  variable `UPTOODA_HOSTER_API_KEY`, only for the hosters whose script reads one
+  (`ai/bundled_native_tools.md`), and the two credentials are what the login the
+  app makes itself is built from. Settings are written as they change, so the
+  settings tab has no dirty flag, is not part of Ctrl+S, and closes without the
+  unsaved-changes popup. A text field commits on submit, when it loses focus,
+  and when the tab closes: with no save step there is nothing that could hold
+  unsaved text, so a field that still has text when the tab closes writes it.
+  The language applies live, which is why `SettingsController` is a
+  `ChangeNotifier` (see §4). The tab is opened once: the menu item selects the
+  one already open, because settings are app-level and a second tab would show
+  the same thing twice.
 - The app remembers the size the window had at the end of the run (`ai/doc.md`
   §7). It is the app's second app-level record and the only one with no page:
   nothing on the Settings page writes it, because the value is not something the
@@ -900,10 +925,19 @@ lib/
                               it — a run has nothing to show for one, its success is the link it
                               was given — so that word is the page's own string
     release/
-      release.dart              Release (name, directoryPath, tracker, releaseType, source,
-                                fields, items, createdDate, lastEditDate) + ReleaseItem
-                                (path, type, fields) + markEdited() + toJson() + schemaVersion
-      release_store.dart        ReleaseStore (create/load/save/touchLastEdit) + the two exceptions
+      release.dart              Release (name, directoryPath, tracker,
+                                releaseType, source, fields, items, createdDate,
+                                lastEditDate, includeAppSignature,
+                                torrentPrivate) + ReleaseItem (path, type,
+                                fields) + markEdited() + toJson() +
+                                schemaVersion
+      release_store.dart        ReleaseStore (create/load/save/touchLastEdit) +
+                                the two exceptions. create() takes the two flags
+                                as parameters rather than deciding them: the
+                                store writes what it is given, which is the
+                                settings' defaults for a release made through
+                                the wizard and the source's own flags for a
+                                clone
       release_open_controller.dart   sealed ReleaseOpenResult + openRelease(), which opens the
                                 picker at the default release directory the widget gives it,
                                 and openPath(), the same load for a folder the recent list
@@ -914,10 +948,14 @@ lib/
                                 used by the menu item and by Ctrl-O. For a recent row the
                                 popup has only Close, because the row names a folder the
                                 app has already read and there is nothing to choose again.
-      release_wizard_controller.dart   wizard state, name validation, create(). The default save path is
-                                 passed in from the settings rather than looked up here. A
-                                 create that succeeded is recorded in the recent list, as an
-                                 open is.
+      release_wizard_controller.dart   wizard state, name validation, create().
+                                       The default save path and the two flags a
+                                       new release is built with are passed in
+                                       from the settings by the widget rather
+                                       than looked up here, so a release is
+                                       created with the values it was given. A
+                                       create that succeeded is recorded in the
+                                       recent list, as an open is.
       release_wizard.dart       wizard form UI (selects use DropdownMenuFormField)
       clone_wizard_controller.dart   clone state: the fields the copy takes, the
                                      poster state, the default save path, and
@@ -1364,20 +1402,26 @@ lib/
                                 feature through the provider, because the gate is the credentials
                                 rather than the cookie
     settings/
-      settings.dart               AppLanguage + SettingsField + Settings (the app language, the
-                                  default release directory, the plain-storage flag, the values
-                                  stored plainly) + toJson() — the app's first app-level state —
-                                  plus resolveUserPath, for a stored path that starts with ~; it
-                                  takes the path context as a parameter, because the context is what
-                                  decides the separator and a rule that reads the platform can only be
-                                  tested on the platform it reads
-                                  SettingsField is the fields the Integration section has, named by
-                                  the key the credential store uses, with the flag that says which
-                                  of them the page obscures: a display rule, not a storage rule,
-                                  because every entry is stored the same way and the username is the
-                                  one shown plainly. `pornolabCookieKey` is the key the cookie a
-                                  login gives is written under; it is not a field, so nothing on the
-                                  page writes it
+      settings.dart               AppLanguage + SettingsField + Settings (the
+                                  app language, the default release directory,
+                                  the two release defaults, the plain-storage
+                                  flag, the values stored plainly) + toJson() —
+                                  the app's first app-level state — plus
+                                  resolveUserPath, for a stored path that starts
+                                  with ~; it takes the path context as a
+                                  parameter, because the context is what decides
+                                  the separator and a rule that reads the
+                                  platform can only be tested on the platform it
+                                  reads
+                                  SettingsField is the fields the Integration
+                                  section has, named by the key the credential
+                                  store uses, with the flag that says which of
+                                  them the page obscures: a display rule, not a
+                                  storage rule, because every entry is stored
+                                  the same way and the username is the one shown
+                                  plainly. `pornolabCookieKey` is the key the
+                                  cookie a login gives is written under; it is
+                                  not a field, so nothing on the page writes it
       settings_store.dart         SettingsStore (load/save) for settings.json in the app data
                                   directory; a missing or unreadable file reads as the defaults.
                                   The directory is a constructor parameter as a function, because
@@ -1387,73 +1431,118 @@ lib/
                                   plus PluginSecretStore over the plugin. It is an interface because
                                   the plugin is a method channel and cannot be exercised in a test,
                                   so the settings feature is tested against a fake
-      settings_controller.dart    SettingsController (ChangeNotifier): the settings, the locale the
-                                  app is given, the default directory with ~ expanded with the path
-                                  context it is given, the values the Integration section shows,
-                                  load() at startup, setLanguage(), setDefaultReleaseDirectory(),
-                                  setAllowPlainSecrets() and
-                                  setSecret() writing immediately; typed result. setSecret() takes a
-                                  key rather than a field, because a field is what the page draws
-                                  and a key is what the store holds. It is the second Listenable in
-                                  the app (see §4). It is also the feature that owns the login,
-                                  because the login is a call and the value it obtains is a stored
-                                  value: it takes the client and the app directory as constructor
-                                  parameters, login() writes the cookie the answer gives under
-                                  `pornolabCookieKey`, and `cookie` is what a run reads. login()
-                                  takes the captcha and the code; a run calls it with neither, which
-                                  is the shape the first login is, because a run has no user to read
-                                  an image. It is the
-                                  first controller another controller depends on (see §4)
-      settings_page.dart          SettingsPage: the section list on the left and the selected
-                                  section on the right, with every field capped at 400 px. Which
-                                  section is shown is widget state; the sections are private widgets
-                                  of this page because they share its controller. The page owns the
-                                  field controllers and their focus nodes, and commits a field on
-                                  submit, on focus loss, and when it is disposed, which is what
-                                  closing the tab does. The Integration section obscures a field
-                                  from the flag on its entry rather than masking every field in its
-                                  loop, and the two credentials and the button that runs the login
-                                  are one row. The row's fields are capped at the same 400 px
-                                  as every other field on the page, so the row does not make a
-                                  field wider than the rest of it; what the row does is put the
-                                  three controls on one line when they fit and one control per
-                                  line when they do not, because a field cannot show its label at
-                                  a width the label does not fit in. The button's width is
-                                  measured, so the point where the three stop fitting is that
-                                  point where the three stop fitting is that point in the language
-                                  the app is in. The button is Log
-                                  in when no cookie is stored and Log out when one is, in the error
-                                  colour; it is disabled while a credential is empty or a call runs,
-                                  and the fields are disabled while a session exists. The page
-                                  rebuilds when a field's text changes, because whether the button
-                                  can be pressed is read from the fields, and when the controller
-                                  changes, because a login a run made is a change the row has to
-                                  show. The note that says where a value lives is emitted once for
-                                  the row rather than once per field. The outcome of the last login is
-                                  said next to the row, in the colour that says which it was: the error
-                                  colour the page already uses for a value that was not written, and a
-                                  green for a login that worked. The green is the only colour in the
-                                  app that is not the theme's, because `ColorScheme` has no success
-                                  role. The words for a failure are the set the two features share;
-                                  the word for a login that worked is this page's, because a run has
-                                  nothing to show for one — its success is the link it was given. The
-                                  space says the outcome of the last action, so a logout takes the word
-                                  away. When the answer asks for a code
-                                  the page shows it: the word, the image the code is read from, and a
-                                  field for the code capped at the same 400 px as the other fields.
-                                  The same button is the second half of the login, so it is gated on
-                                  the code as well, because a login with an empty code is the same
-                                  answer again and there is nothing to send. The code is not a stored
-                                  value and is not committed as the fields are: it belongs to the page
-                                  that asked for it, so a new captcha is a new code and the text typed
-                                  for the previous one is cleared. A captcha is widget state, like the
-                                  outcome the row shows is, and is kept only for the answer that asked
-                                  for it — logging out cannot be showing one, because the button is Log
-                                  out only when a cookie is stored and an answer that asks for a code
-                                  stores none. The image is shown from its URL and not stored anywhere;
-                                  each captcha is a different URL, so the widget's key changes on its
-                                  own and the rule in §5 about an image rewritten under the same name
-                                  does not apply here
+      settings_controller.dart    SettingsController (ChangeNotifier): the
+                                  settings, the locale the app is given, the
+                                  default directory with ~ expanded with the
+                                  path context it is given, the values the
+                                  Integration section shows, load() at startup,
+                                  setLanguage(), setDefaultReleaseDirectory(),
+                                  setDefaultTorrentPrivate(),
+                                  setDefaultIncludeAppSignature(),
+                                  setAllowPlainSecrets() and setSecret() writing
+                                  immediately; typed result. setSecret() takes a
+                                  key rather than a field, because a field is
+                                  what the page draws and a key is what the
+                                  store holds. It is the second Listenable in
+                                  the app (see §4). It is also the feature that
+                                  owns the login, because the login is a call
+                                  and the value it obtains is a stored value: it
+                                  takes the client and the app directory as
+                                  constructor parameters, login() writes the
+                                  cookie the answer gives under
+                                  `pornolabCookieKey`, and `cookie` is what a
+                                  run reads. login() takes the captcha and the
+                                  code; a run calls it with neither, which is
+                                  the shape the first login is, because a run
+                                  has no user to read an image. It is the first
+                                  controller another controller depends on (see
+                                  §4)
+      settings_page.dart          SettingsPage: the section list on the left and
+                                  the selected section on the right, with every
+                                  field capped at 400 px. Which section is shown
+                                  is widget state; the sections are private
+                                  widgets of this page because they share its
+                                  controller. The page owns the field
+                                  controllers and their focus nodes, and commits
+                                  a field on submit, on focus loss, and when it
+                                  is disposed, which is what closing the tab
+                                  does. Releases is the default release
+                                  directory and the two release defaults as
+                                  checkbox rows, and the checkbox row is one
+                                  helper the page's three checkboxes share, so a
+                                  checkbox is drawn the same way wherever it is
+                                  on the page. The folder button is to the right
+                                  of the field, and the two rows on the page
+                                  treat width the same way: a field is capped at
+                                  the same 400 px as every other field on the
+                                  page, and a row puts its controls on one line
+                                  when they fit and one control per line when
+                                  they do not, because a field cannot show its
+                                  label at a width the label does not fit in, so
+                                  where a row stops fitting is what its controls
+                                  need measured from the labels the app shows,
+                                  which moves with the language. The Integration
+                                  section obscures a field from the flag on its
+                                  entry rather than masking every field in its
+                                  loop, and the two credentials and the button
+                                  that runs the login are one row. The row's
+                                  fields are capped at the same 400 px as every
+                                  other field on the page, so the row does not
+                                  make a field wider than the rest of it; what
+                                  the row does is put the three controls on one
+                                  line when they fit and one control per line
+                                  when they do not, because a field cannot show
+                                  its label at a width the label does not fit
+                                  in. The button's width is measured, so the
+                                  point where the three stop fitting is that
+                                  point in the language the app is in. The
+                                  button is Log in when no cookie is stored and
+                                  Log out when one is, in the error colour; it
+                                  is disabled while a credential is empty or a
+                                  call runs, and the fields are disabled while a
+                                  session exists. The page rebuilds when a
+                                  field's text changes, because whether the
+                                  button can be pressed is read from the fields,
+                                  and when the controller changes, because a
+                                  login a run made is a change the row has to
+                                  show. The note that says where a value lives
+                                  is emitted once for the row rather than once
+                                  per field. The outcome of the last login is
+                                  said next to the row, in the colour that says
+                                  which it was: the error colour the page
+                                  already uses for a value that was not written,
+                                  and a green for a login that worked. The green
+                                  is the only colour in the app that is not the
+                                  theme's, because `ColorScheme` has no success
+                                  role. The words for a failure are the set the
+                                  two features share; the word for a login that
+                                  worked is this page's, because a run has
+                                  nothing to show for one — its success is the
+                                  link it was given. The space says the outcome
+                                  of the last action, so a logout takes the word
+                                  away. When the answer asks for a code the page
+                                  shows it: the word, the image the code is read
+                                  from, and a field for the code capped at the
+                                  same 400 px as the other fields. The same
+                                  button is the second half of the login, so it
+                                  is gated on the code as well, because a login
+                                  with an empty code is the same answer again
+                                  and there is nothing to send. The code is not
+                                  a stored value and is not committed as the
+                                  fields are: it belongs to the page that asked
+                                  for it, so a new captcha is a new code and the
+                                  text typed for the previous one is cleared. A
+                                  captcha is widget state, like the outcome the
+                                  row shows is, and is kept only for the answer
+                                  that asked for it — logging out cannot be
+                                  showing one, because the button is Log out
+                                  only when a cookie is stored and an answer
+                                  that asks for a code stores none. The image is
+                                  shown from its URL and not stored anywhere;
+                                  each captcha is a different URL, so the
+                                  widget's key changes on its own and the rule
+                                  in §5 about an image rewritten under the same
+                                  name does not apply here
     recent_releases/
       recent_releases.dart              RecentRelease (the directory path as the key, the technical
                                         names, the source, the three dates) + RecentReleases (the entry
@@ -2365,8 +2454,12 @@ Failures are typed as `ReleaseCreationFailure.alreadyExists | failed` and the
 widget maps them to localized snackbars.
 
 `ReleaseStore.create()` checks the directory does not exist, creates it, writes
-`release.json`, and returns the path. `ReleaseAlreadyExistsException` is
-distinguished from generic failures by the controller.
+`release.json`, and returns the path. The two flags it writes are the ones it is
+given: the settings' defaults for a release made through the wizard, and the
+source's for a clone. The store decides nothing about them, so one call serves
+both paths, and a release keeps the flags its manifest holds afterwards whatever
+the settings say. `ReleaseAlreadyExistsException` is distinguished from generic
+failures by the controller.
 
 **Creating a clone:** `CloneWizard` (form) → `validateCloneName()` →
 `CloneWizardController.create()` → `ReleaseStore.create()` → the copy →
@@ -3616,6 +3709,8 @@ when a release is opened.
   "schema": 1,
   "language": "ru",
   "defaultReleaseDirectory": "~/Documents/Releases",
+  "defaultTorrentPrivate": true,
+  "defaultIncludeAppSignature": true,
   "allowPlainSecrets": false,
   "plainSecrets": {}
 }
@@ -3633,6 +3728,17 @@ when a release is opened.
   is written with `/` on every machine: appending it to the home as one string leaves a `/` inside a
   path whose other separators are `\` on Windows. What is stored is not rewritten, only the path the
   app uses.
+- `defaultTorrentPrivate` and `defaultIncludeAppSignature` are what a release
+  the app has not made yet is built with: the Private flag a new torrent is made
+  with and the line the post ends with. They are defaults, not rules — the flags
+  on a release are its own, in its manifest, so changing a default here does not
+  rewrite a release that exists, and the editor, the Message section and the
+  Torrent section still change the flags per release. A clone is built with the
+  source's flags rather than these, because a clone is the same scene at another
+  resolution. Both are on by default, which is the state the app has always
+  created a release with, so a settings file written before the choice existed
+  reads as that state. A missing key or a value that is not a flag is read as
+  the default, the same rule `allowPlainSecrets` follows.
 - `allowPlainSecrets` and `plainSecrets` are the fallback for a machine with no credential store.
   The values the Integration section stores normally live in the OS credential store, not here:
   `plainSecrets` holds only the values stored plainly, and only when the user allowed it. So an
@@ -3998,32 +4104,35 @@ is not an object. It also covers the three keys that are not fields, dates or
 IDs: each is written and read back, and a manifest without one, or with a value
 this version does not know, reads as the default rather than being reported as
 an error — the shape the files were written with, a message with the signature,
-and a private torrent. `test/clone_controller_test.dart` covers the copy rules:
-the fields the user writes are copied and the six the app fills from the movie
-file are not, `sceneUrl` is copied although it has no form row, `draftUrl` is
-not copied because a run wrote it while `parentForum` is, the poster record is
-copied with its URLs and no other record is, the poster file is copied to the
-same relative path when it is on disk, and a record whose file is not there is
-written without a file, a source with no poster copies no manifest, and the
-three poster states are what the manifest says, while a poster record that
-belongs to an item is not the poster. The name must differ from the source's
-while the folder-name rules still apply, the default save path is the folder the
-source is in, a copy that fails removes the folder the create made, and only a
-successful create is recorded in the recent list.
-`test/field_validation_test.dart` covers the rules as a function over a field
-list: a required field with no value, including one the app fills, the optional
-fields being allowed to be empty, the three shapes a date may hold, the spaces
-around a value not being part of it, and the URL shape the Upload draft
-section's field is gated on — an absolute URL on the site with a positive `f` —
-and the shapes a request cannot be built from: an id on its own, a path with no
-host, a host the app does not name, a page that is not a forum, and a parameter
-that is not a number. The rule asked for one field is the rule in the list,
-which is what a section that owns its row asks for. A field list that has not
-stated its required set is not checked, and the problems are in the order the
-list lists the fields. `test/image_dimensions_test.dart` covers the header
-reader: the dimensions a JPEG, a PNG and each of the three WebP chunk types
-declare, that a header it does not understand is not guessed at, and that a JPEG
-whose frame marker is past the bound it reads is reported as unread.
+and a private torrent. The two flags are checked as values the store is given
+rather than values it decides: a new release's come from the settings and a
+clone's from the source, so the same write serves both paths.
+`test/clone_controller_test.dart` covers the copy rules: the fields the user
+writes are copied and the six the app fills from the movie file are not,
+`sceneUrl` is copied although it has no form row, `draftUrl` is not copied
+because a run wrote it while `parentForum` is, the two flags are the source's
+rather than the settings' defaults, the poster record is copied with its URLs
+and no other record is, the poster file is copied to the same relative path when
+it is on disk, and a record whose file is not there is written without a file, a
+source with no poster copies no manifest, and the three poster states are what
+the manifest says, while a poster record that belongs to an item is not the
+poster. The name must differ from the source's while the folder-name rules still
+apply, the default save path is the folder the source is in, a copy that fails
+removes the folder the create made, and only a successful create is recorded in
+the recent list. `test/field_validation_test.dart` covers the rules as a
+function over a field list: a required field with no value, including one the
+app fills, the optional fields being allowed to be empty, the three shapes a
+date may hold, the spaces around a value not being part of it, and the URL shape
+the Upload draft section's field is gated on — an absolute URL on the site with
+a positive `f` — and the shapes a request cannot be built from: an id on its
+own, a path with no host, a host the app does not name, a page that is not a
+forum, and a parameter that is not a number. The rule asked for one field is the
+rule in the list, which is what a section that owns its row asks for. A field
+list that has not stated its required set is not checked, and the problems are
+in the order the list lists the fields. `test/image_dimensions_test.dart` covers
+the header reader: the dimensions a JPEG, a PNG and each of the three WebP chunk
+types declare, that a header it does not understand is not guessed at, and that
+a JPEG whose frame marker is past the bound it reads is reported as unread.
 `test/masonry_test.dart` covers the placement: a photo at or above the span
 ratio takes two columns, one below it and one whose header could not be read
 take one, a span starts where both of its columns are free so the other keeps a
@@ -4376,65 +4485,79 @@ to the store rather than to settings.json when the store is reachable, a value
 is stored plainly only when plain storage is allowed, clearing a field removes
 the entry rather than storing an empty string, and plainly stored values are
 read back when the store is not reachable. The widget tests cover the page: the
-section list shows both sections and selecting one shows that section's content,
-choosing a language writes the file, the default release directory field shows
-the setting and writes it when the field is submitted, when it loses focus, and
-when the page is removed, the Integration section shows the store state and the
-plain option, and a key typed into the field is written to the store, including
-text that is still in the field when the tab closes. The test builds the page
-inside the provider so it can remove the page while the provider stays, which is
-what closing a tab does. For the row the login is on: the field list is the four
-entries with the flag that says which of them the page obscures, the username
-shown plainly and the password masked, the three controls on one line — checked
-by where they are drawn, as the Message section's tests do, because the page has
-another row an ancestor finder would match —, the fields capped at the same
-width as the API key fields, and the same check at a window narrower than the
-three controls need shows them on three lines, because the width where the row
-stops is what the controls need rather than a page breakpoint. The fields are
-disabled while a cookie is stored and the button commits the fields before it
-calls the site, says Log in when no cookie is stored and Log out in the error
-colour when one is, is disabled while a credential is empty or a call runs, and
-shows the words for a refused login in the error colour and the word for a login
-that worked in the green the page uses for it, changes when a login is made from
-elsewhere, and a logout removes the value without calling the site and takes the
-word for the login that made the session away, because the space says the
-outcome of the last action. For the captcha the page shows when an answer asks
-for a code: the word, the image and the field for the code, the button gated on
-the code, the second call made with the captcha and what was typed into it, and
-a captcha kept only for the answer that asked for it. The image is not fetched,
-so the test reads the provider the widget was given rather than the image it
-resolves; building the widget starts a load, so that one test does reach the
-network, and the image widget's error builder is what keeps a load that does not
-work from being reported as an error. A test that types into a field and does
-not commit it closes the page first, because the commit at dispose time reaches
-a controller the provider has already disposed. The plugin is a method channel
-and cannot be exercised in a test, so these tests use a fake `SecretStore`; the
-reads and writes are real IO, so the interactions run through `tester.runAsync`.
-`test/stash_client_test.dart` covers the parser against a captured StashDB
-response: the values are read from the fields the schema names, a studio
-including the URLs the domain is read from with the site each URL is recorded
-under and that site's category, because those two are what say whether a URL is
-the studio's own site or a link to another database, and a site or a category
-the response does not report reads as an empty name; the image order is kept
-because the first image is the poster, a part the response does not report is an
-empty string rather than a guess, and the shapes a failed query can have are
-reported as their own cases. The transport is not covered, because it needs a
-real client; that is what the user tests against the live instance.
-`test/stash_controller_test.dart` covers the input rules — a UUID, or the last
-part of a scene URL, with a query or a fragment not read as part of the id —
-that an invalid input and a missing key are reported before anything is asked
-for, the mapping from a scene to fields — including the date field taking the
-release date and falling back to the production date, the subsite and site field
-reading the domain from the URL the preference order names (the Primary sources
-category, then the site named Studio, then the first URL with a host, and a URL
-with no host is never a candidate) with the name's capitalization when the name
-is the same word as the host and falling back to the name when there is no URL
-with a host, and the title with the site number cut off every occurrence of it
-and the ends of what is left trimmed — that the fields filled from the movie
-file are never filled from StashDB, that a value the import changed is the kind
-the widget maps to a message plus the parts the app keeps and the parts it cut,
-that a domain read from a URL outside the Primary sources category is a note
-naming the URL it was read from while one read from the URL the rule names
+section list shows the three sections and selecting one shows that section's
+content, choosing a language writes the file, the Releases section shows the
+setting and the two defaults as the settings hold them — on by default as a
+settings file that does not exist is — writes the setting when the field is
+submitted, when it loses focus, and when the page is removed, writes a default
+when its checkbox is clicked, and draws the field and the folder button on one
+line with the button to the right of the field and the field capped as the rest
+of the page is, and the same check at a window narrower than the two controls
+need shows them on two lines, because the point where the row stops is what the
+controls need rather than a page breakpoint, the Integration section shows the
+store state and the plain option, and a key typed into the field is written to
+the store, including text that is still in the field when the tab closes. The
+test builds the page inside the provider so it can remove the page while the
+provider stays, which is what closing a tab does. For the row the login is on:
+the field list is the four entries with the flag that says which of them the
+page obscures, the username shown plainly and the password masked, the three
+controls on one line — checked by where they are drawn, as the Message section's
+tests do, because the page has another row an ancestor finder would match —, the
+fields capped at the same width as the API key fields, and the same check at a
+window narrower than the three controls need shows them on three lines, because
+the width where the row stops is what the controls need rather than a page
+breakpoint. The fields are disabled while a cookie is stored and the button
+commits the fields before it calls the site, says Log in when no cookie is
+stored and Log out in the error colour when one is, is disabled while a
+credential is empty or a call runs, and shows the words for a refused login in
+the error colour and the word for a login that worked in the green the page uses
+for it, changes when a login is made from elsewhere, and a logout removes the
+value without calling the site and takes the word for the login that made the
+session away, because the space says the outcome of the last action. For the
+captcha the page shows when an answer asks for a code: the word, the image and
+the field for the code, the button gated on the code, the second call made with
+the captcha and what was typed into it, and a captcha kept only for the answer
+that asked for it. The image is not fetched, so the test reads the provider the
+widget was given rather than the image it resolves; building the widget starts a
+load, so that one test does reach the network, and the image widget's error
+builder is what keeps a load that does not work from being reported as an error.
+A test that types into a field and does not commit it closes the page first,
+because the commit at dispose time reaches a controller the provider has already
+disposed. The plugin is a method channel and cannot be exercised in a test, so
+these tests use a fake `SecretStore`; the reads and writes are real IO, so the
+interactions run through `tester.runAsync`.
+`test/release_wizard_controller_test.dart` covers the point where the two
+defaults reach a manifest: the release is built with the values the controller
+was given, and a release built while the settings said one thing keeps them when
+the settings say another afterwards, because the flags on a release are read
+from its own manifest. The wizard widget has no test of its own, so this is
+where the defaults are checked: the widget reads them from `SettingsController`
+and passes them, as it passes the directory, and the controller is the object
+that hands them to the store. `test/stash_client_test.dart` covers the parser
+against a captured StashDB response: the values are read from the fields the
+schema names, a studio including the URLs the domain is read from with the site
+each URL is recorded under and that site's category, because those two are what
+say whether a URL is the studio's own site or a link to another database, and a
+site or a category the response does not report reads as an empty name; the
+image order is kept because the first image is the poster, a part the response
+does not report is an empty string rather than a guess, and the shapes a failed
+query can have are reported as their own cases. The transport is not covered,
+because it needs a real client; that is what the user tests against the live
+instance. `test/stash_controller_test.dart` covers the input rules — a UUID, or
+the last part of a scene URL, with a query or a fragment not read as part of the
+id — that an invalid input and a missing key are reported before anything is
+asked for, the mapping from a scene to fields — including the date field taking
+the release date and falling back to the production date, the subsite and site
+field reading the domain from the URL the preference order names (the Primary
+sources category, then the site named Studio, then the first URL with a host,
+and a URL with no host is never a candidate) with the name's capitalization when
+the name is the same word as the host and falling back to the name when there is
+no URL with a host, and the title with the site number cut off every occurrence
+of it and the ends of what is left trimmed — that the fields filled from the
+movie file are never filled from StashDB, that a value the import changed is the
+kind the widget maps to a message plus the parts the app keeps and the parts it
+cut, that a domain read from a URL outside the Primary sources category is a
+note naming the URL it was read from while one read from the URL the rule names
 produces none, that the poster preview is written to a file named after the
 scene and removed when the popup closes, and that a domain the bundled mapping
 has is what the field gets before the rule — including through a URL with

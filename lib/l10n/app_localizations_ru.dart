@@ -648,6 +648,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get settingsGeneralSectionTitle => 'Основные';
 
   @override
+  String get settingsReleasesSectionTitle => 'Релизы';
+
+  @override
   String get settingsIntegrationSectionTitle => 'Интеграции';
 
   @override
@@ -655,6 +658,14 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get defaultReleaseDirectoryLabel => 'Каталог релизов по умолчанию';
+
+  @override
+  String get defaultTorrentPrivateLabel =>
+      'Новые релизы по умолчанию создают приватные торренты';
+
+  @override
+  String get defaultIncludeAppSignatureLabel =>
+      'Новые релизы содержат заметку «Оформлено с помощью Release Prepper»';
 
   @override
   String get languageSystem => 'Язык системы';

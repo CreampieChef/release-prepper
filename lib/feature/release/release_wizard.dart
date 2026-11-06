@@ -37,11 +37,17 @@ class _ReleaseWizardState extends State<ReleaseWizard> {
   @override
   void initState() {
     super.initState();
+
+    // The settings are already loaded when a wizard is opened, so the defaults
+    // are read here rather than waited for. They are what the release being
+    // created is built with; a release that already exists keeps its own flags.
+    final settings = context.read<SettingsController>();
+
     _controller = ReleaseWizardController(
       store: context.read<ReleaseStore>(),
-      defaultReleaseDirectory: context
-          .read<SettingsController>()
-          .defaultReleaseDirectory,
+      defaultReleaseDirectory: settings.defaultReleaseDirectory,
+      defaultTorrentPrivate: settings.settings.defaultTorrentPrivate,
+      defaultIncludeAppSignature: settings.settings.defaultIncludeAppSignature,
       recentReleases: context.read<RecentReleasesController>(),
     );
     _savePathController.text = _controller.defaultReleaseDirectory;

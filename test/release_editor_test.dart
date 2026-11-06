@@ -2495,6 +2495,8 @@ void main() {
       name: 'x',
       tracker: Tracker.pornolab,
       releaseType: ReleaseType.singleVideo,
+      torrentPrivate: true,
+      includeAppSignature: true,
     );
 
     expect(release.fields.value('videoQuality'), 'SiteRip');
@@ -2521,6 +2523,8 @@ void main() {
       name: 'x',
       tracker: Tracker.pornolab,
       releaseType: ReleaseType.singleVideo,
+      torrentPrivate: true,
+      includeAppSignature: true,
     );
 
     expect(release.source, '');
@@ -2718,6 +2722,8 @@ void main() {
         name: 'release',
         tracker: Tracker.pornolab,
         releaseType: ReleaseType.singleVideo,
+        torrentPrivate: true,
+        includeAppSignature: true,
       );
 
       final tabManager = TabManager();
@@ -2773,6 +2779,8 @@ void main() {
       name: 'release',
       tracker: Tracker.pornolab,
       releaseType: ReleaseType.singleVideo,
+      torrentPrivate: true,
+      includeAppSignature: true,
     );
 
     final tabManager = TabManager();
@@ -2919,6 +2927,8 @@ void main() {
       name: 'x',
       tracker: Tracker.pornolab,
       releaseType: ReleaseType.photosetPack,
+      torrentPrivate: true,
+      includeAppSignature: true,
     );
 
     for (final name in [

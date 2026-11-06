@@ -587,6 +587,8 @@ void main() {
         name: 'on-disk',
         tracker: Tracker.pornolab,
         releaseType: ReleaseType.singleVideo,
+        torrentPrivate: true,
+        includeAppSignature: true,
       );
     });
 

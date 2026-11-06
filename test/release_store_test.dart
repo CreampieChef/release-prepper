@@ -51,6 +51,8 @@ void main() {
       name: 'release',
       tracker: Tracker.pornolab,
       releaseType: ReleaseType.singleVideo,
+      torrentPrivate: true,
+      includeAppSignature: true,
     );
 
     final saved = readFile();
@@ -107,6 +109,8 @@ void main() {
         name: 'release',
         tracker: Tracker.pornolab,
         releaseType: ReleaseType.singleVideo,
+        torrentPrivate: true,
+        includeAppSignature: true,
       );
 
       final created = release.createdDate!;
@@ -164,6 +168,8 @@ void main() {
         name: 'release',
         tracker: Tracker.pornolab,
         releaseType: ReleaseType.singleVideo,
+        torrentPrivate: true,
+        includeAppSignature: true,
       );
 
       release.fields.setValue('videoTitle', 'Saved value');
@@ -256,6 +262,8 @@ void main() {
       name: 'release',
       tracker: Tracker.pornolab,
       releaseType: ReleaseType.videoPack,
+      torrentPrivate: true,
+      includeAppSignature: true,
     );
 
     release.screenshotLayout = ScreenshotLayout.byItem;
@@ -278,6 +286,8 @@ void main() {
         name: 'release',
         tracker: Tracker.pornolab,
         releaseType: ReleaseType.singleVideo,
+        torrentPrivate: true,
+        includeAppSignature: true,
       );
 
       await store.save(release);
@@ -331,6 +341,9 @@ void main() {
   // opened again has to show the state its post was written with
   // (`ai/description_template.md` §App signature). Every type can include it,
   // because the app signature is the app's own text, so every type writes it.
+  //
+  // The store has no default of its own: it writes the flag it is given, which
+  // for a release made through the wizard is the settings' default.
   test('the signature flag is written for every type', () async {
     final store = ReleaseStore();
 
@@ -339,15 +352,17 @@ void main() {
       name: 'release',
       tracker: Tracker.pornolab,
       releaseType: ReleaseType.singleVideo,
+      torrentPrivate: true,
+      includeAppSignature: false,
     );
 
-    expect(readFile()['includeAppSignature'], isTrue);
+    expect(readFile()['includeAppSignature'], isFalse);
 
-    release.includeAppSignature = false;
+    release.includeAppSignature = true;
     await store.save(release);
 
-    expect(readFile()['includeAppSignature'], isFalse);
-    expect((await store.load(releasePath())).includeAppSignature, isFalse);
+    expect(readFile()['includeAppSignature'], isTrue);
+    expect((await store.load(releasePath())).includeAppSignature, isTrue);
   });
 
   // A manifest written before the flag existed is not an error, and neither is a
@@ -396,15 +411,17 @@ void main() {
       name: 'release',
       tracker: Tracker.pornolab,
       releaseType: ReleaseType.singleVideo,
+      torrentPrivate: false,
+      includeAppSignature: true,
     );
 
-    expect(readFile()['torrentPrivate'], isTrue);
+    expect(readFile()['torrentPrivate'], isFalse);
 
-    release.torrentPrivate = false;
+    release.torrentPrivate = true;
     await store.save(release);
 
-    expect(readFile()['torrentPrivate'], isFalse);
-    expect((await store.load(releasePath())).torrentPrivate, isFalse);
+    expect(readFile()['torrentPrivate'], isTrue);
+    expect((await store.load(releasePath())).torrentPrivate, isTrue);
   });
 
   test('a manifest without the private flag, or with a value this version does not '

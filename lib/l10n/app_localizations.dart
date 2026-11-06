@@ -1238,6 +1238,12 @@ abstract class AppLocalizations {
   /// **'General'**
   String get settingsGeneralSectionTitle;
 
+  /// No description provided for @settingsReleasesSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Releases'**
+  String get settingsReleasesSectionTitle;
+
   /// No description provided for @settingsIntegrationSectionTitle.
   ///
   /// In en, this message translates to:
@@ -1255,6 +1261,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Default release directory'**
   String get defaultReleaseDirectoryLabel;
+
+  /// No description provided for @defaultTorrentPrivateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New releases produce private torrents by default'**
+  String get defaultTorrentPrivateLabel;
+
+  /// No description provided for @defaultIncludeAppSignatureLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New releases include the \"Made with Release Prepper\" line'**
+  String get defaultIncludeAppSignatureLabel;
 
   /// No description provided for @languageSystem.
   ///

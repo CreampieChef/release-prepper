@@ -77,16 +77,22 @@ class Settings {
   Settings({
     required this.language,
     required this.defaultReleaseDirectory,
+    required this.defaultTorrentPrivate,
+    required this.defaultIncludeAppSignature,
     required this.allowPlainSecrets,
     required this.plainSecrets,
   });
 
   /// A settings file that does not exist or cannot be read is the same as a new
   /// one: the app follows the system locale and the default release directory,
-  /// and does not store secrets plainly.
+  /// and does not store secrets plainly. The two release defaults are the state
+  /// a new release has always been created with, so a file written before they
+  /// were settings reads as them.
   Settings.defaults()
     : language = AppLanguage.system,
       defaultReleaseDirectory = fallbackReleaseDirectory,
+      defaultTorrentPrivate = true,
+      defaultIncludeAppSignature = true,
       allowPlainSecrets = false,
       plainSecrets = {};
 
@@ -95,6 +101,17 @@ class Settings {
   /// What the user wrote, which may start with `~`. It is stored as written;
   /// the app expands it when it uses it.
   String defaultReleaseDirectory;
+
+  /// The Private flag a new release is created with (`ai/torrents.md`). It is a
+  /// default, not a rule: a release keeps the flag its own manifest holds, and
+  /// changing this does not change a release that exists.
+  bool defaultTorrentPrivate;
+
+  /// Whether a new release's post ends with the app's signature
+  /// (`ai/description_template.md` §App signature). The same kind of default:
+  /// the flag on a release is what the Message section renders with, so a
+  /// release keeps the value its manifest holds.
+  bool defaultIncludeAppSignature;
 
   /// The fallback for a machine with no credential store. Off by default,
   /// because settings.json is plain text and the point of the store is that the
@@ -109,6 +126,8 @@ class Settings {
     'schema': schemaVersion,
     'language': language.name,
     'defaultReleaseDirectory': defaultReleaseDirectory,
+    'defaultTorrentPrivate': defaultTorrentPrivate,
+    'defaultIncludeAppSignature': defaultIncludeAppSignature,
     'allowPlainSecrets': allowPlainSecrets,
     'plainSecrets': plainSecrets,
   };
@@ -130,7 +149,12 @@ class Settings {
       defaultReleaseDirectory: directory is String && directory.isNotEmpty
           ? directory
           : fallbackReleaseDirectory,
-      allowPlainSecrets: json['allowPlainSecrets'] == true,
+      defaultTorrentPrivate: _flag(json['defaultTorrentPrivate'], true),
+      defaultIncludeAppSignature: _flag(
+        json['defaultIncludeAppSignature'],
+        true,
+      ),
+      allowPlainSecrets: _flag(json['allowPlainSecrets'], false),
       plainSecrets: {
         if (plainSecrets is Map)
           for (final entry in plainSecrets.entries)
@@ -139,4 +163,11 @@ class Settings {
       },
     );
   }
+
+  /// A flag, or [defaultValue] when the key is absent or is not a flag. The
+  /// same rule as the release format's flags: a file written before the choice
+  /// existed is not an error, and the default is the state those files were
+  /// written with.
+  static bool _flag(Object? value, bool defaultValue) =>
+      value is bool ? value : defaultValue;
 }

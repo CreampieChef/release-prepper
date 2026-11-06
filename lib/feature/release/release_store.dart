@@ -23,6 +23,8 @@ class ReleaseStore {
     required String name,
     required Tracker tracker,
     required ReleaseType releaseType,
+    required bool torrentPrivate,
+    required bool includeAppSignature,
   }) async {
     final saveDirectory = Directory(savePath);
     await saveDirectory.create(recursive: true);
@@ -50,6 +52,10 @@ class ReleaseStore {
 
       // The creation date is set here and never changes; `save()` stamps the
       // last edit.
+      //
+      // The two flags are what the caller gave. The store does not decide them:
+      // a new release gets the settings' defaults, a clone gets the source's
+      // (`ai/doc.md` §2).
       final release = Release(
         name: name,
         directoryPath: releaseDirectory.path,
@@ -59,6 +65,8 @@ class ReleaseStore {
         fields: fields,
         items: [],
         createdDate: DateTime.now().toUtc(),
+        includeAppSignature: includeAppSignature,
+        torrentPrivate: torrentPrivate,
       );
 
       await save(release);

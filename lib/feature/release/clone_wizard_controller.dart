@@ -111,6 +111,11 @@ class CloneWizardController {
   /// draft link names the source's draft, so the clone starts without one and
   /// gets its own when it runs the feature there.
   ///
+  /// The two flags are the source's, not the settings' defaults: the clone is
+  /// the same scene at another resolution, so the post it writes and the
+  /// torrent it builds are expected to be like the source's. What the settings
+  /// say about new releases is what a release made from the wizard gets.
+  ///
   /// The poster is copied as it is recorded — the record with its URLs, and the
   /// file when it is on disk. No other record is copied: the clone generates
   /// and uploads its own images.
@@ -129,6 +134,8 @@ class CloneWizardController {
         name: name,
         tracker: source.tracker,
         releaseType: source.releaseType,
+        torrentPrivate: source.torrentPrivate,
+        includeAppSignature: source.includeAppSignature,
       );
     } on ReleaseAlreadyExistsException {
       return const CloneCreationFailure(ReleaseCreationFailure.alreadyExists);

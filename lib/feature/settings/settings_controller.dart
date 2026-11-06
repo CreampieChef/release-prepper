@@ -165,6 +165,37 @@ class SettingsController extends ChangeNotifier {
     return await _write();
   }
 
+  /// Sets the Private flag a new release is created with and writes the file
+  /// immediately. The same value again is not a write. This does not change a
+  /// release that exists: the flag on a release is its own, and the editor and
+  /// the Torrent section still write it per release.
+  Future<SettingsSaveResult> setDefaultTorrentPrivate(bool value) async {
+    if (settings.defaultTorrentPrivate == value) {
+      return const SettingsSaveSuccess();
+    }
+
+    settings.defaultTorrentPrivate = value;
+
+    notifyListeners();
+
+    return await _write();
+  }
+
+  /// Sets whether a new release's post ends with the app's signature and writes
+  /// the file immediately. The same value again is not a write, and a release
+  /// that exists keeps the value its manifest holds.
+  Future<SettingsSaveResult> setDefaultIncludeAppSignature(bool value) async {
+    if (settings.defaultIncludeAppSignature == value) {
+      return const SettingsSaveSuccess();
+    }
+
+    settings.defaultIncludeAppSignature = value;
+
+    notifyListeners();
+
+    return await _write();
+  }
+
   /// Allows or forbids storing values plainly in settings.json. It does not
   /// move what is already in the credential store: it decides where a value
   /// goes from now on, because moving a value without asking is a surprise.

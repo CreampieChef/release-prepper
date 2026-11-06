@@ -13,7 +13,7 @@ import 'settings_controller.dart';
 /// The sections the Settings page has. The left side lists them in this order,
 /// so a new section is an entry here plus a case in `_content`. Private to this
 /// file: nothing outside the page needs it.
-enum _SettingsSection { general, integration }
+enum _SettingsSection { general, releases, integration }
 
 /// The Settings page: the section list on the left, the selected section on the
 /// right.
@@ -41,12 +41,20 @@ class _SettingsPageState extends State<SettingsPage> {
   /// than as the layout.
   static const _fieldMaxWidth = 400.0;
 
-  /// The gap between the three controls on the login row.
+  /// The gap between the controls on a row. Both rows on the page use it, so
+  /// the point where they stop fitting is measured with the same numbers.
   static const _rowGap = 12.0;
 
   /// The padding a text button draws its label with, which the app's theme does
   /// not override. It is part of the width the button takes on the row.
   static const _buttonPadding = 16.0;
+
+  /// The two parts of the width an icon button takes that a text button does
+  /// not have: the glyph, and the gap the button puts between the glyph and the
+  /// label. They are added to the measured label width by `_buttonWidth`, so
+  /// both rows decide where they stop fitting from the same numbers.
+  static const _iconWidth = 24.0;
+  static const _iconLabelGap = 8.0;
 
   /// The narrowest a field on the row is drawn at. A field cannot show its label
   /// at a width the label does not fit in, and below that it cannot show what is
@@ -220,6 +228,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String _title(_SettingsSection section, AppLocalizations l10n) =>
       switch (section) {
         _SettingsSection.general => l10n.settingsGeneralSectionTitle,
+        _SettingsSection.releases => l10n.settingsReleasesSectionTitle,
         _SettingsSection.integration => l10n.settingsIntegrationSectionTitle,
       };
 
@@ -321,6 +330,40 @@ class _SettingsPageState extends State<SettingsPage> {
     return painter.width;
   }
 
+  /// The width a button takes on a row: the label at the style the theme gives
+  /// buttons, plus the padding it draws that label with. An icon button adds
+  /// the glyph and the gap between the glyph and the label. Measured rather
+  /// than assumed, so the point where a row stops fitting is that point in the
+  /// language the app is in.
+  double _buttonWidth(String label, {required bool hasIcon}) {
+    final theme = Theme.of(context);
+
+    return _textWidth(label, theme.textTheme.labelLarge!) +
+        _buttonPadding * 2 +
+        (hasIcon ? _iconWidth + _iconLabelGap : 0);
+  }
+
+  /// A checkbox with its label beside it. The page has three: the two defaults
+  /// this section has and the plain-storage flag the Integration section shows
+  /// when the credential store cannot be reached.
+  Widget _checkboxRow({
+    required Key key,
+    required String label,
+    required bool value,
+    required Future<void> Function(bool) commit,
+  }) {
+    return Row(
+      children: [
+        Checkbox(
+          key: key,
+          value: value,
+          onChanged: (value) => commit(value == true),
+        ),
+        Expanded(child: Text(label)),
+      ],
+    );
+  }
+
   /// The row: the two fields and the button. The fields are capped at the same
   /// width as every other field on the page; what the row does is put the three
   /// controls on one line when they fit, and one control per line when they do
@@ -366,16 +409,14 @@ class _SettingsPageState extends State<SettingsPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         // The button takes its own width and the two fields share what is left,
-        // capped the same way every other field on the page is. The button's
-        // width is measured rather than assumed, so the point where the three
-        // controls stop fitting is that point in the language the app is in:
-        // "Выйти" is not the width of "Log out".
-        final buttonWidth =
-            _textWidth(
-              signedIn ? l10n.logoutButton : l10n.loginButton,
-              theme.textTheme.labelLarge!,
-            ) +
-            _buttonPadding * 2;
+        // capped the same way every other field on the page is. The width is
+        // measured rather than assumed, so the point where the three controls
+        // stop fitting is that point in the language the app is in: "Выйти" is
+        // not the width of "Log out".
+        final buttonWidth = _buttonWidth(
+          signedIn ? l10n.logoutButton : l10n.loginButton,
+          hasIcon: false,
+        );
 
         final share = (constraints.maxWidth - buttonWidth - _rowGap * 2) / 2;
 
@@ -415,6 +456,89 @@ class _SettingsPageState extends State<SettingsPage> {
       _rowFields.every((field) => _secrets[field.name]!.text.isNotEmpty) &&
       (_captcha == null || _captchaCode.text.isNotEmpty);
 
+  /// The directory field and the folder button as one row: the field capped at
+  /// the same width as every other field on the page, the button to its right.
+  /// The button's width is measured, so the point where the two stop fitting is
+  /// that point in the language the app is in — "Выбрать папку" is not the
+  /// width of "Choose folder" — and below it each control is its own row,
+  /// because a field cannot show its label at a width the label does not fit
+  /// in.
+  Widget _directoryRow(AppLocalizations l10n) {
+    final field = TextFormField(
+      key: const ValueKey('defaultReleaseDirectory'),
+      controller: _directory,
+      focusNode: _directoryFocus,
+      decoration: InputDecoration(
+        labelText: l10n.defaultReleaseDirectoryLabel,
+        border: const OutlineInputBorder(),
+      ),
+      onFieldSubmitted: _commitDirectory,
+    );
+
+    final button = TextButton.icon(
+      key: const ValueKey('chooseReleaseDirectory'),
+      onPressed: () => _pickDirectory(l10n),
+      icon: const Icon(Icons.folder_open),
+      label: Text(l10n.chooseSavePath),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final buttonWidth = _buttonWidth(l10n.chooseSavePath, hasIcon: true);
+        final share = constraints.maxWidth - buttonWidth - _rowGap;
+
+        if (share < _fieldMinWidth) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _field(field),
+              SizedBox(height: _rowGap),
+              button,
+            ],
+          );
+        }
+
+        final fieldWidth = share < _fieldMaxWidth ? share : _fieldMaxWidth;
+
+        return Row(
+          children: [
+            SizedBox(width: fieldWidth, child: field),
+            SizedBox(width: _rowGap),
+            button,
+          ],
+        );
+      },
+    );
+  }
+
+  /// What the app does with a release it has not made yet: where it puts the
+  /// folder, and the two flags and the signature line a new release is created
+  /// with. These are defaults, not rules — a release that exists keeps what its
+  /// own manifest holds, and changing one here does not rewrite a release.
+  Widget _releasesSection(SettingsController settings, AppLocalizations l10n) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _directoryRow(l10n),
+        // The same gap the fields on the page are separated by.
+        const SizedBox(height: 16),
+        _checkboxRow(
+          key: const ValueKey('defaultTorrentPrivate'),
+          label: l10n.defaultTorrentPrivateLabel,
+          value: settings.settings.defaultTorrentPrivate,
+          commit: _commitDefaultTorrentPrivate,
+        ),
+        const SizedBox(height: 16),
+        _checkboxRow(
+          key: const ValueKey('defaultIncludeAppSignature'),
+          label: l10n.defaultIncludeAppSignatureLabel,
+          value: settings.settings.defaultIncludeAppSignature,
+          commit: _commitDefaultIncludeAppSignature,
+        ),
+      ],
+    );
+  }
+
   Widget _generalSection(SettingsController settings, AppLocalizations l10n) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -450,25 +574,6 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        _field(
-          TextFormField(
-            key: const ValueKey('defaultReleaseDirectory'),
-            controller: _directory,
-            focusNode: _directoryFocus,
-            decoration: InputDecoration(
-              labelText: l10n.defaultReleaseDirectoryLabel,
-              border: const OutlineInputBorder(),
-            ),
-            onFieldSubmitted: _commitDirectory,
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextButton.icon(
-          onPressed: () => _pickDirectory(l10n),
-          icon: const Icon(Icons.folder_open),
-          label: Text(l10n.chooseSavePath),
-        ),
       ],
     );
   }
@@ -485,15 +590,11 @@ class _SettingsPageState extends State<SettingsPage> {
         if (!settings.secretStoreAvailable) ...[
           Text(l10n.secretStoreUnavailable),
           const SizedBox(height: 8),
-          Row(
-            children: [
-              Checkbox(
-                key: const ValueKey('allowPlainSecrets'),
-                value: settings.settings.allowPlainSecrets,
-                onChanged: (value) => _commitPlainSecrets(value == true),
-              ),
-              Expanded(child: Text(l10n.allowPlainSecretsLabel)),
-            ],
+          _checkboxRow(
+            key: const ValueKey('allowPlainSecrets'),
+            label: l10n.allowPlainSecretsLabel,
+            value: settings.settings.allowPlainSecrets,
+            commit: _commitPlainSecrets,
           ),
           const SizedBox(height: 16),
         ],
@@ -591,6 +692,7 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 12),
             switch (_section) {
               _SettingsSection.general => _generalSection(settings, l10n),
+              _SettingsSection.releases => _releasesSection(settings, l10n),
               _SettingsSection.integration => _integrationSection(
                 settings,
                 l10n,
@@ -668,6 +770,14 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() => _result = null);
 
     _report(await _settings.setSecret(pornolabCookieKey, ''));
+  }
+
+  Future<void> _commitDefaultTorrentPrivate(bool value) async {
+    _report(await _settings.setDefaultTorrentPrivate(value));
+  }
+
+  Future<void> _commitDefaultIncludeAppSignature(bool value) async {
+    _report(await _settings.setDefaultIncludeAppSignature(value));
   }
 
   Future<void> _commitPlainSecrets(bool value) async {

@@ -129,11 +129,23 @@ void main() {
     await tester.pump();
   }
 
+  Future<void> releases(
+    WidgetTester tester,
+    SettingsController settings,
+  ) async {
+    await pumpPage(tester, settings);
+
+    await tester.tap(find.byKey(const ValueKey('settings-section-releases')));
+    await tester.pump();
+  }
+
   test('settings.json is written in the shape the format describes', () async {
     await store(directory.path).save(
       Settings(
         language: AppLanguage.ru,
         defaultReleaseDirectory: '~/Documents/Releases',
+        defaultTorrentPrivate: false,
+        defaultIncludeAppSignature: false,
         allowPlainSecrets: true,
         plainSecrets: {'stashdb': 'plain-value'},
       ),
@@ -143,31 +155,37 @@ void main() {
       'schema': schemaVersion,
       'language': 'ru',
       'defaultReleaseDirectory': '~/Documents/Releases',
+      'defaultTorrentPrivate': false,
+      'defaultIncludeAppSignature': false,
       'allowPlainSecrets': true,
       'plainSecrets': {'stashdb': 'plain-value'},
     });
   });
 
   // A settings file that is not there is the same as a new one: the app follows
-  // the system locale, the default release directory, and does not store
-  // secrets plainly.
+  // the system locale, the default release directory, the two release defaults,
+  // and does not store secrets plainly.
   test('a missing settings file reads as the defaults', () async {
     final settings = await store(directory.path).load();
 
     expect(settings.language, AppLanguage.system);
     expect(settings.defaultReleaseDirectory, fallbackReleaseDirectory);
+    expect(settings.defaultTorrentPrivate, isTrue);
+    expect(settings.defaultIncludeAppSignature, isTrue);
     expect(settings.allowPlainSecrets, isFalse);
     expect(settings.plainSecrets, isEmpty);
   });
 
   // A language this version does not know has no translation to show, so it is
   // read as the system locale rather than guessed at. A value of the wrong type
-  // is not kept either.
+  // is not kept either — a flag that is not a flag is read as the state a file
+  // written before the choice existed was written with.
   test(
     'a file with values this version does not read falls back to the defaults',
     () async {
       await File(p.join(directory.path, 'settings.json')).writeAsString(
         '{"schema": 1, "language": "de", "defaultReleaseDirectory": "",'
+        ' "defaultTorrentPrivate": "yes", "defaultIncludeAppSignature": 1,'
         ' "allowPlainSecrets": "yes", "plainSecrets": {"stashdb": 1}}',
       );
 
@@ -175,6 +193,8 @@ void main() {
 
       expect(settings.language, AppLanguage.system);
       expect(settings.defaultReleaseDirectory, fallbackReleaseDirectory);
+      expect(settings.defaultTorrentPrivate, isTrue);
+      expect(settings.defaultIncludeAppSignature, isTrue);
       expect(settings.allowPlainSecrets, isFalse);
       expect(settings.plainSecrets, isEmpty);
     },
@@ -215,10 +235,26 @@ void main() {
     );
     expect(changes, hasLength(3));
 
+    // The two release defaults are written the same way: a change notifies and
+    // writes, and the same value again is not a write.
+    expect(
+      await settings.setDefaultTorrentPrivate(false),
+      isA<SettingsSaveSuccess>(),
+    );
+    expect(changes, hasLength(4));
+
+    expect(
+      await settings.setDefaultIncludeAppSignature(false),
+      isA<SettingsSaveSuccess>(),
+    );
+    expect(changes, hasLength(5));
+
     expect(readFile(), {
       'schema': schemaVersion,
       'language': 'ru',
       'defaultReleaseDirectory': '/home/test/Releases',
+      'defaultTorrentPrivate': false,
+      'defaultIncludeAppSignature': false,
       'allowPlainSecrets': false,
       'plainSecrets': {},
     });
@@ -226,8 +262,10 @@ void main() {
     // The same value again is not a write, so it does not notify again.
     await settings.setLanguage(AppLanguage.ru);
     await settings.setDefaultReleaseDirectory('/home/test/Releases');
+    await settings.setDefaultTorrentPrivate(false);
+    await settings.setDefaultIncludeAppSignature(false);
 
-    expect(changes, hasLength(3));
+    expect(changes, hasLength(5));
 
     settings.dispose();
   });
@@ -443,9 +481,24 @@ void main() {
       find.byKey(const ValueKey('settings-section-integration')),
       findsOneWidget,
     );
+    expect(
+      find.byKey(const ValueKey('settings-section-releases')),
+      findsOneWidget,
+    );
 
-    // General is the section shown at first.
+    // General is the section shown at first, and it no longer holds the
+    // directory: the directory belongs to the section about what the app does
+    // with a release it has not made yet.
     expect(find.text('App language'), findsOneWidget);
+    expect(find.byKey(const ValueKey('defaultReleaseDirectory')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('settings-section-releases')));
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('defaultReleaseDirectory')),
+      findsOneWidget,
+    );
 
     await tester.tap(
       find.byKey(const ValueKey('settings-section-integration')),
@@ -489,7 +542,7 @@ void main() {
         FakeSecretStore(available: true),
       );
 
-      await pumpPage(tester, settings);
+      await releases(tester, settings);
 
       final field = find.byKey(const ValueKey('defaultReleaseDirectory'));
 
@@ -506,6 +559,119 @@ void main() {
 
       expect(readFile()['defaultReleaseDirectory'], '/home/test/Releases');
       expect(settings.settings.defaultReleaseDirectory, '/home/test/Releases');
+    },
+  );
+
+  // The field and the folder button are one row, in the order the row builds
+  // them: the field capped at the same width as every other field on the page,
+  // the button to its right.
+  testWidgets('the folder button is on the same line as the field', (
+    tester,
+  ) async {
+    final settings = controller(
+      directory.path,
+      FakeSecretStore(available: true),
+    );
+
+    await releases(tester, settings);
+
+    final fieldRect = tester.getRect(
+      find.byKey(const ValueKey('defaultReleaseDirectory')),
+    );
+    final buttonRect = tester.getRect(
+      find.byKey(const ValueKey('chooseReleaseDirectory')),
+    );
+
+    expect(buttonRect.left, greaterThan(fieldRect.right));
+
+    // The row centres its children, so the two sit on one line.
+    expect(buttonRect.center.dy, equals(fieldRect.center.dy));
+
+    // The row does not make the field wider than the rest of the page: at a
+    // wide window the cap is what decides its width.
+    expect(fieldRect.width, equals(400.0));
+  });
+
+  // Below the width the two controls need, each is its own line, in the same
+  // order. The width is not a page breakpoint: it is what the field needs to
+  // show its label and what the button's label needs, so it moves with a longer
+  // word in the other language.
+  testWidgets('the directory row stacks when the two controls do not fit', (
+    tester,
+  ) async {
+    final settings = controller(
+      directory.path,
+      FakeSecretStore(available: true),
+    );
+
+    await releases(tester, settings);
+
+    tester.view.physicalSize = const Size(300, 800);
+    await tester.pumpAndSettle();
+
+    final fieldRect = tester.getRect(
+      find.byKey(const ValueKey('defaultReleaseDirectory')),
+    );
+    final buttonRect = tester.getRect(
+      find.byKey(const ValueKey('chooseReleaseDirectory')),
+    );
+
+    expect(buttonRect.top, greaterThan(fieldRect.bottom));
+  });
+
+  // The two defaults show the state the settings hold. A click is a write, the
+  // same as a field's commit: they decide what a release the app has not made
+  // yet is built from, so nothing here changes a release that exists.
+  testWidgets(
+    'a default is shown as the settings hold it and written when it is clicked',
+    (tester) async {
+      final settings = controller(
+        directory.path,
+        FakeSecretStore(available: true),
+      );
+
+      await releases(tester, settings);
+
+      // On by default, which is the state a settings file that does not exist
+      // has.
+      for (final key in [
+        'defaultTorrentPrivate',
+        'defaultIncludeAppSignature',
+      ]) {
+        expect(
+          tester.widget<Checkbox>(find.byKey(ValueKey(key))).value,
+          isTrue,
+        );
+      }
+
+      await tester.runAsync(() async {
+        await tester.tap(find.byKey(const ValueKey('defaultTorrentPrivate')));
+        await tester.pump();
+
+        await Future.delayed(const Duration(milliseconds: 100));
+      });
+
+      expect(readFile()['defaultTorrentPrivate'], false);
+      expect(settings.settings.defaultTorrentPrivate, isFalse);
+
+      // The page shows the model, so a change made through the controller is
+      // what the page shows, as the login row is.
+      await tester.runAsync(() async {
+        await settings.setDefaultIncludeAppSignature(false);
+
+        await Future.delayed(const Duration(milliseconds: 100));
+      });
+
+      await tester.pump();
+
+      expect(
+        tester
+            .widget<Checkbox>(
+              find.byKey(const ValueKey('defaultIncludeAppSignature')),
+            )
+            .value,
+        isFalse,
+      );
     },
   );
 
@@ -602,7 +768,7 @@ void main() {
       FakeSecretStore(available: true),
     );
 
-    await pumpPage(tester, settings);
+    await releases(tester, settings);
 
     final field = find.byKey(const ValueKey('defaultReleaseDirectory'));
 

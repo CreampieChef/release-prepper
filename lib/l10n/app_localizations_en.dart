@@ -650,6 +650,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsGeneralSectionTitle => 'General';
 
   @override
+  String get settingsReleasesSectionTitle => 'Releases';
+
+  @override
   String get settingsIntegrationSectionTitle => 'Integration';
 
   @override
@@ -657,6 +660,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get defaultReleaseDirectoryLabel => 'Default release directory';
+
+  @override
+  String get defaultTorrentPrivateLabel =>
+      'New releases produce private torrents by default';
+
+  @override
+  String get defaultIncludeAppSignatureLabel =>
+      'New releases include the \"Made with Release Prepper\" line';
 
   @override
   String get languageSystem => 'System language';
