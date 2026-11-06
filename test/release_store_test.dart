@@ -383,4 +383,55 @@ void main() {
       expect((await store.load(releasePath())).includeAppSignature, isTrue);
     },
   );
+
+  // The Private flag is the one thing the Torrent feature records, because it is a
+  // choice the user makes rather than a result of a run (`ai/torrents.md`). A
+  // manifest written before it existed is not an error, and the default is the flag
+  // those files were written with.
+  test('the private flag is written and read back', () async {
+    final store = ReleaseStore();
+
+    final release = await store.create(
+      savePath: directory.path,
+      name: 'release',
+      tracker: Tracker.pornolab,
+      releaseType: ReleaseType.singleVideo,
+    );
+
+    expect(readFile()['torrentPrivate'], isTrue);
+
+    release.torrentPrivate = false;
+    await store.save(release);
+
+    expect(readFile()['torrentPrivate'], isFalse);
+    expect((await store.load(releasePath())).torrentPrivate, isFalse);
+  });
+
+  test('a manifest without the private flag, or with a value this version does not '
+      'know, reads as the default', () async {
+    final store = ReleaseStore();
+
+    await writeFile({
+      'schema': schemaVersion,
+      'tracker': 'pornolab',
+      'releaseType': 'singleVideo',
+      'source': '/home/user/videos',
+      'fields': {},
+      'items': [],
+    });
+
+    expect((await store.load(releasePath())).torrentPrivate, isTrue);
+
+    await writeFile({
+      'schema': schemaVersion,
+      'tracker': 'pornolab',
+      'releaseType': 'singleVideo',
+      'source': '/home/user/videos',
+      'fields': {},
+      'items': [],
+      'torrentPrivate': 'yes',
+    });
+
+    expect((await store.load(releasePath())).torrentPrivate, isTrue);
+  });
 }

@@ -106,6 +106,41 @@ class ReleaseEditorController {
     return true;
   }
 
+  /// Whether the torrent the app writes is private. The same rule as the two
+  /// above: not a field, but part of `release.json`, so it is part of the save
+  /// and marks the tab dirty the same way. The row is the Torrent section's, so
+  /// the write is this controller's and the section reports it here.
+  ///
+  /// This is the path for the case where there is no file: the value is only what
+  /// the next run would be asked for, so it is a change like a field.
+  bool setTorrentPrivate(bool private) {
+    if (release.torrentPrivate == private) {
+      return false;
+    }
+
+    release.torrentPrivate = private;
+    tabManager.setUnsavedChanges(tabId, true);
+
+    return true;
+  }
+
+  /// The flag as the record holds it, for the case where a run changed the file the
+  /// flag describes. The record has to agree with the file at once, so this is a
+  /// write rather than a change: the manifest is written here rather than at a save
+  /// step, and the tab is not marked dirty, because there is nothing left to save —
+  /// the file is already changed. A manifest that could not be written is not
+  /// reported, the same rule as the stamp: the file is the thing the flag describes,
+  /// and the next write puts the record right.
+  Future<void> saveTorrentPrivate(bool private) async {
+    release.torrentPrivate = private;
+
+    try {
+      await store.save(release);
+    } catch (_) {
+      // Not reported, as the stamp above.
+    }
+  }
+
   /// Records the path the user picked.
   ///
   /// A picked file is treated as a directory containing only itself, so the

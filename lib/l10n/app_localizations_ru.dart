@@ -842,6 +842,30 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get torrentPrivateLabel => 'Приватный';
+
+  @override
+  String get torrentPrivateTitle => 'Изменить флаг Private?';
+
+  @override
+  String torrentPrivateMessage(String value) {
+    return 'Файл торрента уже существует. Изменить его флаг Private на «$value»?';
+  }
+
+  @override
+  String get torrentPrivateValuePrivate => 'приватный';
+
+  @override
+  String get torrentPrivateValueNotPrivate => 'не приватный';
+
+  @override
+  String get torrentPrivateConfirm => 'Изменить';
+
+  @override
+  String get torrentPrivateNotReadable =>
+      'Файл не читается как торрент, поэтому его флаг прочитать нельзя.';
+
+  @override
   String get mkbrrNotAvailable =>
       'mkbrr недоступен. Он входит в состав приложения, поэтому установка неполная.';
 
@@ -852,6 +876,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get mkbrrRunTimeout => 'mkbrr превысил время ожидания.';
+
+  @override
+  String mkbrrModifyFailed(String reason) {
+    return 'mkbrr не смог изменить флаг: $reason.';
+  }
 
   @override
   String get folderOpenFailed => 'Не удалось открыть папку.';

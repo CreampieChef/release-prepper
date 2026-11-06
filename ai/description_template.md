@@ -219,7 +219,13 @@ checkbox, the title line, and a large text box.
 
 * The text is generated when the user clicks the button.
 * The app signature checkbox is the first row after the section's title, above
-  the row of radio buttons where the type has one. It is on by default, and its
+  the row of radio buttons where the type has one. Both rows are drawn only while
+  the Generate button is drawn (rule 14): before any image the message reads is
+  uploaded there is no render, so a signature has nothing to be part of and a shape
+  nothing to shape, and a row that sets a value nothing can use is noise. Not
+  drawing a row is not changing the value it would show — what the record holds
+  stays as it is, and the rows show the same values again when an upload run opens
+  the gate. It is on by default, and its
   state is the release's (`includeAppSignature` in `release.json`), so a release
   shows the same answer wherever the app is reopened. Changing it goes through
   the editor's single write path, so it marks the tab dirty and clears the box

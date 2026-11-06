@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 
 import '../../service/launcher/folder_opener.dart';
 import '../../service/native_tools/mkbrr.dart';
+import '../../service/torrent/torrent_file.dart';
 import '../release/release.dart';
 
 /// The Torrent feature: a torrent for what the release is made of
@@ -28,9 +29,11 @@ class TorrentController {
   /// The name is the release name rather than the source basename, so a torrent
   /// made from a picked folder is named after the release.
   ///
-  /// The file is an output, not a record: nothing is written to `release.json`
-  /// or `images.json`, so the app keeps no state for it and a run writes over
-  /// whatever is there.
+  /// The file is an output, not a record: nothing is written to `release.json` or
+  /// `images.json` about whether a run happened, so the file is the only thing
+  /// that says one did, and a run writes over whatever is there. The Private flag
+  /// is the one thing the app does record for this feature, because it is a
+  /// choice the user makes rather than a result of a run (`ai/torrents.md`).
   String outputPath() =>
       p.join(release.directoryPath, '${release.name}.torrent');
 
@@ -51,6 +54,36 @@ class TorrentController {
   /// The folder the file is in, for the link the section shows next to the path.
   Future<OpenFolderResult> openDirectory() =>
       folderOpener.open(release.directoryPath);
+
+  /// The Private flag as the file on disk states it (`ai/torrents.md`).
+  ///
+  /// A read, not a change: nothing is written, so a release opened again shows
+  /// the flag its file has rather than the one the record holds. A synchronous
+  /// read, because the widget asks while it builds, the same way the check above
+  /// does. A file that is not a bencoded torrent is reported as such rather than
+  /// guessed at.
+  TorrentFlag privateFlag(String path) {
+    try {
+      return readPrivateFlag(File(path).readAsBytesSync());
+    } catch (_) {
+      // The file was there when the widget asked, but it may have gone or been
+      // left unreadable between the two.
+      return const TorrentFlagUnreadable();
+    }
+  }
+
+  /// Change the flag of the file that is already there. The tool is asked for the
+  /// name the app writes, so the file the run changes is the one the section
+  /// shows.
+  Future<MkbrrResult> modify({
+    required String torrentPath,
+    required bool private,
+  }) => mkbrr.modify(
+    releaseDirectory: release.directoryPath,
+    torrentPath: torrentPath,
+    outputName: release.name,
+    private: private,
+  );
 
   /// The source is whatever the user picked — a file or a directory, which is
   /// what the tool accepts. A source that no longer exists is not checked here:

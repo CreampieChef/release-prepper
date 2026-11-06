@@ -482,6 +482,26 @@ void main() {
     },
   );
 
+  // A row that sets a value the app cannot use is not drawn (rule 14): while no
+  // image the message reads is uploaded there is no render, so the signature has
+  // nothing to be part of and a shape nothing to shape. The video pack is the
+  // type that can draw the shape row, so this is the state where both rows
+  // would otherwise be there.
+  testWidgets('with no image uploaded neither flag row is drawn', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      template: '{{videoTitle}}',
+      releaseType: ReleaseType.videoPack,
+      images: const ImagesManifest.empty(),
+    );
+
+    expect(find.byKey(const ValueKey('appSignature')), findsNothing);
+    expect(find.byKey(const ValueKey('screenshotLayout')), findsNothing);
+    expect(find.text('Upload the images first'), findsOneWidget);
+  });
+
   // The gate is per record, not per kind: a record with no entry for the poster
   // hoster is an upload that did not happen, so a manifest that has images but
   // none of them uploaded does not open it either.
@@ -510,30 +530,43 @@ void main() {
 
   // The run that writes `images.json` is another section, so this one is only
   // updated through the rebuild it registered with the editor.
-  testWidgets('the button appears when the editor says an upload run ended', (
-    tester,
-  ) async {
-    void Function()? rebuild;
+  // The rows the gate keeps out are drawn again by the same rebuild, because that
+  // is what reads the gate. Nothing about the values changed while the rows were not
+  // drawn: hiding a row is not changing it. The video pack is the type that can draw
+  // the shape row, so both rows are expected here.
+  testWidgets(
+    'the button and the flag rows appear when the editor says an upload run '
+    'ended',
+    (tester) async {
+      void Function()? rebuild;
 
-    final store = await pump(
-      tester,
-      template: '{{videoTitle}}',
-      images: const ImagesManifest.empty(),
-      subscribeImagesChanged: (callback) => rebuild = callback,
-    );
+      final store = await pump(
+        tester,
+        template: '{{videoTitle}}',
+        releaseType: ReleaseType.videoPack,
+        images: const ImagesManifest.empty(),
+        subscribeImagesChanged: (callback) => rebuild = callback,
+      );
 
-    expect(find.widgetWithText(FilledButton, 'Generate'), findsNothing);
+      expect(find.widgetWithText(FilledButton, 'Generate'), findsNothing);
+      expect(find.byKey(const ValueKey('appSignature')), findsNothing);
+      expect(find.byKey(const ValueKey('screenshotLayout')), findsNothing);
 
-    // The run wrote the URL for the poster hoster, and the editor tells this
-    // section.
-    store.manifest = uploadedToPosterHoster();
+      // The run wrote the URL for the poster hoster, and the editor tells this
+      // section.
+      store.manifest = uploadedToPosterHoster();
 
-    rebuild!();
-    await tester.pump();
+      rebuild!();
+      await tester.pump();
 
-    expect(find.widgetWithText(FilledButton, 'Generate'), findsOneWidget);
-    expect(find.text('Nothing generated yet.'), findsOneWidget);
-  });
+      expect(find.widgetWithText(FilledButton, 'Generate'), findsOneWidget);
+      expect(find.text('Nothing generated yet.'), findsOneWidget);
+
+      expect(find.byKey(const ValueKey('appSignature')), findsOneWidget);
+      expect(find.byKey(const ValueKey('screenshotLayout')), findsOneWidget);
+      expect(tester.widget<Checkbox>(signatureCheckbox()).value, isTrue);
+    },
+  );
 
   // What the box shows is a render of the values the template reads, so a field
   // the editor writes makes it stale: the section goes back to its placeholder,

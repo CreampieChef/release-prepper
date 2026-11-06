@@ -117,7 +117,8 @@ class ReleaseStore {
           : FieldValues(),
       items: _items(decoded['items']),
       screenshotLayout: _layout(decoded['screenshotLayout']),
-      includeAppSignature: _flag(decoded['includeAppSignature']),
+      includeAppSignature: _flag(decoded['includeAppSignature'], true),
+      torrentPrivate: _flag(decoded['torrentPrivate'], true),
       createdDate: _date(decoded['createdDate']),
       lastEditDate: _date(decoded['lastEditDate']),
     );
@@ -132,11 +133,11 @@ class ReleaseStore {
         orElse: () => ScreenshotLayout.byHoster,
       );
 
-  /// Whether the post ends with the app's signature, or the default when the key
-  /// is absent or is not a flag. The same rule as the block shape: a manifest
-  /// written before the choice existed is not an error, and the default is the
-  /// state those files were written with.
-  static bool _flag(Object? value) => value is bool ? value : true;
+  /// A flag, or [defaultValue] when the key is absent or is not a flag. The same
+  /// rule as the block shape: a manifest written before the choice existed is not
+  /// an error, and the default is the state those files were written with.
+  static bool _flag(Object? value, bool defaultValue) =>
+      value is bool ? value : defaultValue;
 
   /// A date, or null when the key is absent or is not a date the file can be
   /// read as. A manifest the app did not write is what the user may have

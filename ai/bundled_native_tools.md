@@ -400,7 +400,7 @@ reports the tool as not present.
 ## Arguments
 
 ```
-mkbrr create <path to file or folder> --private=true --output <output file>
+mkbrr create <path to file or folder> --private=<true or false> --output <output file>
 ```
 
 `--output` is given explicitly rather than left to the default, because the
@@ -408,6 +408,34 @@ default is `<source basename>.torrent` written in the working directory and
 `ToolRunner` does not set one; the default name is also the source basename
 rather than the release name. The app passes no tracker, comment, or piece
 length.
+
+```
+mkbrr modify <torrent file> --private=<true or false> --output <release name> --output-dir <release directory>
+```
+
+The app changes the flag of the file it already has rather than making a new one
+(`ai/torrents.md`). `--output` here is a name without an extension — the tool
+adds `.torrent` itself, and a path given to it is stripped to its basename — so
+`--output-dir` has to be given as well for the file to land in the release
+folder; `ToolRunner` sets no working directory, so the default output directory
+would be the app's own. `--private=false` writes the key with a 0, while
+`--no-private` removes it, and the app wants the value stated either way, so it
+uses `--private=` with the value rather than the negating form.
+
+## What modify writes
+
+Checked against the committed Linux binary:
+
+* it rewrites the file rather than editing it in place, and the rewrite is not
+  the same bytes: the keys the format does not define are dropped, and the keys
+  inside `info` are kept. `creation date` is rewritten with the time of the run.
+* the flag is inside `info`, so the info hash changes when the flag does. The
+  file is a different torrent to the trackers, which is what a user changing the
+  flag on an existing file expects.
+* a run that cannot process the file — a file that is not a bencoded torrent —
+  prints `Error processing <file>: <reason>` on stdout and exits 0. So the exit
+  code is not enough for a modify, unlike a create, and the wrapper reads that
+  line. `--quiet` is not used, because it hides it.
 
 ## Version
 
@@ -435,8 +463,11 @@ Checked against the committed Linux binary:
 
 * create succeeded — exit 0, the file is written
 * the source does not exist — exit 1, with the message on stderr
+* modify succeeded — exit 0, the file is rewritten
+* modify could not process the file — exit 0, with the reason on stdout
+  (§What modify writes)
 
-So the exit code is enough here, unlike mtn's.
+So the exit code is enough for a create, unlike mtn's, but not for a modify.
 
 ## Open questions
 

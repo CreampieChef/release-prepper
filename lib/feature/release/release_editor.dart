@@ -467,6 +467,23 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
     return true;
   }
 
+  /// The single write path for the torrent's Private flag, the same rule as for a
+  /// field and for the two above: the model first, then the row showing it. The
+  /// row is the Torrent section's, so the write is this widget's. Nothing is
+  /// noticed here: the flag is not something a render reads, so the section that
+  /// wrote it is the only row it changes.
+  ///
+  /// This is the path for the case where there is no file, so the write is a change
+  /// and the tab becomes dirty.
+  bool _writeTorrentPrivate(bool private) =>
+      _controller.setTorrentPrivate(private);
+
+  /// The same flag for the case where a run changed the file it describes: the
+  /// record has to agree with the file at once, so this is a save rather than a
+  /// change and the tab does not become dirty.
+  Future<void> _saveTorrentPrivate(bool private) async =>
+      await _controller.saveTorrentPrivate(private);
+
   /// The text a field shows. For every field but a byte count that is the value
   /// itself; a size field shows the byte count in a human-friendly form as well,
   /// so its text is derived from the value rather than being the value. Which
@@ -1364,6 +1381,8 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
             final torrent = TorrentSection(
               release: release,
               subscribeSourceChanged: _registerSourceRebuild,
+              onPrivateChanged: _writeTorrentPrivate,
+              onPrivateSaved: _saveTorrentPrivate,
             );
 
             final left = _column(

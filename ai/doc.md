@@ -428,7 +428,28 @@ data (`ai/release_structure.md` §4). The URLs are stored per image and per host
   The file is an output, not a record: nothing is written to `release.json` or
   `images.json`, and a run writes over what is there, so when a release is
   opened again the file on disk is the only thing that says a run happened, and
-  the section reports what it finds.
+  the section reports what it finds. The Private flag is the one thing the app
+  does record for this feature, as `torrentPrivate`, because it is a choice the
+  user makes rather than a result of a run, and its row is the first thing under
+  the section title, because the flag is what the run is asked for. The file is
+  the thing the flag describes, so when one is on disk the row shows what it
+  states rather than what the record says; the record is what a run would write,
+  so it is what the row shows when there is no file. The row is drawn only when the
+  flag applies to something (rule 14): a source a run would hash, or a file whose
+  flag it is. With neither the value belongs to no run and no file, so the row is
+  not drawn at all rather than shown inactive. Reading the flag is the
+  bencode read in `lib/service/torrent/torrent_file.dart`, and it is a read, not
+  a change, so opening a release writes nothing. Changing the flag while a file is
+  there is a run — `mkbrr modify` on that file — so the section asks first with a
+  popup and runs only on the answer; a dismissed popup is not an agreement, the
+  same rule as the close popup. The row is inactive while a run is going and when
+  the file cannot be read, because a row cannot show a flag it has not read. The
+  flag is part of the record, so the write is the editor's and the section
+  reports the change to it, as the Message section does with the two flags it
+  owns. With no file the value is only what a run would be asked for, so the
+  write is a change and marks the tab dirty like a field does; with a file the run
+  has already changed the thing the flag describes, so the record is written at
+  once and the tab does not become dirty, because there is nothing left to save.
   With no source picked there is nothing to hash, so the title row has no action
   and the section says what has to happen first instead — "Pick a file first" or
   "Pick a folder first", which of the two is the release type's rule
@@ -461,7 +482,11 @@ data (`ai/release_structure.md` §4). The URLs are stored per image and per host
   marks the record dirty like a field does. Only what
   there is to show is drawn: an empty title draws no row, and while nothing has been generated the
   section is its title row and the placeholder — the same shape the Screenshots section
-  has when it has no images. The Generate button is drawn only once every image
+  has when it has no images. The two flag rows are not drawn in that state
+  (rule 14): before any image the message reads is uploaded there is no render,
+  so the signature has nothing to be part of and a shape nothing to shape. They
+  appear with the gate, and the values they show are unchanged by the rows not
+  being drawn. The Generate button is drawn only once every image
   the message reads has been uploaded to the poster hoster: the message is made of
   those URLs, so before any upload there is nothing it could say, and the
   placeholder says what has to happen first instead. The title row with nothing on
@@ -920,7 +945,10 @@ lib/
                                 column shows it
       release_editor_controller.dart   editor state: the field values, the shape of the
                                 screenshot block, the source and the item it
-                                is, the dirty flag, save(), probeMovieFile(), the thumbnail
+                                is, the dirty flag, save(), the flag write paths: the
+                                change path for a value with no file, and the write path for a
+                                flag whose file a run changed, which writes the manifest and does
+                                not mark the tab dirty, probeMovieFile(), the thumbnail
                                 path and writing it, the poster record and its path, the
                                 format check, writing and removing a poster, and a poster
                                 from a pasted link
@@ -1142,9 +1170,13 @@ lib/
                                 widget asks while it builds, the same way the
                                 poster box asks for its file — and opens the
                                 folder through FolderOpener for the link the
-                                section shows
+                                section shows. The flag is read through
+                                service/torrent/torrent_file.dart, and the modify
+                                call is given the file the app writes, so the one
+                                the run changes is the one the section shows
       torrent_section.dart      TorrentSection: the title row with the Create
-                                button at the right, the progress bar and the
+                                button at the right, the Private flag row under
+                                it, the progress bar and the
                                 percentage, the rate and the time left as the
                                 tool reports them, then what the run ended
                                 with. The bar is drawn only once a run has
@@ -1168,8 +1200,24 @@ lib/
                                 there is nothing else to say. The source is not
                                 state this section holds, so it registers its
                                 rebuild with the editor, which calls it when that
-                                row is written to. No
-                                dirty flag, not part of Ctrl+S
+                                row is written to. The flag row shows what the
+                                file states when one is on disk, and the value
+                                in release.json only when there is none, as the
+                                file is what the flag describes. The row is not
+                                drawn when there is neither a source nor a file
+                                (rule 14), because with neither nothing can use
+                                the value. Changing it
+                                while a file is there is a run, so the section
+                                asks first and runs only on the answer, and a
+                                dismissed popup is not an agreement. The row is
+                                inactive while a run is going and when the file
+                                cannot be read, as a row cannot show a flag it
+                                has not read. The flag is in the record, so the
+                                write is the editor's: the section reports the
+                                change path for a value with no file, and the
+                                write path for a flag whose file a run changed
+                                there: then there is nothing left to save.
+                                No dirty flag of its own, not part of Ctrl+S
     message/
       message_store.dart        MessageStore (load/loadSync/save/delete) for the two
                                 text files the section owns — message.txt and
@@ -1206,7 +1254,9 @@ lib/
                                 app signature checkbox, the title line, and the large text box showing
                                 the post text, each with a copy button. The checkbox row is drawn first,
                                 and the row of radio buttons that chooses the shape of the block is drawn
-                                before the title line, for the type that can choose; both show what the
+                                before the title line, for the type that can choose, and only while
+                                 the generation gate is open (rule 14): before an upload there is no
+                                 render for either flag to affect, and both show what the
                                 release holds and both are part of `release.json`, so the section reports
                                 them to the editor, which is the widget with the write path. The radio
                                 row is a `RadioGroup` with `Radio` children, because `Radio`'s own `groupValue`
@@ -1588,7 +1638,11 @@ lib/
                                 time left out of the carriage-return-separated
                                 segments, because that is the tool's format, and it
                                 asks for a 60 minute window rather than the
-                                runner's default (`ai/torrents.md`)
+                                runner's default (`ai/torrents.md`). modify()
+                                changes the flag of a file that is already there;
+                                the reason a failed one prints is read from the
+                                output, because a modify that cannot process the
+                                file still exits 0 (`ai/bundled_native_tools.md`)
     photosets/
       photoset_scanner.dart     PhotosetScanner: reads the picked folder, decides which entries
                                 are items — the rule is given to it per type as `ItemBoundary`,
@@ -1629,6 +1683,22 @@ lib/
                                 it cannot probe is still an item, reported by name. + the typed scan
                                 result. Called only when the user asks. No reader interface, because
                                 there is no container format here (`ai/video_pack.md` §4).
+    torrent/
+      torrent_file.dart         readPrivateFlag(): the Private flag as a torrent
+                                file states it — the two dictionaries it can be in
+                                are walked, the file's top-level one and its
+                                `info` entry, and the integer value there is the
+                                flag. A value that is not the flag is skipped
+                                rather than decoded, because the pieces are the
+                                largest part of a real torrent and nothing here
+                                needs them. A file whose `info` has no `private`
+                                key is not private, which is what the format means
+                                by the flag being absent; bytes that are not a
+                                bencoded dictionary are reported as unreadable
+                                rather than guessed at. A pure function over the
+                                bytes, like `image_dimensions.dart` is over a file
+                                header, so the rule can be tested without a file.
+                                + the typed read result.
     template/
       style.dart                Style: a parsed style file — key = value, one rule per
                                 line, `{content}` as the slot body, `{token}` as another
@@ -1917,7 +1987,8 @@ Naming conventions in use:
 ## 4. Architecture rules (the invariants)
 
 Rules 1-3, 7, 8 and 13 come from the refactor spec that produced this layout;
-rules 4-6 and 12 are the project's own decisions about dependency injection. Keep
+rules 4-6, 12 and 14 are the project's own decisions about dependency injection and
+about what a widget draws. Keep
 them, except where the current code already deviates (listed after the rules — do
 not treat those rules as describing the code as it is today).
 
@@ -1975,6 +2046,14 @@ not treat those rules as describing the code as it is today).
     charset the site declares, which `dart:convert` cannot do.
 13. **Do not pass `BuildContext` into controllers.** Typed results come from
     controllers; localized messages stay in widgets.
+14. **A control is not drawn when nothing can use what it sets.** A row that sets
+    a value belongs to the feature that uses the value, so it is drawn only while
+    that feature can act: no source picked means no run to be asked for a flag, no
+    images uploaded means no render a signature or a shape could appear in. A row
+    that shows what a file already states is drawn whenever that file is there — the
+    file is what the value describes, whatever else the feature can do. Hiding a row
+    is not changing the value: what is stored stays as it is and the row shows it
+    again when the feature can act.
 
 **Current deviations from these rules:**
 
@@ -3157,8 +3236,11 @@ installation is incomplete rather than "install it", because that tool is part o
 and is not something the user installs.
 The Torrent family (`torrentSectionTitle`, `torrentButton`, `torrentProgress`,
 `torrentSpeed`, `torrentEta`, `torrentCreated`, `torrentAlreadyCreated`,
-`mkbrrNotAvailable`, `mkbrrRunFailed`, `mkbrrRunTimeout`, `folderOpenFailed`,
-`torrentPickFileFirst`, `torrentPickFolderFirst`) is in both files and is used
+`mkbrrNotAvailable`, `mkbrrRunFailed`, `mkbrrRunTimeout`, `mkbrrModifyFailed`,
+`folderOpenFailed`, `torrentPickFileFirst`, `torrentPickFolderFirst`,
+`torrentPrivateLabel`, `torrentPrivateTitle`, `torrentPrivateMessage`,
+`torrentPrivateValuePrivate`, `torrentPrivateValueNotPrivate`,
+`torrentPrivateConfirm`, `torrentPrivateNotReadable`) is in both files and is used
 by `torrent_section.dart`. `torrentProgress` is the
 bar's "{percent}%" text with one int placeholder; `torrentSpeed` and
 `torrentEta` are the `Label: {value}` lines with one String placeholder each,
@@ -3173,6 +3255,15 @@ section is already the thing that shows the run.
 `torrentPickFileFirst` and `torrentPickFolderFirst` are the placeholder the
 section shows while no source is picked, and there are two of them because the
 file-or-folder rule is the release type's: one key cannot say both.
+`torrentPrivateLabel` is the label of the flag row. The popup has keys of its
+own because it is a question rather than a message: `torrentPrivateTitle`, and
+`torrentPrivateMessage` with one String placeholder for the value it names, which
+is why the two value strings exist — one key cannot say both "private" and "not
+private" — and `torrentPrivateConfirm`, the verb the answer button uses, since
+`cancel` is the shared one. `torrentPrivateNotReadable` is what the row says when
+the file cannot be read, and `mkbrrModifyFailed` is the reason the tool printed,
+with one String placeholder, because a modify that cannot process the file still
+exits 0 and the reason is the only thing it says.
 `ffmpegNotAvailable` is shared by both image flows: it says "install it to work with
 images" rather than naming the thumbnail, so one key serves both.
 The Message family (`messageSectionTitle`, `generateMessage`,
@@ -3628,7 +3719,11 @@ to the tool and
 reports an empty or missing path as `fileNotFound` (the tool is a fake there), a new release
 starts with the default video quality while a loaded manifest shows what it contains, a new
 release has no source and no item because an item is a real file on disk, `setSource()` records
-the source and the item it is and marks the tab dirty, and an item path is relative to the
+the source and the item it is and marks the tab dirty, the flags the record holds
+mark it the same way and the same value again does not, and the flag a run
+changed is written to the manifest at once without marking the tab dirty — a
+manifest that cannot be written is not reported, the same rule as the stamp. An
+item path is relative to the
 source — a picked file is the item itself, a picked directory contains it — the saving test
 writes the record in the shape `release.json` now has, the thumbnail path is derived from the
 release directory and the item path while the
@@ -3714,6 +3809,10 @@ while keeping the creation date as it was, and the stamp the operations that wri
 release make changes only the timestamp — the field values the user has not saved are not written,
 so a dirty tab keeps its values — and reports false when the manifest is not there or is not an
 object.
+It also covers the three keys that are not fields, dates or IDs: each is written
+and read back, and a manifest without one, or with a value this version does not
+know, reads as the default rather than being reported as an error — the shape the
+files were written with, a message with the signature, and a private torrent.
 `test/clone_controller_test.dart` covers the copy rules: the fields the
 user writes are copied and the six the app fills from the movie file are not,
 `sceneUrl` is copied although it has no form row, `draftUrl` is not copied because a run wrote it
@@ -3984,8 +4083,10 @@ drawn when there is nothing to show: with the images uploaded and nothing genera
 title row with the button and the placeholder — the title row is the whole section, because the button
 is the part that can run — and the title line appears only when a title exists. It also covers the
 generation gate: with nothing uploaded to the poster hoster, and with a record that has no entry for
-it, the title row has no button and the placeholder says what has to happen first; the button appears
-when the editor calls the rebuild the section registered, which the test does by changing what the fake
+it, the title row has no button and the placeholder says what has to happen first, and neither flag row
+is drawn in that state (rule 14) — the test uses the video pack, the type that can draw the shape row,
+so both rows are covered. The button and the rows appear when the editor calls the rebuild the section
+registered, which the test does by changing what the fake
 store holds and calling it. It also covers that the copy button for
 the box is at its top rather than in its middle.
 `test/pornolab_client_test.dart` covers the rules the client applies without making a request: a
@@ -4166,10 +4267,23 @@ result the test gives, so these tests do not need the tools installed; the one
 test that checks where the log is written runs the real ffmpeg through
 `testRunner()`, as the native tool tests
 do.
+`test/torrent_file_test.dart` covers the bencode reader: the flag is read from the
+`info` dictionary, a flag of 0 is false, a file whose `info` has no `private` key
+is not private, a value there that is not an integer is not a flag and is not
+guessed at, bytes that are not a bencoded dictionary are reported as unreadable,
+and a key that is not the flag — one outside `info`, one inside a nested
+dictionary, one inside a list — is skipped rather than read. The fixtures are built
+from the parts in `test/test_bencode.dart`, the file both this test and the section
+test use, so a dictionary is closed by the same rule the format has and the two
+fixtures cannot disagree.
 `test/mkbrr_test.dart` covers the wrapper: the arguments the spec fixes — the
-source, `--private=true`, and `--output` with the path the app asked for rather
-than the tool's default — the typed results, the window the create call asks the
-runner for (60 minutes, while the version call keeps the default), and the
+source, `--private=` with the value the call is given, and `--output` with the
+path the app asked for rather than the tool's default; for a modify, the file it
+is asked for, `--private=` again, and the name and the directory as two arguments
+rather than one path, because the tool's default output directory is the working
+directory the runner does not set — the typed results, the window the create call
+asks the runner for (60 minutes, while the version call keeps the default), that
+the line a failed modify prints is the reason and not the exit code, and the
 progress reader against a captured sample of the tool's output: the percentage is
 read from each carriage-return-separated segment, the rate from the bracket
 before it and the time left from the pair after it, a field a segment did not
@@ -4185,10 +4299,22 @@ is opened again and a file named after an older release name, which is not the
 one this release would write, the link that opens the release directory and the
 message a failed open shows, and that there is no link while nothing has run and
 no file is found. It also covers the placeholder: with no source picked the title
-row has no button and the section says what has to be picked first, with the
+row has no button, draws no flag row (rule 14), and the section says what
+has to be picked first, with the
 wording the release type decides — a file for a single video, a folder for a
 pack — and that the button appears when the editor calls the rebuild the section
-registered. The tool and the folder opener are fakes that answer with the
+registered. It also covers the flag row: that it is the first thing under the
+title, that it shows the value the record has, and that when a file is on disk it
+shows the value the file states rather than what the record says; a file that
+cannot be read is reported as such and the row is inactive. The row is not
+drawn when there is neither a source nor a file (rule 14), and it is drawn for
+a file that is already there even when no source has been picked. Changing the flag with
+no file goes through the change path without asking; with a file the section asks
+first, a decline writes nothing and the row goes back to what the file states, and
+an agreement runs the tool and the value goes through the save path, not the
+change path, which is what the test records. A change the
+tool could not make says the reason it gave and leaves the row as it was, and the
+row is inactive while a run is going. The tool and the folder opener are fakes that answer with the
 result the test gives. The existing-file test puts the file on disk before
 `pumpWidget`, and the check the widget makes while it builds is a synchronous
 one, so it works in the fake-async zone. Each mapping is its own test, because

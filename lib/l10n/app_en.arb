@@ -471,6 +471,20 @@
             }
         }
     },
+    "torrentPrivateLabel": "Private",
+    "torrentPrivateTitle": "Change the Private flag?",
+    "torrentPrivateMessage": "The torrent file already exists. Do you want to change its Private flag to {value}?",
+    "@torrentPrivateMessage": {
+        "placeholders": {
+            "value": {
+                "type": "String"
+            }
+        }
+    },
+    "torrentPrivateValuePrivate": "private",
+    "torrentPrivateValueNotPrivate": "not private",
+    "torrentPrivateConfirm": "Change",
+    "torrentPrivateNotReadable": "The file is not a readable torrent, so its flag cannot be read.",
     "mkbrrNotAvailable": "mkbrr is not available. It is part of the app, so the installation is incomplete.",
     "mkbrrRunFailed": "mkbrr exited with code {code}.",
     "@mkbrrRunFailed": {
@@ -481,6 +495,14 @@
         }
     },
     "mkbrrRunTimeout": "mkbrr timed out.",
+    "mkbrrModifyFailed": "mkbrr could not change the flag: {reason}.",
+    "@mkbrrModifyFailed": {
+        "placeholders": {
+            "reason": {
+                "type": "String"
+            }
+        }
+    },
     "folderOpenFailed": "Could not open the folder.",
     "draftSectionTitle": "Upload draft to tracker",
     "draftUploadButton": "Upload",

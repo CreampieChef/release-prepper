@@ -75,6 +75,14 @@ import 'screenshot_layout.dart';
 /// the row but does not own the record, and the notice that write sends is what
 /// clears the box, because the flag is part of what a render would produce.
 ///
+/// The two flag rows — the signature checkbox and the row of shapes — are
+/// drawn only while the generation gate is open (rule 14): before any image
+/// the message reads is uploaded there is no render, so a signature and a
+/// shape have nothing to be part of, and a row that sets a value nothing uses
+/// is noise. The values are still what `release.json` holds, so hiding a row
+/// changes nothing: the rows show the same values again when an upload run
+/// opens the gate, which is the rebuild this section registers with the editor.
+///
 /// The shape the screenshot block has is chosen here, for the type that can
 /// choose it: the row of radio buttons is the row after the checkbox. The choice
 /// is part of `release.json`, so it is written through the editor's single write
@@ -475,11 +483,19 @@ class _MessageSectionState extends State<MessageSection> {
               : null,
         ),
         const SizedBox(height: 12),
-        _signatureRow(l10n),
-        const SizedBox(height: 12),
-        if (_hasLayoutChoice(widget.release.releaseType)) ...[
-          _layoutRow(l10n),
+        // A row that sets a value the app cannot use is not drawn (rule 14).
+        // While no image the message reads is uploaded there is no render,
+        // so the signature has nothing to be part of and a shape nothing to
+        // shape; the rows are drawn only when the gate is open. The values are
+        // still what `release.json` holds: hiding a row is not changing what a
+        // release was given before.
+        if (_canGenerate) ...[
+          _signatureRow(l10n),
           const SizedBox(height: 12),
+          if (_hasLayoutChoice(widget.release.releaseType)) ...[
+            _layoutRow(l10n),
+            const SizedBox(height: 12),
+          ],
         ],
         if (hasTitle(widget.release.releaseType) && _title.isNotEmpty) ...[
           Row(

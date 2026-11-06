@@ -461,6 +461,20 @@
             }
         }
     },
+    "torrentPrivateLabel": "Приватный",
+    "torrentPrivateTitle": "Изменить флаг Private?",
+    "torrentPrivateMessage": "Файл торрента уже существует. Изменить его флаг Private на «{value}»?",
+    "@torrentPrivateMessage": {
+        "placeholders": {
+            "value": {
+                "type": "String"
+            }
+        }
+    },
+    "torrentPrivateValuePrivate": "приватный",
+    "torrentPrivateValueNotPrivate": "не приватный",
+    "torrentPrivateConfirm": "Изменить",
+    "torrentPrivateNotReadable": "Файл не читается как торрент, поэтому его флаг прочитать нельзя.",
     "mkbrrNotAvailable": "mkbrr недоступен. Он входит в состав приложения, поэтому установка неполная.",
     "mkbrrRunFailed": "mkbrr завершился с кодом {code}.",
     "@mkbrrRunFailed": {
@@ -471,6 +485,14 @@
         }
     },
     "mkbrrRunTimeout": "mkbrr превысил время ожидания.",
+    "mkbrrModifyFailed": "mkbrr не смог изменить флаг: {reason}.",
+    "@mkbrrModifyFailed": {
+        "placeholders": {
+            "reason": {
+                "type": "String"
+            }
+        }
+    },
     "folderOpenFailed": "Не удалось открыть папку.",
     "draftSectionTitle": "Загрузка черновика на трекер",
     "draftUploadButton": "Загрузить",

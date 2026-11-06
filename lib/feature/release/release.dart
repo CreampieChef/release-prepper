@@ -29,6 +29,7 @@ class Release {
     this.lastEditDate,
     this.screenshotLayout = ScreenshotLayout.byHoster,
     this.includeAppSignature = true,
+    this.torrentPrivate = true,
   });
 
   final String name;
@@ -80,6 +81,13 @@ class Release {
   /// the tracker's text, so every type carries it.
   bool includeAppSignature;
 
+  /// Whether the torrent the app writes is private (`ai/torrents.md`). It is
+  /// stored for the same reason the two above are: the flag is what the tool is
+  /// asked for, so a release opened again has to show the flag it was given.
+  /// Every type can have a torrent, because the tool takes a file or a folder,
+  /// so every type carries it.
+  bool torrentPrivate;
+
   /// The real files on disk the release is made of. The user cannot add or
   /// remove an item that is not on disk.
   final List<ReleaseItem> items;
@@ -103,6 +111,7 @@ class Release {
     'fields': fields.toJson(),
     'items': [for (final item in items) item.toJson()],
     'includeAppSignature': includeAppSignature,
+    'torrentPrivate': torrentPrivate,
     // Only a type that can choose writes it, so a release of another type does
     // not carry a shape it could never use.
     if (releaseType == ReleaseType.videoPack)

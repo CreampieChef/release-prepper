@@ -223,6 +223,87 @@ void main() {
 
     expect(timedOut, isA<MkbrrRunTimeout>());
   });
+
+  // The name is given as a name and the directory as a directory, because
+  // `--output` is a filename without an extension and the runner sets no working
+  // directory. Without them the tool writes a prefixed file beside the release's.
+  test('the modify call names the file and the directory separately', () async {
+    final runner = _FakeRunner(const ToolRunSuccess(stdout: '', stderr: ''));
+
+    await Mkbrr(runner: runner).modify(
+      releaseDirectory: '/release',
+      torrentPath: '/release/name.torrent',
+      outputName: 'name',
+      private: false,
+    );
+
+    expect(runner.calls.first, [
+      'modify',
+      '/release/name.torrent',
+      '--private=false',
+      '--output',
+      'name',
+      '--output-dir',
+      '/release',
+    ]);
+
+    // Hashing is not part of a modify, so it is not given the create window.
+    expect(runner.timeouts.first, ToolRunner.callTimeout);
+  });
+
+  // The tool exits 0 when it cannot process a file, so the line it prints is the
+  // only thing that says the run failed.
+  test(
+    'a modify that prints an error line is a failure, not a success',
+    () async {
+      final result =
+          await Mkbrr(
+            runner: _FakeRunner(
+              const ToolRunSuccess(
+                stdout:
+                    '\nInfo: Modifying 1 torrent files...\n'
+                    'Error processing name.torrent: could not load torrent: '
+                    "bencode: syntax error (offset: 0): invalid value type character 'n'\n",
+                stderr: '',
+              ),
+            ),
+          ).modify(
+            releaseDirectory: '/release',
+            torrentPath: '/release/name.torrent',
+            outputName: 'name',
+            private: false,
+          );
+
+      expect(result, isA<MkbrrModifyFailed>());
+      expect(
+        (result as MkbrrModifyFailed).reason,
+        'could not load torrent: bencode: syntax error (offset: 0): '
+        "invalid value type character 'n'",
+      );
+    },
+  );
+
+  test('a modify that writes the file is a success', () async {
+    final result =
+        await Mkbrr(
+          runner: _FakeRunner(
+            const ToolRunSuccess(
+              stdout:
+                  '\nInfo: Modifying 1 torrent files...\n\n'
+                  'Wrote /release/name.torrent (elapsed 0ms)\n',
+              stderr: '',
+            ),
+          ),
+        ).modify(
+          releaseDirectory: '/release',
+          torrentPath: '/release/name.torrent',
+          outputName: 'name',
+          private: true,
+        );
+
+    expect(result, isA<MkbrrModified>());
+    expect((result as MkbrrModified).path, '/release/name.torrent');
+  });
 }
 
 class _FakeRunner implements ToolRunner {

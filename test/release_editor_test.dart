@@ -2660,6 +2660,155 @@ void main() {
     },
   );
 
+  // The Private flag is part of `release.json` for the same reason the signature
+  // flag is, so it marks the tab dirty the same way a field does. The row is the
+  // Torrent section's, so the write is the controller's and the section reports it.
+  test(
+    'the private flag marks the tab dirty, and the same flag again does not',
+    () {
+      final tabManager = TabManager();
+      final release = testVideoPackRelease('/tmp/x');
+      final tabId = tabManager.addReleaseEditor(release);
+
+      final controller = ReleaseEditorController(
+        release: release,
+        store: ReleaseStore(),
+        tabManager: tabManager,
+        ffprobe: _FakeProbe(
+          const MediaInfo(
+            fileSize: '',
+            duration: '',
+            durationSeconds: null,
+            videoType: '',
+            videoFormat: '',
+            videoStream: '',
+            audioStream: '',
+          ),
+        ),
+        ffmpeg: _FakeFfmpeg(),
+        downloader: _FakeDownloader(
+          DownloadSuccess('', ContentType('image', 'jpeg')),
+        ),
+        images: ImagesStore(),
+        tabId: tabId,
+      );
+
+      expect(controller.setTorrentPrivate(false), isTrue);
+      expect(release.torrentPrivate, isFalse);
+      expect(tabManager.tabs.single.hasUnsavedChanges, isTrue);
+
+      expect(controller.setTorrentPrivate(false), isFalse);
+    },
+  );
+
+  // A confirmed change is a run that already changed the file the flag describes, so
+  // the record has to agree with it at once: the value is written there and then,
+  // and the tab is not marked dirty, because there is nothing left to save.
+  test(
+    'the flag a run changed is written to the manifest and does not mark the '
+    'tab dirty',
+    () async {
+      final directory = Directory.systemTemp.createTempSync(
+        'release_prepper_test',
+      );
+
+      final store = ReleaseStore();
+      final release = await store.create(
+        savePath: directory.path,
+        name: 'release',
+        tracker: Tracker.pornolab,
+        releaseType: ReleaseType.singleVideo,
+      );
+
+      final tabManager = TabManager();
+      final tabId = tabManager.addReleaseEditor(release);
+
+      final controller = ReleaseEditorController(
+        release: release,
+        store: store,
+        tabManager: tabManager,
+        ffprobe: _FakeProbe(
+          const MediaInfo(
+            fileSize: '',
+            duration: '',
+            durationSeconds: null,
+            videoType: '',
+            videoFormat: '',
+            videoStream: '',
+            audioStream: '',
+          ),
+        ),
+        ffmpeg: _FakeFfmpeg(),
+        downloader: _FakeDownloader(
+          DownloadSuccess('', ContentType('image', 'jpeg')),
+        ),
+        images: ImagesStore(),
+        tabId: tabId,
+      );
+
+      await controller.saveTorrentPrivate(false);
+
+      final written = jsonDecode(
+        File(p.join(release.directoryPath, 'release.json')).readAsStringSync(),
+      ) as Map<String, dynamic>;
+
+      expect(written['torrentPrivate'], isFalse);
+      expect(tabManager.tabs.single.hasUnsavedChanges, isFalse);
+
+      directory.deleteSync(recursive: true);
+    },
+  );
+
+  // A manifest that could not be written is not reported, the same rule as the stamp:
+  // the file the run changed is the thing the flag describes, and the next write puts
+  // the record right.
+  test('a manifest that cannot be written is not reported', () async {
+    final directory = Directory.systemTemp.createTempSync(
+      'release_prepper_test',
+    );
+
+    final store = ReleaseStore();
+    final release = await store.create(
+      savePath: directory.path,
+      name: 'release',
+      tracker: Tracker.pornolab,
+      releaseType: ReleaseType.singleVideo,
+    );
+
+    final tabManager = TabManager();
+    final tabId = tabManager.addReleaseEditor(release);
+
+    final controller = ReleaseEditorController(
+      release: release,
+      store: store,
+      tabManager: tabManager,
+      ffprobe: _FakeProbe(
+        const MediaInfo(
+          fileSize: '',
+          duration: '',
+          durationSeconds: null,
+          videoType: '',
+          videoFormat: '',
+          videoStream: '',
+          audioStream: '',
+        ),
+      ),
+      ffmpeg: _FakeFfmpeg(),
+      downloader: _FakeDownloader(
+        DownloadSuccess('', ContentType('image', 'jpeg')),
+      ),
+      images: ImagesStore(),
+      tabId: tabId,
+    );
+
+    directory.deleteSync(recursive: true);
+
+    await controller.saveTorrentPrivate(false);
+
+    expect(release.torrentPrivate, isFalse);
+    expect(tabManager.tabs.single.hasUnsavedChanges, isFalse);
+  });
+
   // For a picked directory the item is under it, which is what a pack needs. A
   // picked file is treated as a directory containing only itself, so the item
   // is the source.

@@ -844,6 +844,30 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get torrentPrivateLabel => 'Private';
+
+  @override
+  String get torrentPrivateTitle => 'Change the Private flag?';
+
+  @override
+  String torrentPrivateMessage(String value) {
+    return 'The torrent file already exists. Do you want to change its Private flag to $value?';
+  }
+
+  @override
+  String get torrentPrivateValuePrivate => 'private';
+
+  @override
+  String get torrentPrivateValueNotPrivate => 'not private';
+
+  @override
+  String get torrentPrivateConfirm => 'Change';
+
+  @override
+  String get torrentPrivateNotReadable =>
+      'The file is not a readable torrent, so its flag cannot be read.';
+
+  @override
   String get mkbrrNotAvailable =>
       'mkbrr is not available. It is part of the app, so the installation is incomplete.';
 
@@ -854,6 +878,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mkbrrRunTimeout => 'mkbrr timed out.';
+
+  @override
+  String mkbrrModifyFailed(String reason) {
+    return 'mkbrr could not change the flag: $reason.';
+  }
 
   @override
   String get folderOpenFailed => 'Could not open the folder.';

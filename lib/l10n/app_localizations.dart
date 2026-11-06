@@ -1568,6 +1568,48 @@ abstract class AppLocalizations {
   /// **'Already created: {path}'**
   String torrentAlreadyCreated(String path);
 
+  /// No description provided for @torrentPrivateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Private'**
+  String get torrentPrivateLabel;
+
+  /// No description provided for @torrentPrivateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change the Private flag?'**
+  String get torrentPrivateTitle;
+
+  /// No description provided for @torrentPrivateMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'The torrent file already exists. Do you want to change its Private flag to {value}?'**
+  String torrentPrivateMessage(String value);
+
+  /// No description provided for @torrentPrivateValuePrivate.
+  ///
+  /// In en, this message translates to:
+  /// **'private'**
+  String get torrentPrivateValuePrivate;
+
+  /// No description provided for @torrentPrivateValueNotPrivate.
+  ///
+  /// In en, this message translates to:
+  /// **'not private'**
+  String get torrentPrivateValueNotPrivate;
+
+  /// No description provided for @torrentPrivateConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get torrentPrivateConfirm;
+
+  /// No description provided for @torrentPrivateNotReadable.
+  ///
+  /// In en, this message translates to:
+  /// **'The file is not a readable torrent, so its flag cannot be read.'**
+  String get torrentPrivateNotReadable;
+
   /// No description provided for @mkbrrNotAvailable.
   ///
   /// In en, this message translates to:
@@ -1585,6 +1627,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'mkbrr timed out.'**
   String get mkbrrRunTimeout;
+
+  /// No description provided for @mkbrrModifyFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'mkbrr could not change the flag: {reason}.'**
+  String mkbrrModifyFailed(String reason);
 
   /// No description provided for @folderOpenFailed.
   ///

@@ -93,6 +93,76 @@ class Mkbrr {
     };
   }
 
+  /// Change the Private flag of the existing torrent file at [torrentPath].
+  ///
+  /// `--output` is a filename without an extension, not a path: a leading path is
+  /// taken as part of the name, and the runner sets no working directory, so the
+  /// name and the directory are given separately. Without them the tool writes
+  /// `modified_<name>.torrent` beside the file rather than the file itself.
+  ///
+  /// The exit code is not enough here, unlike create: the tool prints
+  /// `Error processing <file>: <reason>` and still exits 0. So the reading is the
+  /// wrapper's, because it is the tool's format. `--quiet` is not used, because
+  /// it hides that line.
+  ///
+  /// The tool rewrites the file rather than editing it in place: it keeps the
+  /// standard keys and drops the ones the format does not define, and the flag is
+  /// inside the info dictionary, so the info hash changes with it.
+  Future<MkbrrResult> modify({
+    required String releaseDirectory,
+    required String torrentPath,
+    required String outputName,
+    required bool private,
+  }) async {
+    final result = await runner.run(tool, [
+      'modify',
+      torrentPath,
+      '--private=$private',
+      '--output',
+      outputName,
+      '--output-dir',
+      releaseDirectory,
+    ], releaseDirectory: releaseDirectory);
+
+    return switch (result) {
+      ToolRunNotAvailable() => const MkbrrNotPresent(),
+      ToolRunFailure(exitCode: final exitCode) => MkbrrRunFailed(
+        exitCode: exitCode,
+      ),
+      ToolRunTimeout() => const MkbrrRunTimeout(),
+      ToolRunSuccess(stdout: final stdout) => _modifyResult(
+        stdout,
+        outputPath: torrentPath,
+      ),
+    };
+  }
+
+  /// What a modify run says about the file. The line naming the failure is read
+  /// as the tool wrote it; the file it names is the one the app asked for, so
+  /// the first colon after `Error processing` is what separates the name from the
+  /// reason.
+  static MkbrrResult _modifyResult(
+    String stdout, {
+    required String outputPath,
+  }) {
+    for (final line in stdout.split('\n')) {
+      if (!line.startsWith(_errorPrefix)) {
+        continue;
+      }
+
+      final rest = line.substring(_errorPrefix.length);
+      final colon = rest.indexOf(':');
+
+      return MkbrrModifyFailed(
+        reason: colon < 0 ? rest : rest.substring(colon + 1).trim(),
+      );
+    }
+
+    return MkbrrModified(path: outputPath);
+  }
+
+  static const _errorPrefix = 'Error processing ';
+
   /// What one segment says, or null when the segment is not a progress line. The
   /// escape codes are not removed: the fields are read from the text as the tool
   /// wrote them, and only a progress segment has a percentage in it.
@@ -162,6 +232,23 @@ final class MkbrrCreated extends MkbrrResult {
   const MkbrrCreated({required this.path});
 
   final String path;
+}
+
+/// Ran and wrote the file with the flag changed. [path] is the file the app
+/// asked for, which is the one the tool was given.
+final class MkbrrModified extends MkbrrResult {
+  const MkbrrModified({required this.path});
+
+  final String path;
+}
+
+/// Ran and could not process the file. [reason] is what the tool said after the
+/// name it printed, because a run like this exits 0 and the exit code says
+/// nothing.
+final class MkbrrModifyFailed extends MkbrrResult {
+  const MkbrrModifyFailed({required this.reason});
+
+  final String reason;
 }
 
 /// Could not be started: not in the bundle.
