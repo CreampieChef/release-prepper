@@ -153,10 +153,15 @@ always did (`ai/single_photoset.md` §7).
   twice for a pack, and the word Screenshots once, as the title of the area. Only one column of the
   page is titled by the editor (`ai/doc.md` §2).
 
-- A pack's grid draws exactly the page's columns, because the minimum column width and the gap
-  between columns are constants in `lib/service/images/masonry.dart` and the editor gives the grid
-  the number of columns it counted. When the area is the whole width there are no page columns to
-  name, so it is not given any and fits its own, as the masonry always has.
+- A pack's grid fits its own columns rather than drawing the page's: as many as fit at the minimum
+  width, and each is drawn at the share of the space but never wider than the maximum, so what is
+  left when the share is more than the maximum is empty space at the right of the grid rather than
+  part of a column. The two numbers are `photosetColumnMin` and `photosetColumnMax` in
+  `photoset_group.dart`, and the fitting is in `lib/service/images/masonry.dart` with the rest of
+  the placement; the gap between the columns is the page's. The number is capped at the number of
+  sets, because a column with no set in it is not a column the grid has. The single photoset is
+  read at the whole width, so its own grid fits its columns as it always did
+  (`ai/single_photoset.md` §6).
 
 - Nothing spans in a pack's grid: a group is the width of its column whatever shape its photos are,
   because a group is what the user reads as one set. The masonry keeps its spans, where there are no

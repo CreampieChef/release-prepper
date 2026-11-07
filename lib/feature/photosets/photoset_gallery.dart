@@ -19,20 +19,10 @@ import 'photoset_group.dart';
 /// emptied. A single photoset has no columns to put its pictures in, so it never
 /// reaches this widget; its block draws them at the whole width.
 class PhotosetGallery extends StatelessWidget {
-  const PhotosetGallery({
-    required this.state,
-    required this.columnCount,
-    super.key,
-  });
+  const PhotosetGallery({required this.state, super.key});
 
   /// The controller the block runs, and the generation its runs advance.
   final PhotosetState state;
-
-  /// The number of the page's columns this gallery is placed in, which is what its
-  /// own columns are. Null when it is the whole width below the form rather than a
-  /// column, so there are no page columns to name and it fits as many as fit at the
-  /// same width (`ai/picking.md` §7).
-  final int? columnCount;
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +42,7 @@ class PhotosetGallery extends StatelessWidget {
         // own, which is the same row as a section with no action.
         SectionTitle(title: strings.photosTitle),
         const SizedBox(height: 12),
-        photosetGroupGrid(context, l10n, state, groups, columnCount),
+        photosetGroupGrid(context, l10n, state, groups),
       ],
     );
   }

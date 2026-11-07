@@ -29,9 +29,21 @@ const photosetTileGap = 8.0;
 const photosetHeaderHeight = 24.0;
 
 // The width a tile is laid out at when the page has given the section no columns,
-// which is the single photoset's whole-width masonry. Only that grid uses this: a
-// pack's columns are the page's, so it uses `minColumnWidth` from the shared rule.
+// which is the single photoset's whole-width masonry. Only that grid uses this:
+// the pack's grid lays its own columns out, at the widths below.
 const photosetTileWidth = 160.0;
+
+// The narrowest and the widest a column of the pack's grid may be
+// (`ai/picking.md` §7). The number of columns is as many as fit at the narrowest,
+// so a grid is as dense as the minimum allows, and each column is drawn at the
+// share of the space but never wider than the widest — so with fewer sets than the
+// space has room for columns, or a space too narrow for both numbers, the extra is
+// left unused rather than a column being made wider or narrower than these say.
+// These are the two numbers to change when the pack's layout is being tried at a
+// different density; the gap between the columns is the page's, and is the shared
+// `columnGap`.
+const photosetColumnMin = 180.0;
+const photosetColumnMax = 200.0;
 
 /// The state the block and the gallery read: the controller both use, and the
 /// generation the pictures are keyed with. For a pack the two are separate
@@ -294,32 +306,43 @@ Widget photosetMasonry(
 /// naming the set is above its photos, because a column of pictures has to say
 /// which set they are from.
 ///
-/// The columns are the page's: `minColumnWidth` wide and `columnGap` apart, so a
-/// section placed as the columns after the form draws exactly those columns. Their
-/// number is the page's, capped at the number of groups: a column with no group in
-/// it is not a column the page has, and a set the app could not read still takes
-/// its column with its line and nothing under it. When the page has no columns for
-/// the area it is the whole width, so it fits as many columns as fit at the same
-/// width.
+/// The columns are the grid's own: as many as fit at `photosetColumnMin`, each
+/// drawn at the share of the space but never more than `photosetColumnMax`, with
+/// the page's gap between them. What is left when the share is more than the cap is
+/// unused, rather than a column being made wider or narrower than the two say.
+/// Their number is capped at the number of groups: a column with no group in it is
+/// not a column the grid has, and a set the app could not read still takes its
+/// column with its line and nothing under it.
 Widget photosetGroupGrid(
   BuildContext context,
   AppLocalizations l10n,
   PhotosetState state,
   List<PhotosetGroup> groups,
-  int? columnCount,
 ) {
   return LayoutBuilder(
     builder: (context, constraints) {
       final width = constraints.maxWidth.isFinite
           ? constraints.maxWidth
-          : minColumnWidth * (columnCount ?? 1);
+          : photosetColumnMin;
 
       final columns = math.max(
-        math.min(columnCount ?? width ~/ minColumnWidth, groups.length),
+        math.min(
+          photoColumnCount(
+            width: width,
+            min: photosetColumnMin,
+            gap: columnGap,
+          ),
+          groups.length,
+        ),
         1,
       );
 
-      final columnWidth = (width - columnGap * (columns - 1)) / columns;
+      final columnWidth = photoColumnWidth(
+        width: width,
+        columnCount: columns,
+        max: photosetColumnMax,
+        gap: columnGap,
+      );
 
       final assignment = groupColumns(
         groupHeights: [
@@ -344,6 +367,9 @@ Widget photosetGroupGrid(
       ];
 
       return Row(
+        // Drawn at the left: when the columns are at the cap the space that is left
+        // over is not part of any column, so it is the empty area at the right of
+        // the grid.
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           for (var column = 0; column < columns; column++) ...[

@@ -146,11 +146,14 @@ void main() {
   // editor, so it cannot rebuild on a run the way the editor does; where a test
   // needs the gallery to show what a run wrote, it calls this again, which builds
   // both widgets again against the state the run changed.
+  //
+  // The gallery is only built when the test is about the pack, because a single
+  // photoset has no area beside its block.
   Future<void> openPhotosets(
     WidgetTester tester,
     PhotosetState state, {
     void Function(Map<String, String> values) onApplyValues = discardValues,
-    int? columnCount,
+    bool showGallery = false,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -166,8 +169,7 @@ void main() {
                   onApplyValues: onApplyValues,
                   onRunWritten: () {},
                 ),
-                if (columnCount != null)
-                  PhotosetGallery(state: state, columnCount: columnCount),
+                if (showGallery) PhotosetGallery(state: state),
               ],
             ),
           ),
@@ -691,7 +693,7 @@ void main() {
     final release = testRelease(p.join(directory.path, 'source'));
     final state = testState(release);
 
-    await openPhotosets(tester, state, columnCount: 1);
+    await openPhotosets(tester, state, showGallery: true);
 
     // The rule reads the counts, so it cannot run before the scan has.
     final pickButton = tester.widget<FilledButton>(
@@ -732,7 +734,7 @@ void main() {
     // A run rebuilds the block, which is the widget that ran it. The gallery is
     // another widget, so it is rebuilt by the page that places both — here the test
     // builds it again the way the editor does.
-    await openPhotosets(tester, state, columnCount: 1);
+    await openPhotosets(tester, state, showGallery: true);
 
     // The picks are the interval centres of each set, in the order the source gives
     // them, and each is the tile the gallery draws in its own set's column.
@@ -818,10 +820,17 @@ void main() {
   // `ai/photoset_pack.md` §6). The drawing uses the same heights the assignment
   // works with, so the test works the placement out with the rule and the packing
   // and compares the boxes against it.
+  //
+  // The columns are the grid's own: as many as fit at the minimum, each at the share
+  // of the space but never wider than the maximum, so the test works that out with
+  // the rule and compares the drawing against it.
   testWidgets('the pack draws each set in the column the assignment gives', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(2000, 2000);
+    // A space narrow enough that the two numbers cannot both be satisfied, so fewer
+    // columns are drawn than there are sets — that is what makes a set share a
+    // column, which is what this test is about.
+    tester.view.physicalSize = const Size(700, 4000);
     tester.view.devicePixelRatio = 1.0;
 
     // Four sets of three, so more sets than columns: the last one has to share
@@ -849,8 +858,6 @@ void main() {
       }
     }
 
-    const columnCount = 3;
-
     final release = testRelease(p.join(directory.path, 'source'));
     final state = testState(release);
 
@@ -873,7 +880,7 @@ void main() {
     ];
     final picks = PhotosetPicker.pick(scanned);
 
-    await openPhotosets(tester, state, columnCount: columnCount);
+    await openPhotosets(tester, state, showGallery: true);
 
     await clickAndWait(tester, find.text('Scan'), find.text('set01'));
 
@@ -890,7 +897,7 @@ void main() {
       ),
     );
 
-    await openPhotosets(tester, state, columnCount: columnCount);
+    await openPhotosets(tester, state, showGallery: true);
 
     // The names the pick wrote, in the order the source gives them: the paths the
     // gallery keys its tiles by.
@@ -906,12 +913,38 @@ void main() {
     // line under a tile, and the padding inside each tile. The gap between the
     // columns is the shared one.
     //
-    // The width the gallery works with, taken from what it drew: the test cannot
-    // know what a widget is given by its parent, so it reads the drawing. The first
-    // group is always placed in the first column, so its line is where the test
-    // reads the column width from.
+    // The space the gallery was given, taken from what it drew: the test cannot know
+    // what a widget is given by its parent, so it reads the drawing. From that the
+    // rule gives the number of columns and the width each is drawn at, and the drawing
+    // is compared against both, so the test follows whatever the two constants are
+    // changed to. The first group is always placed in the first column, so its line is
+    // where the test reads the drawn width from.
+    final gallery = tester.getRect(
+      find.byKey(const ValueKey('photosetGallery')),
+    );
+
+    // The fixture is a space that cannot hold both numbers, so the columns are fewer
+    // than the sets; the numbers themselves are tested as a rule in
+    // `test/masonry_test.dart`.
+    final columnCount = photoColumnCount(
+      width: gallery.width,
+      min: photosetColumnMin,
+      gap: columnGap,
+    );
+
+    expect(columnCount, lessThan(sets.length));
+
+    final columnWidth = photoColumnWidth(
+      width: gallery.width,
+      columnCount: columnCount,
+      max: photosetColumnMax,
+      gap: columnGap,
+    );
+
     final firstLine = find.byKey(ValueKey(('groupColumnHeader', 0, sets[0])));
-    final columnWidth = tester.getRect(firstLine).width;
+
+    // What is drawn is what the rule says for the space the widget was given.
+    expect(tester.getRect(firstLine).width, closeTo(columnWidth, 0.5));
 
     expect(namesBySet.map((names) => names.length).toList(), [2, 1, 1, 1]);
 
@@ -931,9 +964,12 @@ void main() {
       columnCount: columnCount,
     );
 
-    // The fourth set shares a column, and it is not the column with its number: it
-    // is the one that was highest up when it was placed.
-    expect(columns, [0, 1, 2, 1]);
+    // The assignment is what the rule gives for the fixture: the first set's photos
+    // are taller, so it keeps the column it was placed in and the sets after it go to
+    // the one that is highest up. The test does not assume which column that is, so
+    // what it asserts is that a set shares a column, which is what the fixture and the
+    // two constants give here.
+    expect(columns.toSet().length, lessThan(sets.length));
 
     // The gallery's title row is above the grid, and its height comes from measuring
     // text, which the test cannot compute from the constants. So the test takes the
@@ -945,7 +981,11 @@ void main() {
 
     for (var set = 0; set < sets.length; set++) {
       final column = columns[set];
-      final left = column * (columnWidth + columnGap);
+
+      // The grid is drawn at the left of the space it is given, so a column's left is
+      // the origin plus the columns and gaps before it; the space after the last one is
+      // the empty area the cap leaves.
+      final left = gallery.left + column * (columnWidth + columnGap);
       final top = gridTop + columnTops[column];
 
       final line = tester.getRect(
@@ -1001,7 +1041,7 @@ void main() {
     final release = testRelease(p.join(directory.path, 'source'));
     final state = testState(release);
 
-    await openPhotosets(tester, state, columnCount: 3);
+    await openPhotosets(tester, state, showGallery: true);
 
     await clickAndWait(tester, find.text('Scan'), find.text('set02'));
 
@@ -1025,7 +1065,7 @@ void main() {
 
     // The gallery shows what the pick wrote only when the page builds again, so the
     // test builds it again the way the editor does.
-    await openPhotosets(tester, state, columnCount: 3);
+    await openPhotosets(tester, state, showGallery: true);
 
     expect(
       find.byKey(const ValueKey(('groupColumnHeader', 0, 'set01'))),

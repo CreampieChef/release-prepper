@@ -1759,8 +1759,9 @@ void main() {
   // and the columns after the first are the area that shows the photos, one per set,
   // so the form has one column and the sections that are not that area — the Upload
   // section, the Message section — are stacked below the block in the first column
-  // (`ai/picking.md` §7). The area spans the remaining columns, which is what lets a
-  // set be drawn at the width of one of them.
+  // (`ai/picking.md` §7). The area spans the remaining columns, and inside that
+  // space it fits its own columns, as many as fit at the minimum and none wider than
+  // the maximum.
   testWidgets(
     'a photoset pack puts its block in the first column and its photos in the columns after it',
     (tester) async {
@@ -1842,8 +1843,8 @@ void main() {
   );
 
   // And the same fallback: when only one column fits, the block is the whole width,
-  // and the area is below it rather than beside it, fitting its own single column
-  // (`ai/picking.md` §7).
+  // and the area is below it rather than beside it, at that width and fitting its
+  // own columns inside it (`ai/picking.md` §7).
   testWidgets(
     'a photoset pack shows its photos below the form when only one column fits',
     (tester) async {

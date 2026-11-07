@@ -191,4 +191,48 @@ void main() {
       groupColumns(groupHeights: heights, columnCount: 3),
     );
   });
+
+  // The pack's grid fits its own columns (`ai/picking.md` §7): the number is as many
+  // as fit at the minimum, and a column is never wider than the maximum.
+  test('the number of columns is as many as fit at the minimum', () {
+    // 7 * 220 + 6 * 24 = 1624, and an eighth would need 1868, so seven fit in 1792;
+    // each then gets the share of the space, which is above the minimum and below the
+    // maximum, so the cap does not apply here.
+    expect(photoColumnCount(width: 1792, min: 220, gap: 24), 7);
+    expect(
+      photoColumnWidth(width: 1792, columnCount: 7, max: 300, gap: 24),
+      closeTo((1792 - 6 * 24) / 7, 0.01),
+    );
+  });
+
+  test('a column is never wider than the maximum', () {
+    // Two columns fit at the minimum, and the share of the space is 338, more than the
+    // maximum allows, so each is drawn at the cap and the rest is left unused.
+    expect(photoColumnCount(width: 700, min: 220, gap: 24), 2);
+    expect(
+      photoColumnWidth(width: 700, columnCount: 2, max: 300, gap: 24),
+      300,
+    );
+
+    // A space that cannot hold both: one column at the minimum would be 450, and two
+    // columns at the minimum would need 464. The number is still what the minimum
+    // decides, so the column is drawn at the cap rather than below the minimum.
+    expect(photoColumnCount(width: 450, min: 220, gap: 24), 1);
+    expect(
+      photoColumnWidth(width: 450, columnCount: 1, max: 300, gap: 24),
+      300,
+    );
+  });
+
+  // A space narrower than the minimum can only hold one column, and that column is
+  // the space itself: the minimum is what decides the number, so it is not broken by
+  // making a second column, and the maximum is not reached because the space is less
+  // than it.
+  test('a space narrower than the minimum is one column', () {
+    expect(photoColumnCount(width: 200, min: 220, gap: 24), 1);
+    expect(
+      photoColumnWidth(width: 200, columnCount: 1, max: 300, gap: 24),
+      200,
+    );
+  });
 }

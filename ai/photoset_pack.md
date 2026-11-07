@@ -206,8 +206,8 @@ Done:
 6. `lib/service/photosets/` — the scan behind the reader interface, and one file per reader:
    `directory_reader.dart` and `zip_reader.dart`.
 7. `lib/feature/photosets/` — the controller, the block that lists the photosets with their counts,
-   the area that draws the picked photos in the page's columns, and the state and the drawing helpers
-   the two share.
+   the area that draws the picked photos in the columns its own rule fits, and the state and the
+   drawing helpers the two share.
 8. l10n keys in both arb files, and the tests for the pack form, the header reader, the scan and
    the block and the area.
 9. `zip_reader.dart` — the ZIP reader through the `archive` package, and `pubspec.yaml` with it;

@@ -1239,19 +1239,6 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
     ReleaseType.singlePhotoset || ReleaseType.imageFolderUpload => false,
   };
 
-  /// How many columns the form has. Every type has the column of the fields the
-  /// user writes and the column of the values the scan or the probe read; the
-  /// photoset pack has one, because the columns after the first are its section's
-  /// (`ai/picking.md` §7), so its two blocks are placed one above the other in the
-  /// first column.
-  int _formColumns(ReleaseType type) => switch (type) {
-    ReleaseType.photosetPack => 1,
-    ReleaseType.singleVideo ||
-    ReleaseType.videoPack ||
-    ReleaseType.singlePhotoset ||
-    ReleaseType.imageFolderUpload => 2,
-  };
-
   /// How many columns of at least the minimum width fit in the space the page
   /// has.
   int _columnCount(double width, int maxColumns) {
@@ -1310,13 +1297,7 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
   /// because the two are placed separately: the Upload section is the only
   /// place it and the sections that write images can meet, so the editor passes
   /// it the callback that tells it when a run ends (`ai/upload_images.md`).
-  ///
-  /// `columnCount` is the number of the page's columns this section draws in,
-  /// which is what the pack's grid lays groups out into (`ai/picking.md` §7). Zero
-  /// is the case where the section is the whole width below the form rather than a
-  /// column, so there are no page columns to name. The other types' sections are
-  /// one column wide, or the whole width, and lay out their own columns.
-  Widget _typeSection(AppLocalizations l10n, int columnCount) {
+  Widget _typeSection(AppLocalizations l10n) {
     final release = _controller.release;
 
     return switch (_fieldList.releaseType) {
@@ -1326,14 +1307,10 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
       ),
       // The pack's pictures are the columns after the first, so this is the half of
       // the feature that draws them; its data block is the first column, where
-      // `build` places it (`ai/picking.md` §7).
-      ReleaseType.photosetPack => PhotosetGallery(
-        state: _photosets!,
-        // The columns the gallery draws are the page's, so it is given their
-        // number rather than choosing its own. When it is the whole width below the
-        // form there are no page columns to name, and it fits its own.
-        columnCount: columnCount == 0 ? null : columnCount,
-      ),
+      // `build` places it (`ai/picking.md` §7). The columns it draws are its own,
+      // fitted from the space it is placed in, so it is not told how many the page
+      // has.
+      ReleaseType.photosetPack => PhotosetGallery(state: _photosets!),
       // A single photoset is read at the whole width, so it is not given columns and
       // fits its own. Its block is the whole feature for it: the heading, the lines,
       // and the photos under them, with no rows because the path it reads is the
@@ -1417,7 +1394,6 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
     final isSingleVideo = fieldList.releaseType == ReleaseType.singleVideo;
     final isPhotosetPack = fieldList.releaseType == ReleaseType.photosetPack;
     final sectionColumns = _sectionsAreColumns(fieldList.releaseType);
-    final formColumns = _formColumns(fieldList.releaseType);
     final hasDraftSection = _hasDraftSection(release);
     final columns = _columns();
 
@@ -1439,12 +1415,11 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
 
             final titles = _columnTitles(l10n);
 
-            // The columns the type's section has: every column after the first for
-            // the pack, one for the other types that can be a column.
-            final typeSection = _typeSection(
-              l10n,
-              isPhotosetPack ? count - formColumns : 1,
-            );
+            // The section the type has. Whether it is one of the columns after the
+            // form or the whole width below it is what the placement below decides;
+            // the pack's grid is not told the number either way, because it fits its
+            // own columns from the space it is placed in (`ai/picking.md` §7).
+            final typeSection = _typeSection(l10n);
             final upload = UploadSection(
               release: release,
               subscribeImagesChanged: _registerImageRebuild,

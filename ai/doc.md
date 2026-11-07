@@ -148,45 +148,46 @@ What is left unfinished is not a compile error but missing behaviour:
   types that can be one of them, so four columns appear at about 1792 px. The page uses the whole window width with the margins it
   has always had, so a wide window can really be four columns; there is no maximum width, because a form capped at 1000 px could not
   be. The minimum column width and the gap between columns are constants in `lib/service/images/masonry.dart`, so that a section
-  drawn as the page's columns draws exactly those columns rather than its own. The columns after the form's are only ever the
+  drawn as the page's columns draws exactly those columns rather than its own — the photoset grid is the exception, because it lays
+  its own columns out from the two widths `photoset_group.dart` gives it (§7). The columns after the form's are only ever the
   sections' columns, and only for the types `release_editor.dart` says can be one of them — the two video types, because the page is
-  the same shape for them, and the photoset pack, whose photo area is one column per set and so takes every column after the form:
-  the pack's form is one column, and its Photosets block, the Upload section and the Message section are stacked below its fields in
-  that same column. A masonry cannot be read at one column width, so the single photoset and the image folder keep the whole width
-  below the form, and a single photoset draws its photos in its own block because there are no columns to put them in. Any type's
-  section goes below the form too, left-aligned at one column width, when there is no room for it as a column; for a pack that is
-  the whole width, because its grid then fits the single column as a masonry does. The Message section is the whole width below
-  everything unless it is one of those columns, which for a pack it is never, being part of the form's column. Each column is titled
-  by what it holds, with the same title style the sections use: "Release Info" for the column of fields the user writes, and for the
-  column of values the scan or the probe read the name of what that type holds — Video for a single video, Photosets for the two
-  photoset types, Images for the image folder. A photoset pack is the exception: the only column the editor titles is the one with
-  its fields, because what is below it in that column is the Photosets block, which titles itself as a section does, and the columns
-  after the first are the photo area, which titles itself too. So for a pack the word Photosets is said twice — as the block's
-  heading and as the label of the count row inside it — and the word Screenshots once, as the title of the area, because what the
-  area shows is the pictures rather than the list of sets (`ai/picking.md` §7). A video pack's second column is the folder the user
-  picked and the values the scan took from it, so it is titled by the folder rather than by one value inside it. The image folder
-  type has no column of fields, so the column that is the poster box and nothing else has no title. A section titles itself with
-  `lib/feature/section_title.dart`: the title at the left and the button that runs in that section at the right, because the button
-  is the action of the whole section and not of one row inside it. The action is drawn at least `SectionTitle.actionMinWidth` wide,
-  so a short label is the same shape as a longer one; that is the width of the action, not of each button inside it. A form column
-  has no such button, so it draws its title without that row. The gap a title has to the first row of its column is 4 px, not the 12
-  px a section uses, because the first row of a form column is an image box whose label row has its own space above its label, so
-  the same gap reads as a bigger one here than in a section whose first content is plain text. The poster box shows the image the
-  user chose; the video thumbnail shows the frame ffmpeg writes for the video, and clicking that box picks the video, as clicking
-  the poster box picks an image. Neither is recorded in `release.json`. The poster is a record in `images.json`, so its path comes
-  from that record; the video thumbnail is not recorded at all, and its path is derived from the release directory and the item
-  path. Both boxes show the file itself rather than a separate smaller copy of it, and the frame is written at the source
-  resolution. The path the user picked is its own row, not a field, because the item is the file (`ai/release_structure.md` §2).
-  release directory. The poster box also takes a link from the clipboard and processes the image it points at the same way as a
-  picked file; pasting the image itself is not implemented (see §10). Fields are editable text boxes except the six the app fills
-  from the movie file (items 8, 9, 11, 12, 13, 16), which are read-only, and except `sceneUrl`, whose row is the Stash row at the
-  top of the form's left column, under the poster box, and `parentForum`, whose row is the Upload draft section's, because a field
-  is where the action that uses it is. Field state lives in `ReleaseEditorController`; the form is filled from `release.json` on
-  open, Ctrl+S saves it back — a handler nearer in the focus chain is asked first, so this one wins while focus is inside the editor
-  and the app-level `AppShortcuts` is the fallback for the rest — and a change marks the tab with an unsaved-changes dot in the tab
-  strip. The form does not validate a field before the user asks for a message; the fields a message reads are checked when they
-  ask, for the type whose rules are known, and after a generation is refused the rows the user can fill show the rule as it stands,
-  so an error goes away when the field is filled (`ai/description_template.md` §Validation).
+  the same shape for them, and the photoset pack, whose photo area takes every column after the form and puts one set in each of the
+  columns its rule fits: the pack's form is one column, and its Photosets block, the Upload section and the Message section are
+  stacked below its fields in that same column. A masonry cannot be read at one column width, so the single photoset and the image
+  folder keep the whole width below the form, and a single photoset draws its photos in its own block because there are no columns
+  to put them in. Any type's section goes below the form too, left-aligned at one column width, when there is no room for it as a
+  column; for a pack that is the whole width, because its grid fits as many of its own columns as fit in that width. The Message
+  section is the whole width below everything unless it is one of those columns, which for a pack it is never, being part of the
+  form's column. Each column is titled by what it holds, with the same title style the sections use: "Release Info" for the column
+  of fields the user writes, and for the column of values the scan or the probe read the name of what that type holds — Video for a
+  single video, Photosets for the two photoset types, Images for the image folder. A photoset pack is the exception: the only column
+  the editor titles is the one with its fields, because what is below it in that column is the Photosets block, which titles itself
+  as a section does, and the columns after the first are the photo area, which titles itself too. So for a pack the word Photosets
+  is said twice — as the block's heading and as the label of the count row inside it — and the word Screenshots once, as the title
+  of the area, because what the area shows is the pictures rather than the list of sets (`ai/picking.md` §7). A video pack's second
+  column is the folder the user picked and the values the scan took from it, so it is titled by the folder rather than by one value
+  inside it. The image folder type has no column of fields, so the column that is the poster box and nothing else has no title. A
+  section titles itself with `lib/feature/section_title.dart`: the title at the left and the button that runs in that section at the
+  right, because the button is the action of the whole section and not of one row inside it. The action is drawn at least
+  `SectionTitle.actionMinWidth` wide, so a short label is the same shape as a longer one; that is the width of the action, not of
+  each button inside it. A form column has no such button, so it draws its title without that row. The gap a title has to the first
+  row of its column is 4 px, not the 12 px a section uses, because the first row of a form column is an image box whose label row
+  has its own space above its label, so the same gap reads as a bigger one here than in a section whose first content is plain text.
+  The poster box shows the image the user chose; the video thumbnail shows the frame ffmpeg writes for the video, and clicking that
+  box picks the video, as clicking the poster box picks an image. Neither is recorded in `release.json`. The poster is a record in
+  `images.json`, so its path comes from that record; the video thumbnail is not recorded at all, and its path is derived from the
+  release directory and the item path. Both boxes show the file itself rather than a separate smaller copy of it, and the frame is
+  written at the source resolution. The path the user picked is its own row, not a field, because the item is the file
+  (`ai/release_structure.md` §2). release directory. The poster box also takes a link from the clipboard and processes the image it
+  points at the same way as a picked file; pasting the image itself is not implemented (see §10). Fields are editable text boxes
+  except the six the app fills from the movie file (items 8, 9, 11, 12, 13, 16), which are read-only, and except `sceneUrl`, whose
+  row is the Stash row at the top of the form's left column, under the poster box, and `parentForum`, whose row is the Upload draft
+  section's, because a field is where the action that uses it is. Field state lives in `ReleaseEditorController`; the form is filled
+  from `release.json` on open, Ctrl+S saves it back — a handler nearer in the focus chain is asked first, so this one wins while
+  focus is inside the editor and the app-level `AppShortcuts` is the fallback for the rest — and a change marks the tab with an
+  unsaved-changes dot in the tab strip. The form does not validate a field before the user asks for a message; the fields a message
+  reads are checked when they ask, for the type whose rules are known, and after a generation is refused the rows the user can fill
+  show the rule as it stands, so an error goes away when the field is filled (`ai/description_template.md` §Validation).
 - The StashDB row is the first row of the form's left column, under the poster box: the field for
   the scene URL or ID, with a Fetch button, as the other rows that have one have theirs. What a
   fetch gives is not shown in the form but in a popup: each value with a checkbox — checked when
@@ -1169,7 +1170,9 @@ lib/
                                cache is emptied for those paths and the generation moves only
                                when the run wrote something. Also the strings resolved per type,
                                one set as the feature lays it out, the line naming it, the tile,
-                               and the two grid shapes, because a private helper in one file
+                               the two grid shapes, and the width each grid lays its columns out
+                               at — the two the pack's grid fits between, and the one the single
+                               photoset's own masonry uses — because a private helper in one file
                                cannot be read from the other.
       photoset_block.dart      PhotosetBlock: the data block as the page's first column — its
                                heading with the Scan and Pick buttons at the right, the rows the
@@ -1187,20 +1190,19 @@ lib/
                                shown under — two items that would share a display name are still
                                two sets.
       photoset_gallery.dart    PhotosetGallery: the area a pack shows its picked photos in — the
-                               title row, and one column per set with its photos stacked at one
-                               width and the line naming the set above them. No state: a run
-                               happens in the block, and the page builds again afterwards, so the
-                               pictures here are resolved against the cache the run emptied. The
-                               columns are the page's, so the grid is given their number, and
+                               title row, and one column per set as the rule fits them, with its
+                               photos stacked at one width and the line naming the set above
+                               them. No state: a run happens in the block, and the page builds
+                               again afterwards, so the pictures here are resolved against the
+                               cache the run emptied. Its columns are the ones the rule fits, and
                                nothing spans in it, because a set is the width of its column
-                               whatever shape its photos are; when the area is the whole width it
-                               fits its own. The column boxes are keyed `photosetColumn`, the
-                               lines above them `groupColumnHeader` by the column and the item's
-                               path, and the tiles `groupTile` by the path each is shown from
-                               (`ai/picking.md` §7). The tiles are the shared `ImageTile`, at the
-                               box height the packing worked out for each photo, with a key that
-                               changes on each run because a re-pick writes the same names
-                               (`AGENTS.md` §5).
+                               whatever shape its photos are. The column boxes are keyed
+                               `photosetColumn`, the lines above them `groupColumnHeader` by the
+                               column and the item's path, and the tiles `groupTile` by the path
+                               each is shown from (`ai/picking.md` §7). The tiles are the shared
+                               `ImageTile`, at the box height the packing worked out for each
+                               photo, with a key that changes on each run because a re-pick
+                               writes the same names (`AGENTS.md` §5).
       video_pack_controller.dart  VideoPackController: runs the scan, records the items it
                                   found and the values the probe reported for each,
                                   returns the values the scan counted for the editor's
@@ -1799,10 +1801,16 @@ lib/
       masonry.dart              minColumnWidth and columnGap: the column width the page is built
                                 from and the gap between its columns, shared because a section
                                 drawn as the page's columns has to draw exactly those
-                                (`ai/picking.md` §7). pictureHeight() and tileHeight() are what a
-                                tile takes in a column of a given width, tileHeight with the gap
-                                that is its own padding, and groupHeight() is what a group takes:
-                                its header line and then its tiles, each at its full height.
+                                (`ai/picking.md` §7). `photoColumnCount()` and
+                                `photoColumnWidth()` are the columns the pack's grid fits for
+                                itself: as many as fit at the minimum it is given, each drawn at
+                                the share of the space but never wider than the maximum it is
+                                given, so what is left when the share is more than the maximum is
+                                left unused rather than a column being made narrower than the
+                                minimum. pictureHeight() and tileHeight() are what a tile takes
+                                in a column of a given width, tileHeight with the gap that is its
+                                own padding, and groupHeight() is what a group takes: its header
+                                line and then its tiles, each at its full height.
                                 `groupColumns()` is the pack's placement: a group goes whole to
                                 the column that is highest at the point it is placed, ties to the
                                 lower index, and nothing spans, because a group is the width of
@@ -2638,33 +2646,34 @@ is as many columns of at least 430 px as the space the page has — one for a ph
 columns for the types whose section can be one of them — each with an image box at the top. The page has no maximum width, so the columns
 are the window's width less the padding it has always had; a form capped at 1000 px could not be four. The columns after the form's are
 only ever the sections' columns, and only for the types `release_editor.dart` says can be one of them — the two video types, and the
-photoset pack, whose grid is one column per set and so takes all of them: its form is the first column, with the values the scan counted
-and the Upload and Message sections stacked below its fields in that same column. A table and a masonry cannot be read at one column width,
-so the single photoset and the image folder keep the whole width below the form; when a section that could be a column does not fit as one
-it sits below the form, left-aligned at one column width, and for a pack that is the whole width, because its grid then fits its own single
-column as a masonry does. A fixed width is only kept when the surrounding column does not stretch it, so the sections below the form sit in
-a row that holds their width. The Message section is the fourth column when there is room for four, the form's own column for a pack, and
-otherwise the whole width below everything, which is why the page is built inside the LayoutBuilder that decides the columns. Both boxes
-are 16:9, the shape of the frames they show, so a video frame fills one without being cropped; their height comes from the width the column
-gives them. The poster box shows the poster file the user chose, fitted inside the box rather than cropped to it, because a poster is
-usually portrait; the thumbnail box shows the frame ffmpeg wrote for the video, cropped to the box. Neither box shows a smaller copy of the
-file: the box is the size the widget draws at, and the file is what the tool wrote. An empty box says what it is missing, and the message
-is the caller's rather than one string for both, because the two video cases read differently: no video is picked, versus a video that is
-there with no frame. Both boxes are an `InkWell` with the same action as the button that picks their file — the poster's choose button and
-the pick on the source row — because that is where the user is looking; the video box is not clickable while the probe is in flight, and it
-has no button of its own because the source row already has the pick, and its hint is only for the case where clicking it is what fills it.
-The poster box has a choose button and a paste-from-URL button at the end of its label row, and a remove button only when a poster is
-there, and it is the focus a clipboard paste will be attached to later (§10). The label row is the same height with or without buttons, so
-the two boxes in the two columns start at the same height: a row sizes itself to its tallest child, and an icon button is taller than a
-label. The boxes render nothing but the file they are given: no state of their own beyond the widget's poster busy flag, no separate
-controller, and nothing about them is recorded in `release.json`. Which fields are in which column is the widget's layout, not the field
-model: the scene link field's row is the first row of the left column, under the poster box, because the values a fetch gives are what the
-form is filled with, and that row is the Stash widget's own, so the editor builds no text controller for it. Four field lists exist: the
-Single video one, the video pack one (`ai/video_pack.md`), the single photoset one (`ai/single_photoset.md`), and the photoset pack one
-(`ai/photoset_pack.md`); the form is built from whichever one the release's type has. The widget's column layout is a switch exhaustive
-over `ReleaseType`, so a type added to the enum has to be given a layout there; the compiler says so, which is what a runtime fallback used
-to do silently. The same rule covers the switch in `MessageController` that decides which shape the image block has for a type, the one in
-`MessageSection` that decides whether the row of shapes is drawn, and the one that names the two shapes.
+photoset pack, whose grid takes all of them, one set per column it fits: its form is the first column, with the values the scan counted and
+the Upload and Message sections stacked below its fields in that same column. A table and a masonry cannot be read at one column width, so
+the single photoset and the image folder keep the whole width below the form; when a section that could be a column does not fit as one it
+sits below the form, left-aligned at one column width, and for a pack that is the whole width, because its grid fits as many of its own
+columns as fit in that width, between the two widths its rule gives it. A fixed width is only kept when the surrounding column does not
+stretch it, so the sections below the form sit in a row that holds their width. The Message section is the fourth column when there is room
+for four, the form's own column for a pack, and otherwise the whole width below everything, which is why the page is built inside the
+LayoutBuilder that decides the columns. Both boxes are 16:9, the shape of the frames they show, so a video frame fills one without being
+cropped; their height comes from the width the column gives them. The poster box shows the poster file the user chose, fitted inside the
+box rather than cropped to it, because a poster is usually portrait; the thumbnail box shows the frame ffmpeg wrote for the video, cropped
+to the box. Neither box shows a smaller copy of the file: the box is the size the widget draws at, and the file is what the tool wrote. An
+empty box says what it is missing, and the message is the caller's rather than one string for both, because the two video cases read
+differently: no video is picked, versus a video that is there with no frame. Both boxes are an `InkWell` with the same action as the button
+that picks their file — the poster's choose button and the pick on the source row — because that is where the user is looking; the video
+box is not clickable while the probe is in flight, and it has no button of its own because the source row already has the pick, and its
+hint is only for the case where clicking it is what fills it. The poster box has a choose button and a paste-from-URL button at the end of
+its label row, and a remove button only when a poster is there, and it is the focus a clipboard paste will be attached to later (§10). The
+label row is the same height with or without buttons, so the two boxes in the two columns start at the same height: a row sizes itself to
+its tallest child, and an icon button is taller than a label. The boxes render nothing but the file they are given: no state of their own
+beyond the widget's poster busy flag, no separate controller, and nothing about them is recorded in `release.json`. Which fields are in
+which column is the widget's layout, not the field model: the scene link field's row is the first row of the left column, under the poster
+box, because the values a fetch gives are what the form is filled with, and that row is the Stash widget's own, so the editor builds no
+text controller for it. Four field lists exist: the Single video one, the video pack one (`ai/video_pack.md`), the single photoset one
+(`ai/single_photoset.md`), and the photoset pack one (`ai/photoset_pack.md`); the form is built from whichever one the release's type has.
+The widget's column layout is a switch exhaustive over `ReleaseType`, so a type added to the enum has to be given a layout there; the
+compiler says so, which is what a runtime fallback used to do silently. The same rule covers the switch in `MessageController` that decides
+which shape the image block has for a type, the one in `MessageSection` that decides whether the row of shapes is drawn, and the one that
+names the two shapes.
 
 A field list is data. `FieldSpec` holds the name `release.json` writes, the value a new release
 starts with, whether the app fills it, whether it has a form row, and whether its value is a
@@ -3022,8 +3031,12 @@ the photos the rule picked into the release under the display name — the relea
 structure the user picked for the images that are copied into it — and records them as `kind: photo`
 with `item` set to the set's path, replacing the photo records this run writes while the poster and
 the records of other kinds are kept. The picked photos are grouped per set, in the order the source
-gives them, matching how the message groups them (`ai/photoset_pack.md` §7). For a pack each set is
-drawn in one of the page's columns, at that column's width, with the line naming the set above it and
+gives them, matching how the message groups them (`ai/photoset_pack.md` §7). For a pack the grid fits
+its own columns: as many as fit at the minimum `photoset_group.dart` gives it, and each is drawn at
+the share of the space but never wider than the maximum, so what is left when the share is more than
+the maximum is empty space at the right of the grid rather than part of a column; the number is capped
+at the number of sets, because a column with no set in it is not a column the grid has. Each set is
+drawn in one of those columns, at that column's width, with the line naming the set above it and
 nothing spanning, because a set is the width of its column whatever shape its photos are — a set is
 what the user reads as one group. For a single photoset there are no columns to put the photos in, so
 the block draws them as the masonry it always drew: columns of equal width, each photo placed where
@@ -4175,10 +4188,10 @@ The test reads the rows inside the block — the source row and the count field 
 because for a pack those are the block's rows rather than the form's. The Upload
 section and the Message section with the draft are below the block in that same
 column, at its width, and when only one column fits the area is below the form
-at that width, fitting its own column. At 1200 px the sections are the same
-width but below the form, at the left edge, for the types with two form columns;
-for a pack that is only when a single column fits, which its test uses 800 px
-for, because a pack has no second form column to make two fit. A field's
+at that width, fitting its own columns inside it. At 1200 px the sections are
+the same width but below the form, at the left edge, for the types with two form
+columns; for a pack that is only when a single column fits, which its test uses
+800 px for, because a pack has no second form column to make two fit. A field's
 rectangle is its column width, so a field's width is what those tests read as
 the column width. The column titles are keyed as `columnTitle`, so a test reads
 them as the widgets the editor builds rather than as text: a photoset pack shows
@@ -4277,123 +4290,129 @@ and its photos with the gap after each, a group goes whole to the column that is
 highest up when it is placed, ties go to the lower index, a group with no photos
 is its header alone so it takes a column, the placement depends on the column
 width because the name line is a fixed height rather than a share of it, and the
-same groups give the same placement twice. `test/section_title_test.dart` covers
-the shared title row: the title is at the left and the action at the right edge,
-the title is centred on the row because the row is as tall as the action, that
-the action is at least `actionMinWidth` wide, and that with no action the row is
-only the title and is not taller than it — the shape a section shows when it has
-a placeholder instead of controls that can run. The minimum is read from the
-constant, so the test follows whatever value it is changed to.
-`test/photoset_scan_test.dart` covers the scan: a directory under the source is
-an item, a loose file at the top level is reported rather than counted, files
-outside the extension list are not counted, a subfolder inside a set is not
-read, and when the boundary it is given is the source the source itself is the
-item and its path is the source's own name, the order is the order the source
-gives, the minimum and the maximum are decided by pixel area across all photos,
-a photo whose header cannot be read is counted and reported, the formats are the
-distinct extensions among the counted photos lowercased and sorted, display
-names two items would share are reported rather than renamed, a source that is
-not there is a failure, and the scan reads through the reader interface — a test
-with a fake archive reader shows that adding a format does not change it. The
-ZIP fixtures are written by hand, because the point of the package is the cases
-a hand-written reader gets wrong: a stored entry, a deflated one, a data
-descriptor, a zip64 central directory, an encrypted entry with no password, and
-a file that is not an archive at all. A JPEG is included because its header
-needs a second read, which has to start from the beginning of the entry again
-rather than from where the first read ended. `test/photosets_test.dart` covers
-the controller and the two widgets: the scan records the items and the per-item
-counts and returns the values for the editor's write path, kept to the names the
-type's field list has — a pack is not given the formats because it has no such
-field, and a single photoset is not given a count of sets because it has no such
-field — and a single photoset is the source itself, so the scan records one item
-named by the source. A re-scan replaces the items, the display name is derived
-from the path rather than stored, and the block shows the sets with their counts
-and reports what it could not take, including a name two items would share, and
-shows the strings of the type it is showing, and that its Scan and Pick buttons
-are in its heading row rather than in a row of their own. A test builds the
-block and the area with the state they share, as the editor does, and builds
-them again after a run, because a test is not the editor and the area shows what
-a run wrote only when the page builds again. For a pack the test asks the rule
-for the picks rather than assuming them, so the names it compares are the ones
-the pick writes, and the drawing is checked against the assignment the service
-gives for those names; the width the area works with is read from what it drew,
-from the line of the set always placed in the first column. The same set's line
-is expected in the block and above its column, which is why the two lines cannot
-carry the same key, and a set with no photos still shows its line above its
-column. A single photoset places its tiles by the masonry, and a landscape spans
-two, because its block draws the photos itself. `test/image_folder_test.dart`
-covers the controller and the section: the scan records the one item the picked
-folder is, copies every image into the release in filename order — the fixtures
-are written out of order, so the test shows the order is the name order and not
-the creation order — records them as `kind: photo` for that item, and returns
-the values it counted for the editor's write path; the picked folder is left as
-it is, because the copy is what makes a record uploadable. A file that is not an
-image is not counted and is reported by the feature rather than by the scan, and
-a re-scan replaces the photos this run writes while keeping the poster. The
-widget tests check that nothing is shown before a scan, that the section shows
-the images it copied with the count line, that the values go through the
-editor's write path rather than the section's, that what the run could not take
-is reported, that a run with no picked folder says which folder it needs, and
-that the Scan button is in the title row. `test/video_scan_test.dart` covers the
-walk: every video file is an item wherever it is, including the ones in
-subfolders, with the path relative to the source; a file outside the extension
-list is reported rather than counted, the list is matched case-insensitively, a
-file the probe cannot read is still an item and is reported, a subfolder with no
-video in it is reported, the resolutions are distinct and sorted numerically by
-height rather than as text, the formats are the distinct extensions lowercased
-and sorted — from the file name, not from what the probe reports as the
-container — the total sums the sizes the files have on disk rather than what the
-probe reports for the containers, so a file the probe cannot read is still
-counted, the probe is called once per item in the order the walk found them, a
-picked file is treated as a directory containing only itself, and a source that
-is not there is a failure. The probe is a fake, so these tests do not need
-ffprobe. A folder the walk could not read is not tested, as the photoset scan's
-unreadable entry is not: making a directory unreadable needs file permissions,
-which a test process may ignore — running as root it reads a mode 000 directory
-— so such a test could only pass for the wrong reason.
-`test/video_pack_test.dart` covers the controller and the section: the scan
-records the items and the values the probe reported for each and returns the
-aggregates for the editor's write path, a file that could not be probed is
-recorded with empty fields, a re-scan replaces the items, the section shows each
-video as a table row with its name, size and duration and shows the values the
-row does not only when the row is clicked, and a release opened with items shows
-them without a scan, because the section reads what the release stores. It also
-shows what the scan could not take — nothing before a scan — and a source that
-is not there as a message. For the generation it covers the run recording what
-it wrote for every item in the order the scan recorded them and reporting each
-record as its file is written — the test asserts the report arrives while the
-run is still going and that the reported records are the same ones the manifest
-holds at the end — a run with 0 writing only the screenlist, a file that failed
-not stopping the run, a tool that is not available stopping it, and a record
-whose file was deleted not being shown. The widget tests check the value columns
-are right-aligned and the name is not, the rows alternate with the tint on every
-other row and not on the header, the tint read from the row's own `Material` —
-the nearest one above its content, which is the surface the hover highlight is
-painted on — and covering the detail as well because the band belongs to the
-row, the slider starts at 0 with the range the pack allows, the button is
-disabled until there are items, the Scan and Generate buttons are in the title
-row while the row below it holds only the label, the slider and the count, the
-two flag columns show the checkmark and the count after a run and are empty
-before it, the files the run could not do are a report line that a re-scan
-clears, a tool that is not installed is a message, the open row shows the images
-the run wrote while a closed row shows none, a record whose file was deleted is
-not shown in the open row, and a tile's key changes when the run rewrites the
-file it shows. The tools are fakes that write the files the app decides by, so
-these tests do not need ffmpeg or mtn. `test/tab_strip_test.dart` covers the tab
-card clicks: the middle button closes a tab without selecting it, the primary
-button still selects it, and the hover tint on an unselected card is gone when
-the card is clicked while the pointer is still over it — the card is a stateful
-widget that paints the tint from its own hover state, so the test hovers it,
-reads the colour from its `Material`, clicks it, and reads the colour again.
-`test/tab_close_test.dart` covers the shared close flow: a clean tab closes
-without a popup, a dirty tab shows the three options, Cancel keeps it, Close
-without saving closes it, Save and close writes the manifest and closes it, a
-failed save keeps both the popup and the tab open, the flow selects the tab each
-popup names, and closing the app asks for each dirty tab (Cancel aborts,
-confirming all closes, a clean tab is skipped). The save is real file IO, so
-those tests run inside `runAsync` and stay in it for the whole flow: once a flow
-starts outside the fake-async zone, its continuations only run while that zone
-is active.
+same groups give the same placement twice. It also covers the columns the pack's
+grid fits for itself: as many as fit at the minimum, a column never wider than
+the maximum, so a space that cannot hold both is read as the minimum with the
+rest left unused, and a space narrower than the minimum is one column.
+`test/section_title_test.dart` covers the shared title row: the title is at the
+left and the action at the right edge, the title is centred on the row because
+the row is as tall as the action, that the action is at least `actionMinWidth`
+wide, and that with no action the row is only the title and is not taller than
+it — the shape a section shows when it has a placeholder instead of controls
+that can run. The minimum is read from the constant, so the test follows
+whatever value it is changed to. `test/photoset_scan_test.dart` covers the scan:
+a directory under the source is an item, a loose file at the top level is
+reported rather than counted, files outside the extension list are not counted,
+a subfolder inside a set is not read, and when the boundary it is given is the
+source the source itself is the item and its path is the source's own name, the
+order is the order the source gives, the minimum and the maximum are decided by
+pixel area across all photos, a photo whose header cannot be read is counted and
+reported, the formats are the distinct extensions among the counted photos
+lowercased and sorted, display names two items would share are reported rather
+than renamed, a source that is not there is a failure, and the scan reads
+through the reader interface — a test with a fake archive reader shows that
+adding a format does not change it. The ZIP fixtures are written by hand,
+because the point of the package is the cases a hand-written reader gets wrong:
+a stored entry, a deflated one, a data descriptor, a zip64 central directory, an
+encrypted entry with no password, and a file that is not an archive at all. A
+JPEG is included because its header needs a second read, which has to start from
+the beginning of the entry again rather than from where the first read ended.
+`test/photosets_test.dart` covers the controller and the two widgets: the scan
+records the items and the per-item counts and returns the values for the
+editor's write path, kept to the names the type's field list has — a pack is not
+given the formats because it has no such field, and a single photoset is not
+given a count of sets because it has no such field — and a single photoset is
+the source itself, so the scan records one item named by the source. A re-scan
+replaces the items, the display name is derived from the path rather than
+stored, and the block shows the sets with their counts and reports what it could
+not take, including a name two items would share, and shows the strings of the
+type it is showing, and that its Scan and Pick buttons are in its heading row
+rather than in a row of their own. A test builds the block and the area with the
+state they share, as the editor does, and builds them again after a run, because
+a test is not the editor and the area shows what a run wrote only when the page
+builds again. For a pack the test asks the rule for the picks rather than
+assuming them, so the names it compares are the ones the pick writes, and the
+drawing is checked against the assignment the service gives for those names; the
+space the area was given is read from what it drew, and the number of columns
+and the width each is drawn at are worked out from it with the rule rather than
+assumed — so the test follows whatever the two constants are changed to; the
+fixture is a space that cannot hold both, so it also shows a set sharing a
+column. The same set's line is expected in the block and above its column, which
+is why the two lines cannot carry the same key, and a set with no photos still
+shows its line above its column. A single photoset places its tiles by the
+masonry, and a landscape spans two, because its block draws the photos itself.
+`test/image_folder_test.dart` covers the controller and the section: the scan
+records the one item the picked folder is, copies every image into the release
+in filename order — the fixtures are written out of order, so the test shows the
+order is the name order and not the creation order — records them as `kind:
+photo` for that item, and returns the values it counted for the editor's write
+path; the picked folder is left as it is, because the copy is what makes a
+record uploadable. A file that is not an image is not counted and is reported by
+the feature rather than by the scan, and a re-scan replaces the photos this run
+writes while keeping the poster. The widget tests check that nothing is shown
+before a scan, that the section shows the images it copied with the count line,
+that the values go through the editor's write path rather than the section's,
+that what the run could not take is reported, that a run with no picked folder
+says which folder it needs, and that the Scan button is in the title row.
+`test/video_scan_test.dart` covers the walk: every video file is an item
+wherever it is, including the ones in subfolders, with the path relative to the
+source; a file outside the extension list is reported rather than counted, the
+list is matched case-insensitively, a file the probe cannot read is still an
+item and is reported, a subfolder with no video in it is reported, the
+resolutions are distinct and sorted numerically by height rather than as text,
+the formats are the distinct extensions lowercased and sorted — from the file
+name, not from what the probe reports as the container — the total sums the
+sizes the files have on disk rather than what the probe reports for the
+containers, so a file the probe cannot read is still counted, the probe is
+called once per item in the order the walk found them, a picked file is treated
+as a directory containing only itself, and a source that is not there is a
+failure. The probe is a fake, so these tests do not need ffprobe. A folder the
+walk could not read is not tested, as the photoset scan's unreadable entry is
+not: making a directory unreadable needs file permissions, which a test process
+may ignore — running as root it reads a mode 000 directory — so such a test
+could only pass for the wrong reason. `test/video_pack_test.dart` covers the
+controller and the section: the scan records the items and the values the probe
+reported for each and returns the aggregates for the editor's write path, a file
+that could not be probed is recorded with empty fields, a re-scan replaces the
+items, the section shows each video as a table row with its name, size and
+duration and shows the values the row does not only when the row is clicked, and
+a release opened with items shows them without a scan, because the section reads
+what the release stores. It also shows what the scan could not take — nothing
+before a scan — and a source that is not there as a message. For the generation
+it covers the run recording what it wrote for every item in the order the scan
+recorded them and reporting each record as its file is written — the test
+asserts the report arrives while the run is still going and that the reported
+records are the same ones the manifest holds at the end — a run with 0 writing
+only the screenlist, a file that failed not stopping the run, a tool that is not
+available stopping it, and a record whose file was deleted not being shown. The
+widget tests check the value columns are right-aligned and the name is not, the
+rows alternate with the tint on every other row and not on the header, the tint
+read from the row's own `Material` — the nearest one above its content, which is
+the surface the hover highlight is painted on — and covering the detail as well
+because the band belongs to the row, the slider starts at 0 with the range the
+pack allows, the button is disabled until there are items, the Scan and Generate
+buttons are in the title row while the row below it holds only the label, the
+slider and the count, the two flag columns show the checkmark and the count
+after a run and are empty before it, the files the run could not do are a report
+line that a re-scan clears, a tool that is not installed is a message, the open
+row shows the images the run wrote while a closed row shows none, a record whose
+file was deleted is not shown in the open row, and a tile's key changes when the
+run rewrites the file it shows. The tools are fakes that write the files the app
+decides by, so these tests do not need ffmpeg or mtn. `test/tab_strip_test.dart`
+covers the tab card clicks: the middle button closes a tab without selecting it,
+the primary button still selects it, and the hover tint on an unselected card is
+gone when the card is clicked while the pointer is still over it — the card is a
+stateful widget that paints the tint from its own hover state, so the test
+hovers it, reads the colour from its `Material`, clicks it, and reads the colour
+again. `test/tab_close_test.dart` covers the shared close flow: a clean tab
+closes without a popup, a dirty tab shows the three options, Cancel keeps it,
+Close without saving closes it, Save and close writes the manifest and closes
+it, a failed save keeps both the popup and the tab open, the flow selects the
+tab each popup names, and closing the app asks for each dirty tab (Cancel
+aborts, confirming all closes, a clean tab is skipped). The save is real file
+IO, so those tests run inside `runAsync` and stay in it for the whole flow: once
+a flow starts outside the fake-async zone, its continuations only run while that
+zone is active.
 
 `test/tab_navigation_test.dart` covers the content area's page keys. It runs on
 `TargetPlatform.linux`, because a widget test reports a mobile platform where a
@@ -5051,4 +5070,6 @@ From `lib/TODO.MD` (deduplicated) and the gaps in §2:
   left as it is.
 - Run `flutter analyze` before reporting work as done; the tree is expected to
   stay issue-free.
+
+
 

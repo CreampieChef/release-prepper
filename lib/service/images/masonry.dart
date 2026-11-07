@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 /// A tile's place in the grid: the photo it is, in the order the source gives,
 /// the column it starts in, how many columns it spans, and the y its top is at,
 /// in pixels.
@@ -42,6 +44,30 @@ const minColumnWidth = 430.0;
 /// The gap between two columns of the page, and the gap a section draws between
 /// its own columns so that they are the page's columns.
 const columnGap = 24.0;
+
+/// How many columns of photos fit in [width] (`ai/picking.md` §7): as many as fit
+/// at [min], so the columns are as narrow as the minimum allows. The caller caps
+/// the number at the number of groups, because a column with no group in it is not
+/// a column the grid has.
+int photoColumnCount({
+  required double width,
+  required double min,
+  required double gap,
+}) => math.max(((width + gap) / (min + gap)).floor(), 1);
+
+/// The width one of those columns is drawn at (`ai/picking.md` §7): the share of
+/// [width], but never more than [max]. A space that cannot hold both is read as the
+/// minimum rather than as less than it, because the number of columns is what the
+/// minimum decides: when the share is bigger than [max] the column is drawn at the
+/// cap and the rest of the space is left unused rather than a column being made
+/// narrower than the minimum. The drawing and the assignment use this one width, so
+/// they agree on it.
+double photoColumnWidth({
+  required double width,
+  required int columnCount,
+  required double max,
+  required double gap,
+}) => math.min((width - gap * (columnCount - 1)) / columnCount, max);
 
 /// The height a photo takes in a column of this width: the image at the ratio it
 /// has, plus the name line under it. The name line is a fixed height rather than
