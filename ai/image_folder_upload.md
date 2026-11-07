@@ -99,8 +99,9 @@ did not finish shows the difference.
 
 ## 5. The section
 
-The Image folder section takes the place of the Screenshots and Photosets sections for this type: the Scan
-button, the images as a masonry, the count line, and what the run could not take reported as a message.
+The Image folder section takes the place of the Screenshots section and the Photosets feature for this
+type: the Scan button, the images as a masonry, the count line, and what the run could not take reported as
+a message.
 
 - **No Pick button**, because for this type the scan and the copy are the same action: what the rule copies
   is every image in the folder, so there is nothing left to choose after the scan.

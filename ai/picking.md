@@ -113,44 +113,93 @@ What re-running the picker does is no longer open: with no override the rule is 
 re-pick recomputes the same picks and replaces the records it writes. It only differs when the scan
 changed.
 
-## 7. The section
+## 7. The block and the photo area
 
-The Photosets section is extended, not a new section. There is no slider: the number is decided by
-the rule, and the section shows what it decided rather than letting the user change it.
+The Photoset feature is the extended section, not a new section. There is no slider: the number is
+decided by the rule, and the feature shows what it decided rather than letting the user change it.
 
-- Scan and Pick are two buttons in the section's control row. Pick is disabled until a scan has run,
+For a pack it is two widgets, because it is in two grid cells. The block is the page's first column:
+its heading with the Scan and Pick buttons at its right, the rows the editor gives it, and the line
+naming each set the scan found. The photo area is the columns after the first. One widget cannot be
+two cells, so the two are two widgets, and what they have to share — the controller, and the
+generation the pictures are keyed with — is held by the editor, the widget that places them
+(`AGENTS.md` §5). A single photoset has no columns to put its pictures in, so there is no area
+beside it: its block is the whole feature and draws the photos itself at the whole width, as it
+always did (`ai/single_photoset.md` §7).
+
+- Scan and Pick are two buttons in the block's heading row. Pick is disabled until a scan has run,
   because the rule reads the counts.
+
 - Pick computes the picks and copies them in one step. There is no preview of the rule before the
-  files are written: the section shows what is on disk, as the Screenshots section does.
+  files are written: the feature shows what is on disk, as the Screenshots section does.
+
 - The picked photos are grouped per set, in the order the source gives them, matching how the
-  message groups them (`ai/photoset_pack.md` §7).
-- The picked photos are shown as a masonry: columns of equal width, each photo placed where its
-  column is free, each tile at the ratio the photo has. Nothing is cropped. The file name under each
-  tile stays as the existing card has it.
-- A photo clearly wider than it is tall spans two columns, because a landscape at one column width
-  reads as a small tile rather than as a landscape. The line is a ratio of 1.2, which is 6:5, so the
-  common 4:3, 3:2 and 16:9 are above it and a near-square is not: a near-square in two columns is
-  only a square twice as wide.
-- A span can only start where both of its columns are free, so it starts at the lower of the two and
-  the other column keeps a gap until it is level. Filling that gap would mean putting a photo out of
-  the order the source gives, which is the rule the section keeps, so the gaps are left.
-- A masonry needs each photo's ratio before it draws, so the layout reads the header — the same
-  reader the scan uses, read synchronously for the same reason `ImagesStore.loadSync` exists: a
-  widget lays out while it builds. A photo whose header cannot be read takes a square tile and is
-  reported as the scan reports what it cannot take.
-- The assignment is a pure function, so it is tested on its own: the pair of columns that is highest
-  up, ties to the lower index, and the order inside a column is the order the source gives. Its
-  heights are in pixels rather than relative, because a tile is its image plus the name under it and
-  the name is a fixed height, so the same photos can be laid out differently in a window of a
-  different width.
+  message groups them (`ai/photoset_pack.md` §7). The file name under each tile stays as the
+  existing card has it.
+
+- The rows the block draws — the path the user picked and the counts the scan took from it — are
+  built by the editor, because they are form rows. For a pack they belong to the block; every other
+  type keeps them as rows of the form.
+
+- For a pack the area is titled Screenshots, because what it shows is the pictures rather than the
+  list of sets, and it uses the title the Screenshots section titles itself with, so the two areas
+  that show the same files the same way say the same word. One column per set, the line naming the
+  set at the top of the column and its photos stacked under that line. The same line is in the
+  block, which is what lists the sets, so for a pack a set's line is drawn twice: once in the block
+  and once above its column. For a single photoset the block's heading is the title and it draws the
+  photos under its line.
+
+- The word Photosets is the block's heading and the label of the count field it draws, so it is said
+  twice for a pack, and the word Screenshots once, as the title of the area. Only one column of the
+  page is titled by the editor (`ai/doc.md` §2).
+
+- A pack's grid draws exactly the page's columns, because the minimum column width and the gap
+  between columns are constants in `lib/service/images/masonry.dart` and the editor gives the grid
+  the number of columns it counted. When the area is the whole width there are no page columns to
+  name, so it is not given any and fits its own, as the masonry always has.
+
+- Nothing spans in a pack's grid: a group is the width of its column whatever shape its photos are,
+  because a group is what the user reads as one set. The masonry keeps its spans, where there are no
+  groups: a photo clearly wider than it is tall spans two columns, because a landscape at one column
+  width reads as a small tile rather than as a landscape. The line is a ratio of 1.2, which is 6:5,
+  so the common 4:3, 3:2 and 16:9 are above it and a near—square is not: a near—square in two
+  columns is only a square twice as wide. A span can only start where both of its columns are free,
+  so it starts at the lower of the two and the other column keeps a gap until it is level. Filling
+  that gap would mean putting a photo out of the order the source gives, which is the rule the
+  section keeps, so the gaps are left.
+
+- A grid needs each photo's ratio before it draws, so the layout reads the header — the same reader
+  the scan uses, read synchronously for the same reason `ImagesStore.loadSync` exists: a widget lays
+  out while it builds. A photo whose header cannot be read takes a square tile and is reported as
+  the scan reports what it cannot take.
+
+- Both assignments are pure functions, so they are tested on their own: each group or photo goes to
+  the column that is highest up when it is placed, ties to the lower index, and the order inside a
+  column is the order the source gives. A group is placed whole, so its height is what decides its
+  column, and that height includes the gap after each tile — the same gap the drawing reserves, so
+  the assignment and the drawing agree. The heights are in pixels rather than relative, because a
+  tile is its image plus the name under it and the name is a fixed height, so the same photos can be
+  laid out differently in a window of a different width.
+
 - The picked number in a row comes from the records that exist, so it appears only after a pick: the
-  section shows what is on disk.
+  feature shows what is on disk.
+
 - A set with no photos shows its count with nothing under it and is reported. Since the rule gives
   at least one photo to every set that has photos, a set shown with none is one the app could not
   read, which is the information that says it will not be in the post, so it is shown rather than
-  left out.
-- Re-picking writes the same names, so the section needs the cache eviction and a key that changes
+  left out. In a pack's grid such a set still takes a column: its line is drawn on its own, because
+  a column is a set and the scan found that set. A column with no group in it is not a column the
+  grid has, so a grid never draws more columns than there are sets.
+
+- Re—picking writes the same names, so the feature needs the cache eviction and a key that changes
   on each run, as `AGENTS.md` §5 requires. This is the case the poster does not have and the picked
-  photos do.
+  photos do. Eviction alone is not enough: the widget that shows a picture resolves its provider
+  once, and the key is the file path, so a picture written under the same name is shown as the one
+  decoded the first time. So the block records what its run wrote and the tiles are keyed with a
+  generation that moves on each run, and the area that draws them must build again — which it does
+  only when the editor does, because the generation cannot be the block's own counter when the
+  pictures are in another widget.
+
 - The picked photos are `kind: photo` records with `item` set to the set's path, so the Upload
   section's progress bars count them unchanged.
+

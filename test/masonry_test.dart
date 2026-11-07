@@ -103,4 +103,92 @@ void main() {
 
     expect(shape(place(ratios, 3)), shape(place(ratios, 3)));
   });
+
+  // The pack's grid (`ai/picking.md` §7): a group is placed whole, so the column
+  // is chosen from the height the group takes as a block — its header plus its
+  // photos, each at the column's width. A photo is never wider than its column,
+  // so a landscape is not a two-column tile here.
+  test('a group takes the width of its column, at the ratio the photo has', () {
+    expect(pictureHeight(1.5, 100), 100 / 1.5);
+
+    // A photo whose header could not be read is laid out as a square.
+    expect(pictureHeight(null, 100), 100);
+  });
+
+  test('the height a group takes is its header and its photos', () {
+    // One photo at the column's width plus its name line, with the header above
+    // them, and the gap after the photo: that is what the drawing reserves in the
+    // column before the next group can start.
+    expect(groupHeight([1.0], 100, 24, 20, 8), 24 + (100 + 20 + 8));
+
+    // A set the app could not read is shown as its header alone.
+    expect(groupHeight([], 100, 24, 20, 8), 24);
+  });
+
+  test('a group goes to the column that is highest up when it is placed', () {
+    expect(groupColumns(groupHeights: [200, 60, 200, 100], columnCount: 3), [
+      0,
+      1,
+      2,
+      1,
+    ]);
+  });
+
+  test('ties go to the lower column index', () {
+    expect(groupColumns(groupHeights: [100, 100], columnCount: 2), [0, 1]);
+
+    // A group with no photos is its header alone, and a column with nothing in it
+    // is higher up than one with a group, so the header takes its column.
+    expect(
+      groupColumns(
+        groupHeights: [groupHeight([], 100, 24, 20, 8), 124],
+        columnCount: 2,
+      ),
+      [0, 1],
+    );
+  });
+
+  // The name line is a fixed height rather than a share of the column width, so
+  // the same groups can be placed differently in a window of a different width —
+  // the same reason the masonry packing works in pixels.
+  test('the assignment depends on the column width', () {
+    // Two short photos of the same height against one tall one: at a wide column
+    // the photos are what decide it, at a narrow one the name lines are.
+    final wide = [
+      groupHeight([4, 4], 100, 24, 20, 8),
+      groupHeight([1.0], 100, 24, 20, 8),
+      groupHeight([4, 4], 100, 24, 20, 8),
+    ];
+
+    expect(groupColumns(groupHeights: wide, columnCount: 2), [0, 1, 0]);
+
+    final narrow = [
+      groupHeight([4, 4], 20, 24, 20, 8),
+      groupHeight([1.0], 20, 24, 20, 8),
+      groupHeight([4, 4], 20, 24, 20, 8),
+    ];
+
+    expect(groupColumns(groupHeights: narrow, columnCount: 2), [0, 1, 1]);
+  });
+
+  test('the same groups give the same placement twice', () {
+    final List<List<double?>> groups = [
+      [0.5, null],
+      [1.5],
+      [],
+      [0.75, 2.0],
+    ];
+    final heights = [
+      for (final group in groups) groupHeight(group, 100, 24, 20, 8),
+    ];
+
+    // The three columns hold the first three groups, and the fourth is bigger
+    // than any of them, so it goes to the one that is highest up: the one with
+    // only a header in it.
+    expect(groupColumns(groupHeights: heights, columnCount: 3), [0, 1, 2, 2]);
+    expect(
+      groupColumns(groupHeights: heights, columnCount: 3),
+      groupColumns(groupHeights: heights, columnCount: 3),
+    );
+  });
 }

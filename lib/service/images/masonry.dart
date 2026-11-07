@@ -33,6 +33,90 @@ const landscapeSpanRatio = 1.2;
 /// as the grid and the grid would be one column.
 const defaultMaxSpan = 2;
 
+/// The narrowest a column of the page may be. The number of columns is however
+/// many of this width fit in the space there is, so the editor's grid and a
+/// section's own columns agree on the same number: a section placed as the
+/// columns after the form lays out exactly those columns.
+const minColumnWidth = 430.0;
+
+/// The gap between two columns of the page, and the gap a section draws between
+/// its own columns so that they are the page's columns.
+const columnGap = 24.0;
+
+/// The height a photo takes in a column of this width: the image at the ratio it
+/// has, plus the name line under it. The name line is a fixed height rather than
+/// a share of the column width, which is why the packing works in pixels. A photo
+/// whose header could not be read is laid out as a square.
+/// The height the picture itself takes in a column of this width, at the ratio
+/// the photo has. A photo whose header could not be read is laid out as a square.
+double pictureHeight(double? ratio, double columnWidth) =>
+    columnWidth / (ratio ?? 1);
+
+/// The height a tile takes in a column of this width: the picture plus the name
+/// line under it, with the gap that is the tile's own padding. The name line is
+/// a fixed height rather than a share of the column width, which is why the
+/// packing works in pixels. The caller reserves exactly this height per tile, so
+/// the drawing and the assignment add the gap the same once.
+double tileHeight(
+  double? ratio,
+  double columnWidth,
+  double labelHeight,
+  double gap,
+) => pictureHeight(ratio, columnWidth) + labelHeight + gap;
+
+/// The height a group takes in a column: its header line and then its photos,
+/// each at its full height with the gap that is its own padding. A group is
+/// placed as one block, so its height
+/// is what decides which column it goes to, and the assignment compares the height
+/// as the drawing reserves it. A group with no photos is its header alone, because
+/// a set the app could not read is still shown (`ai/picking.md` §7).
+double groupHeight(
+  List<double?> ratios,
+  double columnWidth,
+  double headerHeight,
+  double labelHeight,
+  double gap,
+) =>
+    headerHeight +
+    ratios.fold(
+      0.0,
+      (total, ratio) =>
+          total + tileHeight(ratio, columnWidth, labelHeight, gap),
+    );
+
+/// Which column each group's stack goes to, in the order the source gives the
+/// groups (`ai/picking.md` §7): the column that is highest up when the group is
+/// placed, ties to the lower column index, so the same input gives the same
+/// output. The returned list is one entry per group, in the order the groups were
+/// given.
+///
+/// This is the packing with groups rather than photos: photos from one group never
+/// share a column with photos from another, so a group is placed whole, and no
+/// photo spans — every tile in a group is the width of its column, whether the
+/// photo is portrait or landscape.
+List<int> groupColumns({
+  required List<double> groupHeights,
+  required int columnCount,
+}) {
+  final heights = List<double>.filled(columnCount, 0);
+  final columns = <int>[];
+
+  for (final height in groupHeights) {
+    var column = 0;
+
+    for (var candidate = 1; candidate < columnCount; candidate++) {
+      if (heights[candidate] < heights[column]) {
+        column = candidate;
+      }
+    }
+
+    columns.add(column);
+    heights[column] += height;
+  }
+
+  return columns;
+}
+
 /// The grid the section draws (`ai/picking.md` §7): columns of equal width,
 /// each photo placed at the point where its column is free, each tile at the
 /// ratio the photo has, so nothing is cropped. A photo clearly wider than it is
@@ -86,7 +170,7 @@ List<GridTile> masonryPositions({
       }
     }
 
-    final height = span * columnWidth / ratio;
+    final height = span * pictureHeight(ratio, columnWidth);
 
     tiles.add(
       GridTile(
@@ -102,7 +186,8 @@ List<GridTile> masonryPositions({
     // them advance to the same point, and the columns stay level with each
     // other from there.
     for (var covered = column; covered < column + span; covered++) {
-      heights[covered] = top + height + labelHeight + gap;
+      heights[covered] =
+          top + tileHeight(ratio, span * columnWidth, labelHeight, gap);
     }
   }
 
