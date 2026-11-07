@@ -29,6 +29,12 @@ class GridTile {
 /// common 4:3, 3:2 and 16:9 are all above it.
 const landscapeSpanRatio = 1.2;
 
+/// Whether a photo is a landscape, and so takes the span (`ai/picking.md` §7):
+/// the line the grid and the counts of each kind both use, so they agree on
+/// what a zone is. A photo whose header could not be read is the square the
+/// drawing lays it out as, and a square is not a landscape.
+bool isLandscape(double? ratio) => (ratio ?? 1) >= landscapeSpanRatio;
+
 /// The widest a tile may be, in columns. This is 2 wherever a landscape is
 /// meant to read as one; the Screenshots section asks for 1 because every file
 /// there is a frame at the same ratio, so spans would make every tile as wide
@@ -57,9 +63,95 @@ int photoColumnCount({required double width, required double min}) =>
 /// The width one of those columns is drawn at (`ai/picking.md` §7): the share
 /// of [width], which is [min] or more, so the space is used up rather than
 /// leaving a strip at the right that is narrower than a column. The drawing and
-/// the assignment use this one width, so they agree on it.
-double photoColumnWidth({required double width, required int columnCount}) =>
-    width / columnCount;
+/// the assignment use this one width, so they agree on it. [maxWidth] bounds
+/// the share for the feature that gives one: a column is never stretched past
+/// it, and the width the columns cannot use is left at the right
+/// (`ai/picking.md` §7).
+double photoColumnWidth({
+  required double width,
+  required int columnCount,
+  double? maxWidth,
+}) {
+  final share = width / columnCount;
+
+  return maxWidth == null ? share : math.min(share, maxWidth);
+}
+
+/// The two zones the pack's grid is split into (`ai/picking.md` §7): the
+/// columns each kind of photo gets, counted in the grid's base columns. A kind
+/// with no photos has no zone, so its count is 0.
+class PhotoZones {
+  const PhotoZones({
+    required this.portraitColumns,
+    required this.landscapeColumns,
+  });
+
+  final int portraitColumns;
+  final int landscapeColumns;
+}
+
+/// The columns each zone gets (`ai/picking.md` §7), from the counts and the
+/// columns that fit. A kind with no photos gets nothing, and a kind with photos
+/// gets at least one column — for a landscape that is one of its own, so
+/// [landscapeSpan] of them — and never more than its photos need, which is one
+/// column per photo. What the two minimums do not take is shared in proportion
+/// to the counts, and a zone that is already at what its photos need gives its
+/// share to the other.
+///
+/// Returns null when the space cannot hold one column of both kinds, which is
+/// when the grid is not split and the photos are laid out as one grid instead.
+PhotoZones? photoZoneColumnCounts({
+  required int portraitPhotos,
+  required int landscapePhotos,
+  required int columnCount,
+  required int landscapeSpan,
+}) {
+  // What each kind needs, in base columns: one column per photo, and a
+  // landscape's photo needs the span.
+  final portraitNeed = portraitPhotos == 0 ? 0 : math.max(portraitPhotos, 1);
+  final landscapeNeed = landscapePhotos == 0
+      ? 0
+      : math.max(landscapePhotos, 1) * landscapeSpan;
+
+  final portraitMin = portraitPhotos == 0 ? 0 : 1;
+  final landscapeMin = landscapePhotos == 0 ? 0 : landscapeSpan;
+
+  // The columns that are used: as many as fit, never more than the two together
+  // need, so a zone is not given columns its photos cannot fill.
+  final used = math.min(columnCount, portraitNeed + landscapeNeed);
+
+  if (used < portraitMin + landscapeMin) {
+    return null;
+  }
+
+  if (portraitPhotos == 0 || landscapePhotos == 0) {
+    return PhotoZones(
+      portraitColumns: portraitPhotos == 0 ? 0 : used,
+      landscapeColumns: landscapePhotos == 0 ? 0 : used,
+    );
+  }
+
+  // The share of what the minimums do not take, in proportion to the counts.
+  // Rounding down is what the proportion is, and a zone at its cap gives what
+  // it cannot take to the other.
+  final counts = portraitPhotos + landscapePhotos;
+  var portrait =
+      portraitMin +
+      (used - portraitMin - landscapeMin) * portraitPhotos ~/ counts;
+  var landscape = used - portrait;
+
+  if (portrait > portraitNeed) {
+    portrait = portraitNeed;
+    landscape = used - portrait;
+  }
+
+  if (landscape > landscapeNeed) {
+    landscape = landscapeNeed;
+    portrait = used - landscape;
+  }
+
+  return PhotoZones(portraitColumns: portrait, landscapeColumns: landscape);
+}
 
 /// How many columns a landscape takes (`ai/picking.md` §7): the number that
 /// makes a column [landscapeWidth] wide when a portrait's column is
@@ -131,7 +223,7 @@ List<GridTile> masonryPositions({
     // A tile spans as far as the caller allows, and only as far as the grid has
     // columns for. With maxSpan 1 this is the plain shortest-column packing.
     final span =
-        ratio >= landscapeSpanRatio && maxSpan >= 2 && columnCount >= maxSpan
+        isLandscape(ratios[index]) && maxSpan >= 2 && columnCount >= maxSpan
         ? maxSpan
         : 1;
 

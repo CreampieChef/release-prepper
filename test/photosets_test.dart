@@ -860,20 +860,21 @@ void main() {
   // The pack's grid is the same drawing at the same two widths, and a tile
   // there does name its set, because the grid mixes sets. The drawing uses the
   // same heights the assignment works with, so the test works the placement out
-  // with the rule and compares the boxes against it (`ai/picking.md` §7).
+  // with the rule, including the split by kind, and compares the boxes against
+  // it (`ai/picking.md` §7).
   testWidgets('the pack draws the photos in the columns the assignment gives', (
     tester,
   ) async {
-    // A space that holds three columns of the portrait width, so a landscape
-    // can span and the columns are more than one — that is what this test is
-    // about.
-    tester.view.physicalSize = const Size(700, 4000);
+    // A space that can hold a column of both kinds: one for a portrait and one
+    // for a landscape is the least the two zones can be given, and below that
+    // the grid is not split at all (`ai/picking.md` §7).
+    tester.view.physicalSize = const Size(1400, 4000);
     tester.view.devicePixelRatio = 1.0;
 
     // Three sets of two, one landscape, one portrait, one read as a square, so
-    // the placement is not the same for every tile. The dimensions are the
-    // ratios themselves, so the test compares with the same numbers the reader
-    // reads from the fixtures.
+    // both kinds are present and the placement is not the same for every tile.
+    // The dimensions are the ratios themselves, so the test compares with the
+    // same numbers the reader reads from the fixtures.
     const sets = ['set01', 'set02', 'set03'];
     const sizes = [
       [300, 100],
@@ -947,81 +948,119 @@ void main() {
     // the drawing for the space, and from that the rule gives the columns and
     // the width each is drawn at. The drawing is then compared against both, so
     // the test follows whatever the two constants are changed to.
-    final columnCount = photoColumnCount(
-      width: gallery.width,
-      min: photosetColumnWidth,
-    );
-    final columnWidth = photoColumnWidth(
-      width: gallery.width,
-      columnCount: columnCount,
-    );
     final span = photoSpanCount(
       portraitWidth: photosetColumnWidth,
       landscapeWidth: photosetLandscapeWidth,
     );
-
-    // What makes this fixture worth drawing at all: more than one column, so a
-    // landscape spans, and more than one set, so a tile names its set.
-    expect(columnCount, greaterThan(1));
-    expect(span, greaterThan(1));
-
-    final labelHeight = photosetLabelHeight + photosetSetLineHeight;
+    final fit = photoColumnCount(
+      width: gallery.width,
+      min: photosetColumnWidth,
+    );
 
     final ratiosBySet = {
       for (var set = 0; set < sets.length; set++)
         sets[set]: sizes[set][0] / sizes[set][1],
     };
 
-    final tiles = masonryPositions(
-      ratios: [for (final photo in picked) ratiosBySet[photo.$1]!],
-      columnCount: columnCount,
-      columnWidth: columnWidth,
-      labelHeight: labelHeight,
-      gap: photosetTileGap,
-      maxSpan: span,
+    // The two zones, in the order the drawing places them: portraits first,
+    // then landscapes. Within a zone the order is the order the source gives,
+    // which is the order the picked list is in, so the test keeps it as it is.
+    final portraits = [
+      for (final photo in picked)
+        if (!isLandscape(ratiosBySet[photo.$1])) photo,
+    ];
+    final landscapes = [
+      for (final photo in picked)
+        if (isLandscape(ratiosBySet[photo.$1])) photo,
+    ];
+    final zones = photoZoneColumnCounts(
+      portraitPhotos: portraits.length,
+      landscapePhotos: landscapes.length,
+      columnCount: fit,
+      landscapeSpan: span,
     );
+
+    // What makes this fixture worth drawing as two zones: both kinds have
+    // photos, the space can hold a column of each, and neither zone is the
+    // single column a kind is given when it has nothing else to fill it with.
+    expect(fit, greaterThanOrEqualTo(1 + span));
+    expect(zones, isNotNull);
+    expect(portraits.length, greaterThan(1));
+    expect(landscapes.length, greaterThan(1));
+    expect(zones!.portraitColumns, greaterThan(1));
+    expect(zones.landscapeColumns, greaterThan(span));
+
+    final columnWidth = photoColumnWidth(
+      width: gallery.width,
+      columnCount: zones.portraitColumns + zones.landscapeColumns,
+      maxWidth: photosetColumnMaxWidth,
+    );
+
+    final labelHeight = photosetLabelHeight + photosetSetLineHeight;
 
     // The gallery's title row is above the grid, and its height comes from
     // measuring text, which the test cannot compute from the constants. So the
-    // origin is read from the drawing: the first photo in the order is placed
-    // at the top of the first column, so its box is where the grid starts.
+    // origin is read from the drawing: the first photo of the first zone is
+    // placed at the top of its first column, so its box is where the grid
+    // starts.
     final origin = tester.getRect(
       find.byKey(
         ValueKey((
           'photoTile',
-          p.join(directory.path, picked.first.$1, picked.first.$2),
+          p.join(directory.path, portraits.first.$1, portraits.first.$2),
         )),
       ),
     );
 
-    for (var index = 0; index < tiles.length; index++) {
-      final tile = tiles[index];
-      final finder = find.byKey(
-        ValueKey((
-          'photoTile',
-          p.join(directory.path, picked[index].$1, picked[index].$2),
-        )),
-      );
-      final rect = tester.getRect(finder);
+    var start = 0;
 
-      expect(rect.left, closeTo(origin.left + tile.column * columnWidth, 0.5));
-      expect(rect.top, closeTo(origin.top + tile.top, 0.5));
-      expect(rect.width, closeTo(tile.span * columnWidth, 0.5));
-      expect(
-        rect.height,
-        closeTo(tile.height + labelHeight + photosetTileGap, 0.5),
+    for (final zone in [
+      (photos: portraits, columns: zones.portraitColumns),
+      (photos: landscapes, columns: zones.landscapeColumns),
+    ]) {
+      final tiles = masonryPositions(
+        ratios: [for (final photo in zone.photos) ratiosBySet[photo.$1]!],
+        columnCount: zone.columns,
+        columnWidth: columnWidth,
+        labelHeight: labelHeight,
+        gap: photosetTileGap,
+        maxSpan: span,
       );
 
-      // A tile in a grid that mixes sets names the set its photo is from,
-      // because there is no group to say it, and its file name under that.
-      expect(
-        find.descendant(of: finder, matching: find.text(picked[index].$1)),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: finder, matching: find.text(picked[index].$2)),
-        findsOneWidget,
-      );
+      // A photo is placed in the columns of its own kind, so a tile is never
+      // drawn in the other zone, and the second zone starts at the column the
+      // first ends at and at the same top, which is what the expectation is.
+      for (final tile in tiles) {
+        final photo = zone.photos[tile.index];
+        final finder = find.byKey(
+          ValueKey(('photoTile', p.join(directory.path, photo.$1, photo.$2))),
+        );
+        final rect = tester.getRect(finder);
+
+        expect(
+          rect.left,
+          closeTo(origin.left + (start + tile.column) * columnWidth, 0.5),
+        );
+        expect(rect.top, closeTo(origin.top + tile.top, 0.5));
+        expect(rect.width, closeTo(tile.span * columnWidth, 0.5));
+        expect(
+          rect.height,
+          closeTo(tile.height + labelHeight + photosetTileGap, 0.5),
+        );
+
+        // A tile in a grid that mixes sets names the set its photo is from,
+        // because there is no group to say it, and its file name under that.
+        expect(
+          find.descendant(of: finder, matching: find.text(photo.$1)),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: finder, matching: find.text(photo.$2)),
+          findsOneWidget,
+        );
+      }
+
+      start += zone.columns;
     }
 
     // The block lists each set once, in the order the source gives them, and

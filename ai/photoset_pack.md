@@ -167,6 +167,10 @@ Implemented. The rule is `ai/picking.md`; the seam defined here is what the code
   (`ai/release_structure.md` §4), and recorded as `kind: photo`.
 - The section shows them in place of the screenshots as one grid of tiles, where each tile names the
   set its photo is from as well as its file name, because nothing groups them (`ai/picking.md` §7).
+- For a pack that grid is split by kind: the portraits in the columns of the portrait width,
+  the landscapes in the columns of the landscape width, never mixed, and the counts of the photos
+  decide how many columns each kind gets. A single photoset is not split, because with one set there
+  is nothing to group (`ai/picking.md` §7, `ai/single_photoset.md` §7).
 - The scan runs before the picker, because the picking reads the counts. The resolutions are not
   part of the rule (`ai/picking.md` §4).
 
@@ -208,7 +212,7 @@ Done:
    `directory_reader.dart` and `zip_reader.dart`.
 7. `lib/feature/photosets/` — the controller, the block that lists the photosets with their
    counts, the area that draws the picked photos as the grid the feature fits from the two widths it
-   gives, and the state and the drawing helpers the two share.
+   gives, split by kind for a pack, and the state and the drawing helpers the two share.
 8. l10n keys in both arb files, and the tests for the pack form, the header reader, the scan and
    the block and the area.
 9. `zip_reader.dart` — the ZIP reader through the `archive` package, and `pubspec.yaml` with it;

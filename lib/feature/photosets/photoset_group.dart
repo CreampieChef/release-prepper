@@ -40,6 +40,14 @@ const photosetSetLineHeight = 24.0;
 const photosetColumnWidth = 200.0;
 const photosetLandscapeWidth = 400.0;
 
+// The widest a column of the pack's grid may be stretched to: twice the
+// portrait width. A zone capped at the columns its photos need cannot always
+// use the whole space, and past this the space is left at the right rather than
+// a column being made wider (`ai/picking.md` §7). Only the pack bounds the
+// share, because only the pack caps a zone at its photos: a single photoset
+// uses the whole space as it is (`ai/single_photoset.md` §7).
+const photosetColumnMaxWidth = 2 * photosetColumnWidth;
+
 // The widest the block's column is. The width it does not use is the photo
 // area's, so the cap does not leave an empty strip beside the block
 // (`ai/picking.md` §7).
@@ -245,13 +253,42 @@ class _GridPhoto {
   String get path => group.paths[index];
 }
 
-/// The picked photos as the grid both types draw, at the two widths this file
-/// gives (`ai/picking.md` §7): as many columns of `photosetColumnWidth` as fit
-/// in the space, with the space the columns cannot use shared out rather than
-/// left as a strip at the right, and a photo clearly wider than it is tall
-/// taking the number of columns that makes it `photosetLandscapeWidth` wide,
-/// which is what makes a landscape read as a landscape. A photo whose header
-/// could not be read takes a square tile.
+/// One zone of the grid: the photos of one kind and the columns that zone has,
+/// counted from the column the zone starts at, so the drawing places the zones
+/// side by side (`ai/picking.md` §7).
+class _PhotoZone {
+  const _PhotoZone({
+    required this.photos,
+    required this.columns,
+    required this.start,
+  });
+
+  /// The photos of this kind, in the order the source gives them.
+  final List<_GridPhoto> photos;
+
+  /// The columns this zone has, which its own photos are packed into.
+  final int columns;
+
+  /// The column the zone starts at, in the grid's base columns.
+  final int start;
+}
+
+/// The picked photos as the grid draws them, at the two widths this file gives
+/// (`ai/picking.md` §7): as many columns of `photosetColumnWidth` as fit in the
+/// space, and the space the columns cannot use shared out rather than left as a
+/// strip at the right. A photo clearly wider than it is tall takes the number
+/// of columns that makes it `photosetLandscapeWidth` wide, which is what makes
+/// a landscape read as a landscape; a photo whose header could not be read
+/// takes a square tile.
+///
+/// For a pack the grid is split by kind (`ai/picking.md` §7): the counts decide
+/// the columns each kind gets, a kind with no photos has none, and a zone is
+/// not given more than its photos need. The zones are drawn side by side,
+/// portraits first, each starting at the top of the area, and a kind is packed
+/// inside its own zone, so a tile cannot cross into the other kind's columns. A
+/// single photoset is not split (`ai/single_photoset.md` §7), so its photos are
+/// the one zone that is the whole grid, and for a pack the grid is one zone too
+/// when the space cannot hold a column of both kinds.
 ///
 /// The columns have no gap of their own, because a spanned column must be
 /// exactly as many of them as the two widths say: the space between two tiles
@@ -269,8 +306,6 @@ Widget photosetPhotoGrid(PhotosetState state, List<PhotosetGroup> groups) {
           ? constraints.maxWidth
           : photosetColumnWidth;
 
-      final columns = photoColumnCount(width: width, min: photosetColumnWidth);
-      final columnWidth = photoColumnWidth(width: width, columnCount: columns);
       final span = photoSpanCount(
         portraitWidth: photosetColumnWidth,
         landscapeWidth: photosetLandscapeWidth,
@@ -288,49 +323,115 @@ Widget photosetPhotoGrid(PhotosetState state, List<PhotosetGroup> groups) {
       final labelHeight =
           photosetLabelHeight + (showSet ? photosetSetLineHeight : 0);
 
-      final tiles = masonryPositions(
-        ratios: [for (final photo in photos) photo.group.ratios[photo.index]],
-        columnCount: columns,
-        columnWidth: columnWidth,
-        labelHeight: labelHeight,
-        gap: photosetTileGap,
-        maxSpan: span,
+      final isPack =
+          state.controller.release.releaseType == ReleaseType.photosetPack;
+
+      // The zones, in the order they are drawn: portraits first, then
+      // landscapes, which is what `ai/picking.md` §7 says. With one kind, or
+      // with a space that cannot hold a column of both, there is no split and
+      // the grid is the one zone that is the whole space.
+      final zones = <_PhotoZone>[];
+      final fit = photoColumnCount(width: width, min: photosetColumnWidth);
+
+      if (isPack) {
+        final portrait = [
+          for (final photo in photos)
+            if (!isLandscape(photo.group.ratios[photo.index])) photo,
+        ];
+        final landscape = [
+          for (final photo in photos)
+            if (isLandscape(photo.group.ratios[photo.index])) photo,
+        ];
+        final split = photoZoneColumnCounts(
+          portraitPhotos: portrait.length,
+          landscapePhotos: landscape.length,
+          columnCount: fit,
+          landscapeSpan: span,
+        );
+
+        if (split != null) {
+          zones.add(
+            _PhotoZone(
+              photos: portrait,
+              columns: split.portraitColumns,
+              start: 0,
+            ),
+          );
+          zones.add(
+            _PhotoZone(
+              photos: landscape,
+              columns: split.landscapeColumns,
+              start: split.portraitColumns,
+            ),
+          );
+        }
+      }
+
+      if (zones.isEmpty) {
+        zones.add(_PhotoZone(photos: photos, columns: fit, start: 0));
+      }
+
+      var used = 0;
+
+      for (final zone in zones) {
+        used += zone.columns;
+      }
+
+      final columnWidth = photoColumnWidth(
+        width: width,
+        columnCount: used,
+        maxWidth: isPack ? photosetColumnMaxWidth : null,
       );
 
+      // Each kind is packed inside its own zone, so a tile is never placed in
+      // the other kind's columns, and the height the grid takes is the tallest
+      // of the zones, because they are drawn side by side.
+      final grid = <Widget>[];
       var gridHeight = 0.0;
 
-      for (final tile in tiles) {
-        final bottom = tile.top + tile.height + labelHeight + photosetTileGap;
+      for (final zone in zones) {
+        final tiles = masonryPositions(
+          ratios: [
+            for (final photo in zone.photos) photo.group.ratios[photo.index],
+          ],
+          columnCount: zone.columns,
+          columnWidth: columnWidth,
+          labelHeight: labelHeight,
+          gap: photosetTileGap,
+          maxSpan: span,
+        );
 
-        if (bottom > gridHeight) {
-          gridHeight = bottom;
+        for (final tile in tiles) {
+          final photo = zone.photos[tile.index];
+          final bottom = tile.top + tile.height + labelHeight + photosetTileGap;
+
+          if (bottom > gridHeight) {
+            gridHeight = bottom;
+          }
+
+          grid.add(
+            Positioned(
+              key: ValueKey(('photoTile', photo.path)),
+              left: (zone.start + tile.column) * columnWidth,
+              top: tile.top,
+              width: tile.span * columnWidth,
+              height: tile.height + labelHeight + photosetTileGap,
+              child: photosetTile(
+                state,
+                photo.path,
+                tile.height,
+                setName: showSet
+                    ? state.controller.displayName(photo.group.item.path)
+                    : null,
+              ),
+            ),
+          );
         }
       }
 
       return SizedBox(
         height: gridHeight,
-        child: Stack(
-          children: [
-            for (final tile in tiles)
-              Positioned(
-                key: ValueKey(('photoTile', photos[tile.index].path)),
-                left: tile.column * columnWidth,
-                top: tile.top,
-                width: tile.span * columnWidth,
-                height: tile.height + labelHeight + photosetTileGap,
-                child: photosetTile(
-                  state,
-                  photos[tile.index].path,
-                  tile.height,
-                  setName: showSet
-                      ? state.controller.displayName(
-                          photos[tile.index].group.item.path,
-                        )
-                      : null,
-                ),
-              ),
-          ],
-        ),
+        child: Stack(children: grid),
       );
     },
   );

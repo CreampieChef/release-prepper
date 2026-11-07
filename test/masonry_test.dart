@@ -158,4 +158,136 @@ void main() {
     // A landscape narrower than one portrait column is one column.
     expect(photoSpanCount(portraitWidth: 200, landscapeWidth: 100), 1);
   });
+
+  // The pack's grid is split by kind, and the counts decide the columns each
+  // kind gets (`ai/picking.md` §7). The two widths here are the ones the
+  // feature gives, so the test is the rule the drawing follows.
+  test('a kind with no photos has no zone', () {
+    // All landscape: no column is spent on a kind with nothing to show.
+    final zones = photoZoneColumnCounts(
+      portraitPhotos: 0,
+      landscapePhotos: 6,
+      columnCount: 8,
+      landscapeSpan: 2,
+    );
+
+    expect(zones!.portraitColumns, 0);
+    expect(zones.landscapeColumns, 8);
+
+    // The other way round: six portraits need six columns, so the two columns
+    // that fit and are not needed are not used (`ai/picking.md` §7).
+    final other = photoZoneColumnCounts(
+      portraitPhotos: 6,
+      landscapePhotos: 0,
+      columnCount: 8,
+      landscapeSpan: 2,
+    );
+
+    expect(other!.portraitColumns, 6);
+    expect(other.landscapeColumns, 0);
+  });
+
+  // Few photos of one kind get the one column they need, and everything else
+  // goes to the kind that has the photos to fill it.
+  test('a small group of one kind gets one column', () {
+    final zones = photoZoneColumnCounts(
+      portraitPhotos: 1,
+      landscapePhotos: 9,
+      columnCount: 12,
+      landscapeSpan: 2,
+    );
+
+    expect(zones!.portraitColumns, 1);
+    expect(zones.landscapeColumns, 11);
+
+    // A landscape's one column is the span, so a zone that has a landscape is
+    // never narrower than that.
+    final other = photoZoneColumnCounts(
+      portraitPhotos: 9,
+      landscapePhotos: 1,
+      columnCount: 12,
+      landscapeSpan: 2,
+    );
+
+    expect(other!.portraitColumns, 9);
+    expect(other.landscapeColumns, 2);
+  });
+
+  // A zone is never given more columns than its photos need, so a grid with few
+  // photos is as few columns as those photos fill rather than as many as fit
+  // (`ai/picking.md` §7).
+  test('a zone is not given more columns than its photos need', () {
+    // Three portraits and one landscape: three columns and the span, which is
+    // what the two together need, and the rest of the space is not used.
+    final zones = photoZoneColumnCounts(
+      portraitPhotos: 3,
+      landscapePhotos: 1,
+      columnCount: 10,
+      landscapeSpan: 2,
+    );
+
+    expect(zones!.portraitColumns, 3);
+    expect(zones.landscapeColumns, 2);
+
+    // What a zone cannot take because it is already at its need goes to the
+    // other: the proportion alone gives the landscape zone three, which is more
+    // than its one photo fills, so the one it cannot take goes to the
+    // portraits.
+    final other = photoZoneColumnCounts(
+      portraitPhotos: 3,
+      landscapePhotos: 1,
+      columnCount: 5,
+      landscapeSpan: 2,
+    );
+
+    expect(other!.portraitColumns, 3);
+    expect(other.landscapeColumns, 2);
+  });
+
+  // A space that cannot hold a column of both kinds is not split, and the
+  // photos are laid out as one grid instead (`ai/picking.md` §7).
+  test('a space that cannot hold both kinds is not split', () {
+    expect(
+      photoZoneColumnCounts(
+        portraitPhotos: 4,
+        landscapePhotos: 4,
+        columnCount: 2,
+        landscapeSpan: 2,
+      ),
+      isNull,
+    );
+
+    // One portrait column and one landscape column is the least that can be
+    // given, and at that number the split is exactly that.
+    final zones = photoZoneColumnCounts(
+      portraitPhotos: 4,
+      landscapePhotos: 4,
+      columnCount: 3,
+      landscapeSpan: 2,
+    );
+
+    expect(zones!.portraitColumns, 1);
+    expect(zones.landscapeColumns, 2);
+  });
+
+  // The share of the space is what a column is drawn at, and the feature gives
+  // the pack a bound so a zone capped at its photos does not make a column as
+  // wide as the whole area (`ai/picking.md` §7).
+  test('the share of the space is bounded by the maximum the feature gives', () {
+    // Without a bound the share is the whole width divided by the columns.
+    expect(photoColumnWidth(width: 1800, columnCount: 3), closeTo(600, 0.01));
+
+    // With the bound, the columns are drawn at it and the width they cannot use
+    // is left at the right.
+    expect(
+      photoColumnWidth(width: 1800, columnCount: 3, maxWidth: 400),
+      closeTo(400, 0.01),
+    );
+
+    // A share below the bound is the share, because the bound is a maximum.
+    expect(
+      photoColumnWidth(width: 1600, columnCount: 8, maxWidth: 400),
+      closeTo(200, 0.01),
+    );
+  });
 }
