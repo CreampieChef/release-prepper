@@ -644,6 +644,12 @@ abstract class AppLocalizations {
   /// **'Photosets'**
   String get photosetPackSectionTitle;
 
+  /// No description provided for @photosetListSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Photoset List'**
+  String get photosetListSectionTitle;
+
   /// No description provided for @singlePhotosetSectionTitle.
   ///
   /// In en, this message translates to:
@@ -662,17 +668,11 @@ abstract class AppLocalizations {
   /// **'Pick'**
   String get pickPhotosets;
 
-  /// No description provided for @photosetPhotoCount.
+  /// No description provided for @photosetPickedOfTotal.
   ///
   /// In en, this message translates to:
-  /// **'{count} photos'**
-  String photosetPhotoCount(int count);
-
-  /// No description provided for @photosetPickedCount.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} picked'**
-  String photosetPickedCount(int count);
+  /// **'{picked} / {total}'**
+  String photosetPickedOfTotal(int picked, String total);
 
   /// No description provided for @photosetPackNoPhotosets.
   ///

@@ -94,6 +94,12 @@ void main() {
     File(p.join(set.path, name)).writeAsBytesSync(bytes);
   }
 
+  // The size a photo has is the bytes the fixture wrote, so the total a test
+  // expects is the sum of the fixtures it wrote rather than a number written
+  // out.
+  String totalOf(List<List<int>> fixtures) =>
+      '${fixtures.fold(0, (total, bytes) => total + bytes.length)}';
+
   Release testRelease(
     String source, {
     ReleaseType releaseType = ReleaseType.photosetPack,
@@ -233,6 +239,7 @@ void main() {
       expect(result.values, {
         'photosetCount': '1',
         'totalPhotoCount': '2',
+        'totalSize': totalOf([pngPhoto(100, 100), pngPhoto(400, 150)]),
         'minResolution': '100x100',
         'maxResolution': '400x150',
       });
@@ -270,6 +277,7 @@ void main() {
 
     expect(result.values, {
       'totalPhotoCount': '2',
+      'totalSize': totalOf([pngPhoto(100, 100), pngPhoto(400, 150)]),
       'minResolution': '100x100',
       'maxResolution': '400x150',
       'imageFormats': 'jpg, png',
@@ -298,6 +306,7 @@ void main() {
     expect(result.values.keys, [
       'photosetCount',
       'totalPhotoCount',
+      'totalSize',
       'minResolution',
       'maxResolution',
     ]);
@@ -382,7 +391,7 @@ void main() {
     await clickAndWait(tester, find.text('Scan'), find.text('set01'));
 
     expect(find.text('set01'), findsOneWidget);
-    expect(find.text('1 photos'), findsOneWidget);
+    expect(find.text('0 / 1'), findsOneWidget);
 
     // The values go through the editor's write path, not the block's.
     expect(applied.single['photosetCount'], '1');
@@ -416,6 +425,38 @@ void main() {
     }
   });
 
+  // The header naming the list is drawn above the lines, and only for the type
+  // that has a list: before a scan there is nothing to name, so nothing is
+  // drawn above the placeholder (`ai/picking.md` §7).
+  testWidgets('the header naming the list is drawn above the lines', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    writePhotoAt('source/set01', 'a.png', 100, 100);
+
+    final release = testRelease(p.join(directory.path, 'source'));
+    final state = testState(release);
+
+    await openPhotosets(tester, state);
+
+    expect(find.text('Photoset List'), findsNothing);
+
+    await clickAndWait(tester, find.text('Scan'), find.text('set01'));
+
+    expect(find.text('Photoset List'), findsOneWidget);
+
+    // The block's heading row names the block; the header names the lines, so
+    // it is drawn below that row and above the first line.
+    final heading = tester.getRect(find.text('Photosets'));
+    final header = tester.getRect(find.text('Photoset List'));
+    final line = tester.getRect(find.byKey(ValueKey(('groupHeader', 'set01'))));
+
+    expect(header.top, greaterThan(heading.bottom));
+    expect(line.top, greaterThan(header.bottom));
+  });
+
   // The same block for a single set: the strings are the ones that read wrong for
   // one set, so they are resolved per type, and it shows the photos itself because
   // a single set has no columns to put them in (`ai/single_photoset.md` §4, §7).
@@ -438,8 +479,11 @@ void main() {
       onApplyValues: (values) => applied.add(values),
     );
 
-    // One title, and it is the one this type reads right for one set.
+    // One title, and it is the one this type reads right for one set. The
+    // header naming a list is not drawn, because this type has one set
+    // (`ai/picking.md` §7).
     expect(find.text('Photoset'), findsOneWidget);
+    expect(find.text('Photoset List'), findsNothing);
     expect(
       find.text('There are no photos. Pick the folder and scan it.'),
       findsOneWidget,
@@ -459,7 +503,7 @@ void main() {
     await clickAndWait(tester, find.text('Scan'), find.text('set01'));
 
     expect(find.text('set01'), findsOneWidget);
-    expect(find.text('1 photos'), findsOneWidget);
+    expect(find.text('0 / 1'), findsOneWidget);
 
     expect(applied.last['imageFormats'], 'png');
     expect(applied.last.containsKey('photosetCount'), isFalse);
@@ -706,30 +750,34 @@ void main() {
 
     await clickAndWait(tester, find.text('Scan'), find.text('set01'));
 
-    // Nothing is copied yet, so nothing is shown: the block shows what is on disk.
+    // The pair the line shows is the number the rule picked and the number the
+    // scan counted, so before a run the first part is 0 while the second is the
+    // count the scan wrote (`ai/picking.md` §7). The numbers below are the ones
+    // the rule gives for this fixture, the same ones the test asks the rule for
+    // further down.
     expect(
       find.descendant(
         of: find.byKey(ValueKey(('groupHeader', 'set01'))),
-        matching: find.text('3 picked'),
+        matching: find.text('0 / 10'),
       ),
-      findsNothing,
+      findsOneWidget,
     );
 
-    await clickAndWait(tester, find.text('Pick'), find.text('3 picked'));
+    await clickAndWait(tester, find.text('Pick'), find.text('3 / 10'));
 
     // Each set is named once, in the block, because the grid does not name a
     // set above its photos — the tile says which set its photo is from.
     expect(
       find.descendant(
         of: find.byKey(ValueKey(('groupHeader', 'set01'))),
-        matching: find.text('3 picked'),
+        matching: find.text('3 / 10'),
       ),
       findsOneWidget,
     );
     expect(
       find.descendant(
         of: find.byKey(ValueKey(('groupHeader', 'set02'))),
-        matching: find.text('2 picked'),
+        matching: find.text('2 / 10'),
       ),
       findsOneWidget,
     );
@@ -748,8 +796,12 @@ void main() {
           ScannedSet(
             entry: SourceEntry(name: set, isDirectory: true, readPath: set),
             photos: [
+              // The rule reads counts, not sizes, so the fixture gives none.
               for (var index = 0; index < 10; index++)
-                ScannedPhoto(name: '${index.toString().padLeft(3, '0')}.png'),
+                ScannedPhoto(
+                  name: '${index.toString().padLeft(3, '0')}.png',
+                  size: 0,
+                ),
             ],
           ),
       ]).picks)
@@ -906,8 +958,9 @@ void main() {
         ScannedSet(
           entry: SourceEntry(name: set, isDirectory: true, readPath: set),
           photos: [
+            // The rule reads counts, not sizes, so the fixture gives none.
             for (var index = 0; index < 2; index++)
-              ScannedPhoto(name: 'p$index.png'),
+              ScannedPhoto(name: 'p$index.png', size: 0),
           ],
         ),
     ];
@@ -916,6 +969,10 @@ void main() {
         for (final photo in pick.photos) (pick.set.path, photo.name),
     ];
 
+    // What the line for the first set says after a run: the number the rule
+    // gave that set, taken from the rule, and the number its fixture has.
+    final firstSetCount = picked.where((photo) => photo.$1 == sets[0]).length;
+
     await openPhotosets(tester, state, showGallery: true);
 
     await clickAndWait(tester, find.text('Scan'), find.text('set01'));
@@ -923,13 +980,13 @@ void main() {
     // The pick runs in the block, which is the widget that ran it; the gallery
     // is another widget, so a run reaches it only when the page builds again —
     // here the test builds it again the way the editor does. The wait is on the
-    // block, because the pick is what makes a picked count appear there.
+    // block's line, because that is where the picked number changes.
     await clickAndWait(
       tester,
       find.text('Pick'),
       find.descendant(
-        of: find.byKey(const ValueKey(('groupHeader', 'set01'))),
-        matching: find.textContaining('picked'),
+        of: find.byKey(ValueKey(('groupHeader', sets[0]))),
+        matching: find.text('$firstSetCount / 2'),
       ),
     );
 
@@ -1100,15 +1157,15 @@ void main() {
       expect(find.byKey(ValueKey(('groupHeader', set))), findsOneWidget);
     }
 
-    // A set this small is picked in full, so the pick writes all three; the set with
-    // no photos is picked as nothing. The wait is on the block's line, because that
-    // is where the picked count appears.
+    // A set this small is picked in full, so the pair is the whole count twice;
+    // the set with no photos is picked as nothing, so its pair says 0. The wait
+    // is on the block's line, because that is where the picked number changes.
     await clickAndWait(
       tester,
       find.text('Pick'),
       find.descendant(
         of: find.byKey(const ValueKey(('groupHeader', 'set01'))),
-        matching: find.text('3 picked'),
+        matching: find.text('3 / 3'),
       ),
     );
 
@@ -1147,7 +1204,7 @@ class _FakeArchiveReader implements PhotosetReader {
 
   @override
   Future<List<ScannedPhoto>> read(String path) async => [
-    const ScannedPhoto(name: 'a.png'),
+    const ScannedPhoto(name: 'a.png', size: 0),
   ];
 
   @override

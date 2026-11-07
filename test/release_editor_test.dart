@@ -2080,6 +2080,70 @@ void main() {
     expect(section.right, lessThan(videos.left));
   });
 
+  // For a pack the rule is its own (`ai/torrents.md`): its first column is the
+  // one that stacks the sections below the fields, so the section is drawn
+  // there, above the Upload section. It is still a section rather than a row,
+  // so the gap before it is the one between sections, and it is as wide as the
+  // column it is in — the fields' column, not the block's capped one.
+  testWidgets(
+    'a photoset pack draws the torrent section in the fields column, above the Upload section',
+    (tester) async {
+      tester.view.physicalSize = const Size(2000, 2000);
+      tester.view.devicePixelRatio = 1.0;
+
+      await openEditor(tester, testPackRelease('/tmp/x'));
+
+      final lastField = tester.getRect(find.byKey(const ValueKey('genreTags')));
+      final section = tester.getRect(
+        find.byKey(const ValueKey('torrentSection')),
+      );
+      final upload = tester.getRect(
+        find.byKey(const ValueKey('uploadSection')),
+      );
+      final block = tester.getRect(find.byKey(const ValueKey('photosetBlock')));
+
+      expect(section.width, closeTo(lastField.width, 0.5));
+      expect(section.left, closeTo(lastField.left, 0.5));
+      expect(section.top - lastField.bottom, closeTo(columnGap, 0.5));
+
+      // Above the Upload section, in the same column.
+      expect(upload.top - section.bottom, closeTo(columnGap, 0.5));
+      expect(upload.left, closeTo(lastField.left, 0.5));
+
+      // And not in the block's column, which is the second one.
+      expect(section.right, lessThan(block.left));
+    },
+  );
+
+  // And the same when the form is one column: there is one column, so the
+  // section is stacked in it, still above the Upload section.
+  testWidgets(
+    'a photoset pack draws the torrent section above the Upload section when the form is one column',
+    (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+
+      await openEditor(tester, testPackRelease('/tmp/x'));
+
+      final field = tester.getRect(find.byKey(const ValueKey('genreTags')));
+      final section = tester.getRect(
+        find.byKey(const ValueKey('torrentSection')),
+      );
+      final upload = tester.getRect(
+        find.byKey(const ValueKey('uploadSection')),
+      );
+
+      expect(section.width, closeTo(field.width, 0.5));
+      expect(section.left, closeTo(field.left, 0.5));
+
+      // The block is between the fields and the section here, because with one
+      // column the block is stacked in the same column (`ai/picking.md` §7).
+      final block = tester.getRect(find.byKey(const ValueKey('photosetBlock')));
+      expect(section.top, greaterThan(block.bottom));
+      expect(upload.top, greaterThan(section.bottom));
+    },
+  );
+
   // The tracker and release-type badges follow the name, because they say what
   // the name is for, rather than being pushed to the right edge of the heading.
   testWidgets('the badges come after the release name', (tester) async {
@@ -3056,6 +3120,7 @@ void main() {
     for (final name in [
       'photosetCount',
       'totalPhotoCount',
+      'totalSize',
       'minResolution',
       'maxResolution',
     ]) {
@@ -3275,6 +3340,7 @@ void main() {
 
     for (final name in [
       'totalPhotoCount',
+      'totalSize',
       'minResolution',
       'maxResolution',
       'imageFormats',

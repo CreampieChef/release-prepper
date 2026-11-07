@@ -280,6 +280,7 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
   static const _photosetPackRight = [
     'photosetCount',
     'totalPhotoCount',
+    'totalSize',
     'minResolution',
     'maxResolution',
   ];
@@ -319,6 +320,7 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
 
   static const _singlePhotosetRight = [
     'totalPhotoCount',
+    'totalSize',
     'minResolution',
     'maxResolution',
     'imageFormats',
@@ -1504,10 +1506,11 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
                   )
                 : null;
 
-            // The second block of the form, with the Torrent section at its end. It
-            // is part of this column rather than one of the columns after the form
-            // (`ai/torrents.md`), so the gap before it is the one between sections
-            // rather than the one between the rows of a column.
+            // The second block of the form. The Torrent section is the last
+            // thing in it for every type except the pack, whose first column is
+            // the one that holds the sections below the fields, so for the pack
+            // the section goes there instead, above the Upload section
+            // (`ai/torrents.md`).
             final right = Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -1517,8 +1520,10 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
                       title: titles[1],
                       imageBox: isSingleVideo ? _thumbnailBox(l10n) : null,
                     ),
-                const SizedBox(height: _columnGap),
-                torrent,
+                if (!isPhotosetPack) ...[
+                  const SizedBox(height: _columnGap),
+                  torrent,
+                ],
               ],
             );
 
@@ -1565,9 +1570,13 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
               // the row has left. The sections that need a column's width — the
               // Upload section, the Message section, the draft — are stacked
               // below the fields, because the block's column is too narrow for
-              // their rows (`ai/picking.md` §7).
+              // their rows (`ai/picking.md` §7). The Torrent section is at the
+              // top of that stack, above the Upload section, because it is the
+              // first section of the form rather than one of the columns after
+              // it (`ai/torrents.md`).
               final fieldsColumn = sectionColumn([
                 left,
+                torrent,
                 upload,
                 message,
                 ?draft,
@@ -1578,7 +1587,8 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
               // at the whole width, and the space beside the block is empty —
               // that is what a strict maximum costs at a narrow window. With
               // one column there is no row, so the block is stacked after the
-              // fields, at its cap as well.
+              // fields, at its cap as well, and the section is still above the
+              // Upload section because it is in the same stack.
               final photoArea =
                   width - columnWidth - blockColumnWidth - 2 * _columnGap;
 
@@ -1586,6 +1596,7 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
                   ? _stack([
                       left,
                       blockColumn,
+                      torrent,
                       upload,
                       message,
                       ?draft,

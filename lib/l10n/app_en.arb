@@ -98,22 +98,18 @@
     "columnTitlePhotosets": "Photosets",
     "columnTitleImages": "Images",
     "photosetPackSectionTitle": "Photosets",
+    "photosetListSectionTitle": "Photoset List",
     "singlePhotosetSectionTitle": "Photoset",
     "scanPhotosets": "Scan",
     "pickPhotosets": "Pick",
-    "photosetPhotoCount": "{count} photos",
-    "@photosetPhotoCount": {
+    "photosetPickedOfTotal": "{picked} / {total}",
+    "@photosetPickedOfTotal": {
         "placeholders": {
-            "count": {
+            "picked": {
                 "type": "int"
-            }
-        }
-    },
-    "photosetPickedCount": "{count} picked",
-    "@photosetPickedCount": {
-        "placeholders": {
-            "count": {
-                "type": "int"
+            },
+            "total": {
+                "type": "String"
             }
         }
     },

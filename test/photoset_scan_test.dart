@@ -182,6 +182,38 @@ void main() {
     expect(result.maxResolution?.width, 100);
   });
 
+  // The size a photo has is the bytes the source gives it: the size on disk for
+  // a file in a folder. A photo whose header cannot be read is still counted,
+  // and its size is still known, so the total is the whole counted set rather
+  // than only the photos that could be measured (`ai/photoset_pack.md` §3).
+  test('the size is the bytes the source gives the photo', () async {
+    Directory(p.join(directory.path, 'set01')).createSync();
+    Directory(p.join(directory.path, 'set02')).createSync();
+
+    File(p.join(directory.path, 'set01/a.png'))
+        .writeAsBytesSync([0x89, 0x50, 0x4E, 0x47]);
+    writePhoto('set01', 'b.png', 100, 100);
+    writePhoto('set02', 'a.png', 150, 150);
+
+    final result = await scanner().scan(
+      directory.path,
+      ItemBoundary.entries,
+    ) as ScanSuccess;
+
+    // In the order the reader lists the folder, which is by name.
+    expect(result.sets.first.photos.map((photo) => photo.size).toList(), [
+      4,
+      pngPhoto(100, 100).length,
+    ]);
+    expect(result.sets.last.photos.single.size, pngPhoto(150, 150).length);
+
+    // Across all sets, because the field is the release's, not a set's.
+    expect(
+      result.totalSize,
+      4 + pngPhoto(100, 100).length + pngPhoto(150, 150).length,
+    );
+  });
+
   // The formats are the extensions the counted photos have, not the formats
   // their headers decode to: a photo whose header cannot be read is still
   // counted, so its extension is in the list too (`ai/single_photoset.md` §6).
@@ -435,6 +467,10 @@ void main() {
 
     expect(result.sets.single.photoCount, 1);
     expect(result.maxResolution?.value, '200x300');
+
+    // The size the field is built from comes from the same place: the local
+    // header has zeros there, so reading the size from it would report nothing.
+    expect(result.totalSize, pngPhoto(200, 300).length);
   });
 
   test('zip64 sizes come from the extra field', () async {
@@ -452,6 +488,28 @@ void main() {
 
     expect(result.sets.single.photoCount, 1);
     expect(result.maxResolution?.value, '200x300');
+    expect(result.totalSize, pngPhoto(200, 300).length);
+  });
+
+  // The size a photo has in an archive is what the archive states for its
+  // entry, which is the uncompressed length — the same kind of number as the
+  // size on disk for a file in a folder (`ai/photoset_pack.md` §3). A deflated
+  // entry is where the stored bytes and the entry's own length differ, so that
+  // is the case that says which of the two the field is built from.
+  test('the size of an archived photo is its own length', () async {
+    final bytes = jpegPhoto(200, 300);
+
+    _writeZip(p.join(directory.path, 'set01.zip'), [
+      _ZipEntry('a.png', bytes, deflate: true),
+    ]);
+
+    final result = await scanningArchives().scan(
+      directory.path,
+      ItemBoundary.entries,
+    ) as ScanSuccess;
+
+    expect(result.sets.single.photos.single.size, bytes.length);
+    expect(result.totalSize, bytes.length);
   });
 
   test(
@@ -730,8 +788,8 @@ class _FakeArchiveReader implements PhotosetReader {
 
   @override
   Future<List<ScannedPhoto>> read(String path) async => [
-    const ScannedPhoto(name: 'p1.jpg'),
-    const ScannedPhoto(name: 'p2.jpg'),
+    const ScannedPhoto(name: 'p1.jpg', size: 0),
+    const ScannedPhoto(name: 'p2.jpg', size: 0),
   ];
 
   @override

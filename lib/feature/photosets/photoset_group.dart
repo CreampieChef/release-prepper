@@ -89,6 +89,7 @@ class PhotosetState {
 class PhotosetStrings {
   const PhotosetStrings({
     required this.blockTitle,
+    required this.listTitle,
     required this.photosTitle,
     required this.emptyText,
     required this.pickHint,
@@ -97,6 +98,12 @@ class PhotosetStrings {
   /// The heading of the data block: the line that names the folder the user
   /// picked and the counts the scan took from it.
   final String blockTitle;
+
+  /// The header above the list of sets. Only a pack has a list: a single
+  /// photoset has one set, and a header naming a list reads wrong for one item,
+  /// so it is null for that type and the block draws nothing (`ai/picking.md`
+  /// §7).
+  final String? listTitle;
 
   /// The title of the area that shows the picked photos. For a pack it is the key
   /// the Screenshots section titles itself with, because what a pack shows is the
@@ -119,12 +126,14 @@ PhotosetStrings photosetStrings(
 ) => switch (releaseType) {
   ReleaseType.photosetPack => PhotosetStrings(
     blockTitle: l10n.photosetPackSectionTitle,
+    listTitle: l10n.photosetListSectionTitle,
     photosTitle: l10n.screenshotsSectionTitle,
     emptyText: l10n.photosetPackNoPhotosets,
     pickHint: l10n.photosetPackSourceEmpty,
   ),
   ReleaseType.singlePhotoset => PhotosetStrings(
     blockTitle: l10n.singlePhotosetSectionTitle,
+    listTitle: null,
     photosTitle: l10n.singlePhotosetSectionTitle,
     emptyText: l10n.singlePhotosetNoPhotosets,
     pickHint: l10n.singlePhotosetSourceEmpty,
@@ -136,6 +145,7 @@ PhotosetStrings photosetStrings(
   ReleaseType.videoPack ||
   ReleaseType.imageFolderUpload => PhotosetStrings(
     blockTitle: l10n.photosetPackSectionTitle,
+    listTitle: null,
     photosTitle: l10n.photosetPackSectionTitle,
     emptyText: l10n.photosetPackNoPhotosets,
     pickHint: l10n.photosetPackSourceEmpty,
@@ -169,24 +179,21 @@ PhotosetGroup photosetGroup(PhotosetState state, ReleaseItem item) {
   );
 }
 
-/// The count a line shows. The model stores it as a string, so a value that is not
-/// a number — a manifest edited by the user — is shown as it is, the same way the
-/// size field shows a value it cannot format.
-String photosetCountText(
-  AppLocalizations l10n,
-  PhotosetState state,
-  ReleaseItem item,
-) {
-  final value = item.fields.value('photoCount');
-  final count = int.tryParse(value);
+/// The count a line shows: what the rule picked for this set, then what the
+/// scan counted for it, the two numbers as the feature has them. The picked part
+/// is what the records say, so before a pick the line says 0 — the feature shows
+/// what is on disk. The model stores the count as a string, so a value that is
+/// not a number — a manifest edited by the user — is shown as it is, the same
+/// way the size field shows a value it cannot format.
+String photosetCountText(AppLocalizations l10n, PhotosetGroup group) {
+  final value = group.item.fields.value('photoCount');
 
-  return count == null ? value : l10n.photosetPhotoCount(count);
+  return l10n.photosetPickedOfTotal(group.paths.length, value);
 }
 
-/// The line naming one set: its name, the count the scan wrote, and the picked
-/// count. It is drawn once, in the block, because the grid no longer names a
-/// set above its photos — the tile says which set its photo is from instead
-/// (`ai/picking.md` §7).
+/// The line naming one set: its name and the two counts. It is drawn once, in
+/// the block, because the grid no longer names a set above its photos — the tile
+/// says which set its photo is from instead (`ai/picking.md` §7).
 Widget photosetLine(
   BuildContext context,
   AppLocalizations l10n,
@@ -206,17 +213,7 @@ Widget photosetLine(
           style: theme.textTheme.bodyMedium,
         ),
       ),
-      Text(
-        photosetCountText(l10n, state, group.item),
-        style: theme.textTheme.bodySmall,
-      ),
-      // The picked number comes from the records that exist, so it appears only
-      // after a pick: the feature shows what is on disk.
-      if (group.paths.isNotEmpty)
-        Text(
-          l10n.photosetPickedCount(group.paths.length),
-          style: theme.textTheme.bodySmall,
-        ),
+      Text(photosetCountText(l10n, group), style: theme.textTheme.bodySmall),
     ],
   );
 }

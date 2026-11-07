@@ -56,6 +56,7 @@ App-generated, at the release level:
 | Field | Meaning |
 | --- | --- |
 | `totalPhotoCount` | the number of photos in the set |
+| `totalSize` | the size the counted photos have in the source, summed |
 | `minResolution` | the smallest photo by pixel area |
 | `maxResolution` | the largest photo by pixel area |
 | `imageFormats` | the distinct formats among the counted photos |
@@ -71,9 +72,11 @@ writes the item's value, the section shows the count per set, and the aggregate 
 already has. Dropping either would make one of the two read the other.
 
 Resolution is compared by pixel area, as for a pack, and a resolution value is written as
-`WIDTHxHEIGHT`. `imageFormats` is the distinct extensions among the counted photos, lowercased and
-sorted alphabetically, joined with `, ` — the same rule as `videoFormats` (`ai/video_pack.md` §4). A
-photo whose header cannot be read is still counted, because the extension list is what decides what a
+`WIDTHxHEIGHT`. `totalSize` is the same name and the same rule as the pack's (`ai/photoset_pack.md`
+§3): the sizes the counted photos have in the source, summed — with one item that is the set's own
+total. `imageFormats` is the distinct extensions among the counted photos, lowercased and sorted
+alphabetically, joined with `, ` — the same rule as `videoFormats` (`ai/video_pack.md` §4). A photo
+whose header cannot be read is still counted, because the extension list is what decides what a
 photo is, and it is reported.
 
 The derived values describe **the source as scanned**, not the photos the picking rule chose: the post
@@ -150,10 +153,11 @@ unchanged.
 For a single photoset the block is the whole feature, because there is no space beside it for its
 pictures: Scan and Pick in its heading row, the set with its count, and the picked photos with the
 same grid drawing the pack uses, at the whole width, at the same two widths the feature gives it
-(`ai/picking.md` §7). It is not split by kind, because with one item the grid holds one set and
-there is nothing to group, so its photos are in the order the source gives them, and a tile there
-labels itself with its file name only: the block names the set above the photos, so there is
-nothing for a tile to say about which set it is from.
+(`ai/picking.md` §7). There is no header naming a list above the line, because one item is not a list
+(`ai/picking.md` §7). It is not split by kind, because with one item the grid holds one set and there
+is nothing to group, so its photos are in the order the source gives them, and a tile there labels
+itself with its file name only: the block names the set above the photos, so there is nothing for a
+tile to say about which set it is from.
 
 Re-picking writes the same names, so the block needs the cache eviction and a key that changes on each
 run, as `AGENTS.md` §5 requires — the rule the feature already follows. Here that key can be the

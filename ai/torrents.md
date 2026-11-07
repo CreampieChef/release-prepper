@@ -5,6 +5,13 @@ thing in the form's second column, under its fields, in every layout branch. It
 is not tied to a release type: the tool takes a file or a folder, so the section
 works for every type.
 
+The photoset pack is the one exception, because for that type the form's second
+column is its data block and the first column is the one that stacks the
+sections below the fields. For the pack the section is drawn in that first
+column, directly above the Upload section; where the pack's form is one column,
+there is no second column, so the rule is the same one — directly above the
+Upload section. In every other type the rule above stands.
+
 ## What it does
 
 The app calls `mkbrr create` on what the user picked — the source, which is a

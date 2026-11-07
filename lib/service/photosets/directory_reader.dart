@@ -29,6 +29,7 @@ class DirectoryPhotosetReader implements PhotosetReader {
         photos.add(
           ScannedPhoto(
             name: p.basename(entity.path),
+            size: (await entity.stat()).size,
             dimensions: await readImageDimensions(entity.path),
           ),
         );

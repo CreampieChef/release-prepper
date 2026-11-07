@@ -5,16 +5,17 @@ decided by the rule, and the feature shows what it decided rather than letting t
 
 For a pack it is two widgets, because it is in two grid cells. The block is the page's second
 column, at the most the width this feature gives it: its heading with the Scan and Pick buttons at
-its right, the rows the editor gives it, and the line naming each set the scan found. What the row
-has left after the fields' column and the block's column is the photo area. One widget cannot be
-two cells, so the two are two widgets, and what they have to share — the controller, and the
-generation the pictures are keyed with — is held by the editor, the widget that places them
-(`AGENTS.md` §5). The sections that need a column's width — the Upload section, the Message
-section, the draft — stay stacked below the fields in the fields' column, because the block's
-column is too narrow for their rows. A single photoset has no space beside its block for its
-pictures, so there is no area beside it: its block is the whole feature and draws the photos with
-the same grid the pack draws, but not split by kind, because with one set there is nothing to
-group (`ai/single_photoset.md` §7).
+its right, the rows the editor gives it, the header naming the list of sets, and the line naming
+each set the scan found. What the row has left after the fields' column and the block's column is
+the photo area. One widget cannot be two cells, so the two are two widgets, and what they have to
+share — the controller, and the generation the pictures are keyed with — is held by the editor, the
+widget that places them (`AGENTS.md` §5). The sections that need a column's width — the Upload
+section, the Message section, the draft — stay stacked below the fields in the fields' column,
+because the block's column is too narrow for their rows, and the Torrent section is drawn at the top
+of that stack, above the Upload section (`ai/torrents.md`). A single photoset has no space beside
+its block for its pictures, so there is no area beside it: its block is the whole feature and draws
+the photos with the same grid the pack draws, but not split by kind, because with one set there is
+nothing to group (`ai/single_photoset.md` §7).
 
 - Scan and Pick are two buttons in the block's heading row. Pick is disabled until a scan has run,
   because the rule reads the counts.
@@ -112,8 +113,27 @@ the window, so it is not taken.
   assignment counts the lines the drawing reserves — the file name, and the line naming the set
   where the grid draws one — so the two agree on a tile's height.
 
-- The picked number in a row comes from the records that exist, so it appears only after a pick: the
-  feature shows what is on disk.
+- Each label line is one line, cut with an ellipsis when the text is longer than the width the
+  tile is drawn at. The height the assignment reserves for a tile counts one line for each label, so
+  a name that wrapped would make the tile taller than the box the grid sized for it, and the two
+  have to agree on the height. It is the shared tile that does this, because the three sections that
+  show these files the same way can all reach a narrow column. Only what is painted is cut, not the
+  text: a tile whose label is cut still says the whole name to a test that looks for it.
+
+- The block has a heading row, which is the title row a section titles itself with, and the list
+  of sets has a header of its own below the rows the editor gave the block: the heading names the
+  block, the header names the list. Only a pack has that header, because only a pack has a list — a
+  single photoset has one set, and a header naming a list reads wrong for one item — so the strings
+  are resolved per type, and the type without a list has null there and draws nothing. The header is
+  not drawn above the placeholder that says the list is empty, because a header naming a list is not
+  drawn above an empty one. It has no action: the buttons belong to the whole block, and they are in
+  its heading row.
+
+- The line naming a set shows two numbers, `picked / total`: what the rule picked for that set,
+  and what the scan counted for it. Before a pick the first number is 0, because nothing has been
+  picked and the feature shows what is on disk. The second is the value the scan wrote for the item,
+  kept as the model stores it, so a count a user edited in `release.json` is shown as it is — the
+  same rule as the size field showing a value it cannot format.
 
 - A set with no photos shows its count in the block and is reported. Since the rule gives at least
 one photo to every set that has photos, a set shown with none is one the app could not read, which

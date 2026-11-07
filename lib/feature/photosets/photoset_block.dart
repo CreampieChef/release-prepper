@@ -9,8 +9,9 @@ import 'photosets_controller.dart';
 
 /// The Photoset data block (`ai/picking.md` §7, `ai/photoset_pack.md` §4, §6,
 /// `ai/single_photoset.md` §7): its heading with the Scan and Pick buttons at
-/// the right, the rows the editor gives it, and the line naming each set the
-/// scan found.
+/// the right, the rows the editor gives it, the header naming the list of sets,
+/// and the line naming each set the scan found. For a pack the header is drawn,
+/// for a single photoset it is not (`ai/picking.md` §7).
 ///
 /// For a pack the block is the page's second column, at the most the width this
 /// feature gives it. Its rows are the path the user picked and the counts the
@@ -256,9 +257,19 @@ class _PhotosetBlockState extends State<PhotosetBlock> {
           const SizedBox(height: _rowGap),
           row,
         ],
-        if (groups.isEmpty)
-          Text(strings.emptyText, style: theme.textTheme.bodyMedium)
-        else
+        if (groups.isEmpty) ...[
+          Text(strings.emptyText, style: theme.textTheme.bodyMedium),
+        ] else ...[
+          // The header naming the list, drawn only when the list is drawn: a
+          // header for a list is not drawn above the placeholder that says the
+          // list is empty. Only a pack has one, because only a pack has a list
+          // (`ai/picking.md` §7). The gap above it is the one between the
+          // block's parts, the one below it is the one after a title row.
+          if (strings.listTitle != null) ...[
+            const SizedBox(height: _rowGap),
+            SectionTitle(title: strings.listTitle!),
+            const SizedBox(height: _titleGap),
+          ],
           for (final group in groups) ...[
             photosetLine(context, l10n, state, group),
             // For a pack the photos of this set are in the photo area, so the
@@ -268,6 +279,7 @@ class _PhotosetBlockState extends State<PhotosetBlock> {
               photosetPhotoGrid(state, [group]),
             ],
           ],
+        ],
       ],
     );
   }

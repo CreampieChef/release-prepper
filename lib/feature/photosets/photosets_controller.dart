@@ -93,6 +93,7 @@ class PhotosetController {
     final counted = {
       'photosetCount': '${success.sets.length}',
       'totalPhotoCount': '${success.totalPhotoCount}',
+      'totalSize': '${success.totalSize}',
       'imageFormats': success.imageFormats.join(', '),
       if (success.minResolution != null)
         'minResolution': success.minResolution!.value,

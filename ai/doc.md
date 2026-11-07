@@ -455,7 +455,10 @@ data (`ai/release_structure.md` §4). The URLs are stored per image and per host
   `ai/bundled_native_tools.md`).
 - The Torrent section (`ai/torrents.md`) is the last thing in the form's second
   column, under its fields, in every layout branch, rather than one of the
-  columns after the form. It calls `mkbrr`, the other tool the app ships. It
+  columns after the form, except for a photoset pack: for that type the form's
+  second column is its data block, so the section is drawn in the column that
+  stacks the sections below the fields, directly above the Upload section
+  (`ai/torrents.md`). It calls `mkbrr`, the other tool the app ships. It
   runs the tool on whatever the user picked — a file or a folder, which is what
   the tool accepts — and writes `<release_dir>/<release_name>.torrent`. The
   output is passed as `--output`, because the tool's default is the source
@@ -3531,12 +3534,14 @@ than by a field name. The probe messages (`movieFileNotFound`, `probeToolNotAvai
 `posterWrongFormat`, `posterUrlInvalid`, `posterDownloadFailed`, `posterWriteFailed`,
 `posterRemoveFailed`) are in both files too and are used by `release_editor.dart`. The photoset
 pack family (`photosetPackFolderLabel`, `chooseFolder`, `siteOrJournalLabel`, `periodLabel`,
-`photosetCountLabel`, `totalPhotoCountLabel`, `minResolutionLabel`, `maxResolutionLabel`) is in
-both files and is used by `release_editor.dart`. The four names a video pack has of its own
-(`totalSizeLabel`, `videoCountLabel`, `videoResolutionsLabel`, `videoFormatsLabel`) are in both
-files too; every other name its field list uses is one the other types already have, because a
-credit is the same value as an actress name and a period is the same value, so no label is
-duplicated. A single
+`photosetCountLabel`, `totalPhotoCountLabel`, `totalSizeLabel`, `minResolutionLabel`,
+`maxResolutionLabel`) is in both files and is used by `release_editor.dart`. `totalSizeLabel`
+is the name the video pack has, and the two photoset field lists read it as well, because the
+size they count is the same kind of value, so no label is added for them. The three names a
+video pack has of its own (`videoCountLabel`, `videoResolutionsLabel`, `videoFormatsLabel`) are
+in both files too; every other name its field list uses is one the other types already have,
+because a credit is the same value as an actress name and a period is the same value, so no
+label is duplicated. A single
 photoset has three keys of its own: `imageFormatsLabel`, and the two words it uses for names the
 other types already have, `modelLabel` and `setNameLabel`; those two are resolved per release type,
 which is why the same field name reads as Cast in one form and Model in another. The release type
@@ -3561,24 +3566,29 @@ is used only by a single photoset, because a pack titles no column. It is the sa
 pack's block titles itself with, and the word for the image folder column is the same as that section's
 title, but these are separate keys, because a column title is not a section title. A tracker is not a key:
 its name is the same in every language, so it is a field on `Tracker`. The Photosets family
-(`scanPhotosets`, `pickPhotosets`, `photosetPhotoCount`, `photosetPickedCount`, `photosetSkippedEntries`,
-`photosetUnreadPhotos`, `photosetNameCollisions`, `photosetNotCopied`, `photosetEmptySets`,
-`photosetSourceNotFound`, `photosetSourceNotReadable`) is in both files and is read through
-`photosetStrings()` in `photoset_group.dart`, which both widgets use; these are the strings that read the
-same for one set. The ones that do not read the same for one set are keyed per type —
-`photosetPackSectionTitle` against `singlePhotosetSectionTitle`, `photosetPackNoPhotosets` against
-`singlePhotosetNoPhotosets`, `photosetPackSourceEmpty` against `singlePhotosetSourceEmpty` — and are
-resolved by `photosetStrings()` in `photoset_group.dart`, the same shape as `_sourceLabel` in the editor:
-one switch over the type, no table. It resolves two titles, because a pack shows two things: the heading of
-the block that names the sets, and the title of the area that shows the picked photos. For a pack the second
-is `screenshotsSectionTitle`, the key the Screenshots section titles itself with, so the two areas that show
-the same files the same way say the same word; for a single photoset there is no area apart from the block,
-so both are `singlePhotosetSectionTitle`. The keys are named for the pack because they were written when the
-pack was the only type that showed them. `photosetPhotoCount`, `photosetSkippedEntries`,
-`photosetUnreadPhotos`, `photosetNameCollisions`, `photosetPickedCount`, `photosetNotCopied` and
-`photosetEmptySets` take placeholders and are documented with `@key` in both files. The Russian value of
-`photosetPhotoCount` is the form that does not need a plural rule, because the app has no plural rules
-anywhere else. The Video pack family (`videoFolderLabel`, `videoPackSectionTitle`, `scanVideos`, `noVideos`,
+(`scanPhotosets`, `pickPhotosets`, `photosetPickedOfTotal`, `photosetListSectionTitle`,
+`photosetSkippedEntries`, `photosetUnreadPhotos`, `photosetNameCollisions`, `photosetNotCopied`,
+`photosetEmptySets`, `photosetSourceNotFound`, `photosetSourceNotReadable`) is in both files and is
+read through `photosetStrings()` in `photoset_group.dart`, which both widgets use; these are the
+strings that read the same for one set. The ones that do not read the same for one set are keyed per
+type — `photosetPackSectionTitle` against `singlePhotosetSectionTitle`, `photosetPackNoPhotosets`
+against `singlePhotosetNoPhotosets`, `photosetPackSourceEmpty` against `singlePhotosetSourceEmpty` —
+and are resolved by `photosetStrings()` in `photoset_group.dart`, the same shape as `_sourceLabel`
+in the editor: one switch over the type, no table. It resolves three titles, because a pack shows
+three things: the heading of the block, the header naming the list, and the title of the area that
+shows the picked photos. The header is one key, `photosetListSectionTitle`, not a pair, because only
+a pack has a list: the type with one set has null there and draws nothing (`ai/picking.md` §7). For
+a pack the third title is `screenshotsSectionTitle`, the key the Screenshots section titles itself
+with, so the two areas that show the same files the same way say the same word; for a single
+photoset there is no area apart from the block, so both are `singlePhotosetSectionTitle`. The keys
+are named for the pack because they were written when the pack was the only type that showed them.
+`photosetPickedOfTotal`, `photosetSkippedEntries`, `photosetUnreadPhotos`, `photosetNameCollisions`,
+`photosetNotCopied` and `photosetEmptySets` take placeholders and are documented with `@key` in both
+files. The count key is the pair one line shows — the number the rule picked and the number the scan
+counted — so its second placeholder is a String rather than an int: the value is the model's, and a
+String placeholder is what lets a count a user edited in `release.json` be shown as it is. There is
+no plural form anywhere, and none is needed: the pair is one format string, and the Russian value is
+the same shape as the English one.
 `videoSkippedFiles`, `videoUnprobedFiles`, `videoEmptyFolders`, `videoUnreadableFolders`,
 `videoSourceEmpty`, `videoSourceNotFound`, `videoSourceNotReadable`) is in both files and is used by
 `release_editor.dart` and `video_pack_section.dart`. The four report keys take a `{names}` placeholder and
@@ -4199,6 +4209,11 @@ pack — the section, the Upload section with the Message section are the column
 after the form, and the Torrent section is the last thing in the form's second
 column, below its last field with the gap between sections rather than the gap
 between the rows of a column, in the four-column layout and in the single-column
+For a photoset pack the section is in the fields' column instead, because for
+that type the form's second column is its data block, and in both layouts it is
+the row above the Upload section, at the width of the fields' column. The test
+reads it in both: at 2000 px it is below the fields at that width, and at 800
+px, where there is one column, it is still the row above the Upload section.
 one. For the photoset pack the block is the page's second column, at the most
 the width this feature gives it, and the photo area is what the row has left:
 the test reads the two column widths, the area and the two gaps and checks that
@@ -4339,6 +4354,10 @@ source the source itself is the item and its path is the source's own name, the
 order is the order the source gives, the minimum and the maximum are decided by
 pixel area across all photos, a photo whose header cannot be read is counted and
 reported, the formats are the distinct extensions among the counted photos
+the size a photo has is the bytes the source gives it — the size on disk for a
+file in a folder, the entry's own length for an archive, including the cases
+where the header holds placeholders instead of the sizes — and the total is
+summed across the sets, so a photo whose header cannot be read is still in it,
 lowercased and sorted, display names two items would share are reported rather
 than renamed, a source that is not there is a failure, and the scan reads
 through the reader interface — a test with a fake archive reader shows that
@@ -4375,6 +4394,15 @@ set with no photos shows its line in the block and nothing in the grid. A single
 places its tiles by the same grid, not split, because one set is nothing to group, and a
 landscape spans the columns the two widths give, because its block draws them itself, and a
 tile there carries its file name only.
+The header naming the list is its own test: before a scan it is not drawn, because there
+is nothing to name above the placeholder that says the list is empty, and after one it is
+read as being between the rows the block was given and the first line; the test for the
+type with no list asserts it is absent there. The pair a line shows is checked as the
+number the rule gives for the fixture and the number the fixture has, so both come from
+the rule and the fixtures rather than from a number written out, and before a pick its
+first number is 0. The values include the total size, and the number a test expects is the
+sum of the bytes its fixtures wrote, so an expected total is computed from the fixtures
+rather than written out.
 `test/image_folder_test.dart` covers the controller and the section: the scan
 records the one item the picked folder is, copies every image into the release
 in filename order — the fixtures are written out of order, so the test shows the

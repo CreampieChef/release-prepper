@@ -4,9 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 /// One image as the app shows it: the picture with its file name centered under
-/// it, and the line naming the group it is from above that when the caller
-/// gives one. Shared UI, because the Screenshots, Photosets and Video pack
-/// sections show the same files the same way.
+/// it, and the line naming the group it is from above that when the caller gives
+/// one. Shared UI, because the Screenshots, Photosets and Video pack sections
+/// show the same files the same way.
+///
+/// Each label line is one line, cut with an ellipsis when the text is longer
+/// than the width the tile is drawn at. The height a tile takes is what the
+/// packing reserves for it, and the packing reserves one line for each label
+/// (`ai/picking.md` §7), so a name longer than a narrow column cannot be shown
+/// as two lines: the drawing would then take more height than the box it was
+/// given. The text itself is not cut — the widget holds the whole name, only
+/// what is painted is.
 ///
 /// `showName` is false where the names are all the same shape — the small tiles
 /// in a table row do not repeat them, because the row already names the item.
@@ -62,6 +70,8 @@ class ImageTile extends StatelessWidget {
             groupLabel!,
             style: theme.textTheme.bodyMedium,
             textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
         if (showName) ...[
@@ -70,6 +80,8 @@ class ImageTile extends StatelessWidget {
             p.basename(path),
             style: theme.textTheme.bodySmall,
             textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ],
