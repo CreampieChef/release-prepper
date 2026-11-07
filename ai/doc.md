@@ -151,18 +151,20 @@ What is left unfinished is not a compile error but missing behaviour:
   drawn as the page's columns draws exactly those columns rather than its own — the photoset grid is the exception, because it lays
   its own columns out from the two widths `photoset_group.dart` gives it (§7). The columns after the form's are only ever the
   sections' columns, and only for the types `release_editor.dart` says can be one of them — the two video types, because the page is
-  the same shape for them, and the photoset pack, whose photo area takes every column after the form and puts one set in each of the
-  columns its rule fits: the pack's form is one column, and its Photosets block, the Upload section and the Message section are
-  stacked below its fields in that same column. A masonry cannot be read at one column width, so the single photoset and the image
-  folder keep the whole width below the form, and a single photoset draws its photos in its own block because there are no columns
-  to put them in. Any type's section goes below the form too, left-aligned at one column width, when there is no room for it as a
-  column; for a pack that is the whole width, because its grid fits as many of its own columns as fit in that width. The Message
+  the same shape for them, and the photoset pack, whose page is the fields' column, then the Photosets block's column at the most
+  the width this feature gives it, then the photo area for what the row has left; the Upload section, the Message section and the
+  draft are stacked below the fields in the fields' column, because the block's column is too narrow for their rows. A masonry
+  cannot be read at one column width, so the single photoset and the image folder keep the whole width below the form, and a single
+  photoset draws its photos in its own block because there is no space beside it for them. Any type's section goes below the form
+  too, left-aligned at one column width, when there is no room for it as a column; for a pack the photo area goes below the row at
+  the whole width when what the row has left cannot hold one column of its grid, and the space beside the capped block is left empty
+  (§7). The Message
   section is the whole width below everything unless it is one of those columns, which for a pack it is never, being part of the
   form's column. Each column is titled by what it holds, with the same title style the sections use: "Release Info" for the column
   of fields the user writes, and for the column of values the scan or the probe read the name of what that type holds — Video for a
   single video, Photosets for the two photoset types, Images for the image folder. A photoset pack is the exception: the only column
-  the editor titles is the one with its fields, because what is below it in that column is the Photosets block, which titles itself
-  as a section does, and the columns after the first are the photo area, which titles itself too. So for a pack the word Photosets
+  the editor titles is the one with its fields, because its Photosets block titles itself as a section does, in its own column, and
+  so does the photo area. So for a pack the word Photosets
   is said twice — as the block's heading and as the label of the count row inside it — and the word Screenshots once, as the title
   of the area, because what the area shows is the pictures rather than the list of sets (`ai/picking.md` §7). A video pack's second
   column is the folder the user picked and the values the scan took from it, so it is titled by the folder rather than by one value
@@ -298,17 +300,19 @@ What is left unfinished is not a compile error but missing behaviour:
   that is itself what changes such a state calls the same notice at the end of its run, so there is
   one path for the notice and one place where the rebuilds happen.
 - For a photoset pack the feature is the Photosets block and the photo area, two widgets because they
-  are in two grid cells (`ai/photoset_pack.md`, `ai/picking.md` §7). The block is the page's first
-  column, below the fields: its heading with the Scan and Pick buttons at the right, the rows the
-  editor gives it — the path the user picked and the counts the scan took, which every other type has
-  as rows of the form — and the line naming each set with the number of photos in it. The area is the
-  columns after the first, one per set, its photos stacked at the width of that column with the same
-  line naming the set above them, because a column of pictures has to say which set it is showing,
-  and the same line is in the block, which is where the sets are listed. Nothing is shown before the
-  scan, because opening a release is a read and changes nothing, and nothing is drawn for a set
-  before a pick, because the feature shows what is on disk. A set the scan found is drawn on its own,
-  with its line and no pictures, even when nothing was picked for it, because that is what says the
-  set will not be in the post. The scan decides which entries under the picked folder are items,
+  are in two grid cells (`ai/photoset_pack.md`, `ai/picking.md` §7). The block is the page's second
+  column, at the most the width this feature gives it: its heading with the Scan and Pick buttons at
+  the right, the rows the editor gives it — the path the user picked and the counts the scan took,
+  which   every other type has as rows of the form — and the line naming each set with the number of
+  photos in it.   The area is what the row has left after the fields' column and the block's column,
+  and it draws the grid   this feature fits from the two widths it gives: the photos of every set
+  together, in the order the source   gives the sets and, within a set, the order it gives the
+  photos, so nothing groups them and each tile says   which set its photo is from as well as its file
+  name. Nothing is shown before the scan, because opening a   release is a read and changes nothing,
+  and nothing is drawn for a set before a pick, because the feature   shows what is on disk. A set
+  the scan found is named by its line in the block even when nothing was   picked for it, because
+  that is what says the set will not be in the post; with nothing grouping the photos   there is no
+  column in the grid for such a set. The scan decides which entries under the picked folder are items,
   counts the photos in each, and reads their dimensions from the file headers rather than by decoding
   the image; the minimum and the maximum are decided by pixel area across all photos, and what the
   scan could not take is reported rather than guessed at. The values it counts go through the
@@ -940,10 +944,11 @@ lib/
                               other extension with Image.asset, so PNG icons work
                               without changing call sites. Presentational only:
                               no state, so no controller.
-    image_tile.dart           ImageTile, the bordered box with a picture and its
-                              file name centered under it, shared by the Screenshots,
-                              Photosets and Video pack sections, because they show the same
-                              files the same way. With it `imageFromFile` and
+    image_tile.dart           ImageTile, the bordered box with a picture and its file name
+                              centered under it, and the line naming the group the file is
+                              from above that when the caller gives one. Shared by the
+                              Screenshots, Photosets and Video pack sections, because they
+                              show the same files the same way. With it `imageFromFile` and
                               `evictCachedImages`, the two halves of the rule in
                               AGENTS.md §5: the key that changes on each rewrite, and the
                               cache entry dropped for the path the app writes. The
@@ -1170,11 +1175,13 @@ lib/
                                cache is emptied for those paths and the generation moves only
                                when the run wrote something. Also the strings resolved per type,
                                one set as the feature lays it out, the line naming it, the tile,
-                               the two grid shapes, and the width each grid lays its columns out
-                               at — the two the pack's grid fits between, and the one the single
-                               photoset's own masonry uses — because a private helper in one file
-                               cannot be read from the other.
-      photoset_block.dart      PhotosetBlock: the data block as the page's first column — its
+                               the one grid shape, and the three numbers the grid is built from:
+                               the width a portrait's column is, the width a landscape's is —
+                               which is the number of columns a landscape spans — and the widest
+                               the block's column is. The numbers are here because a private
+                               helper in one file cannot be read from the other.
+      photoset_block.dart      PhotosetBlock: the data block as the page's second column, at the
+                               most the width this feature gives it — its
                                heading with the Scan and Pick buttons at the right, the rows the
                                editor gives it, and the line naming each set the scan found. Pick
                                is disabled until a scan has run, because the rule reads the
@@ -1183,23 +1190,23 @@ lib/
                                path the user picked and the counts the scan took, which the
                                editor builds because they are form rows; every other type keeps
                                those as rows of the form. For a single photoset it is the whole
-                               feature, because there are no columns to put the pictures in, and
-                               it draws them itself (`ai/single_photoset.md` §7). What the scan
+                               feature, because there is no space beside it for the pictures, and
+                               it draws them with the same grid this feature uses
+                               (`ai/single_photoset.md` §7). What the scan
                                or the pick could not take is reported as a message. The lines are
                                keyed `groupHeader` by the item's path rather than the name it is
                                shown under — two items that would share a display name are still
                                two sets.
       photoset_gallery.dart    PhotosetGallery: the area a pack shows its picked photos in — the
-                               title row, and one column per set as the rule fits them, with its
-                               photos stacked at one width and the line naming the set above
-                               them. No state: a run happens in the block, and the page builds
-                               again afterwards, so the pictures here are resolved against the
-                               cache the run emptied. Its columns are the ones the rule fits, and
-                               nothing spans in it, because a set is the width of its column
-                               whatever shape its photos are. The column boxes are keyed
-                               `photosetColumn`, the lines above them `groupColumnHeader` by the
-                               column and the item's path, and the tiles `groupTile` by the path
-                               each is shown from (`ai/picking.md` §7). The tiles are the shared
+                               title row, and the grid this feature fits from the two widths it
+                               gives, at the space the page has left after the two columns. No
+                               state: a run happens in the block, and the page builds again
+                               afterwards, so the pictures here are resolved against the cache
+                               the run emptied. A tile labels itself with its file name and with
+                               the set it is from, because nothing groups the photos. The area is
+                               keyed `photosetGallery`, the lines in the block `groupHeader`, and
+                               the tiles `photoTile` by the path each is shown from
+                               (`ai/picking.md` §7). The tiles are the shared
                                `ImageTile`, at the box height the packing worked out for each
                                photo, with a key that changes on each run because a re-pick
                                writes the same names (`AGENTS.md` §5).
@@ -1801,31 +1808,26 @@ lib/
       masonry.dart              minColumnWidth and columnGap: the column width the page is built
                                 from and the gap between its columns, shared because a section
                                 drawn as the page's columns has to draw exactly those
-                                (`ai/picking.md` §7). `photoColumnCount()` and
-                                `photoColumnWidth()` are the columns the pack's grid fits for
-                                itself: as many as fit at the minimum it is given, each drawn at
-                                the share of the space but never wider than the maximum it is
-                                given, so what is left when the share is more than the maximum is
-                                left unused rather than a column being made narrower than the
-                                minimum. pictureHeight() and tileHeight() are what a tile takes
-                                in a column of a given width, tileHeight with the gap that is its
-                                own padding, and groupHeight() is what a group takes: its header
-                                line and then its tiles, each at its full height.
-                                `groupColumns()` is the pack's placement: a group goes whole to
-                                the column that is highest at the point it is placed, ties to the
-                                lower index, and nothing spans, because a group is the width of
-                                one column. `masonryPositions()`: the placement for a grid of
-                                columns of equal width — each photo goes to the pair of columns
-                                that is highest at the point it is added, ties to the lower
-                                index, and the order inside a column is the order the source
-                                gives. A photo at or above `landscapeSpanRatio` spans two columns
-                                unless the caller caps the span, and a span starts where both of
-                                its columns are free, so the other one keeps a gap. The
-                                Screenshots grid asks for a cap of 1, because every file there is
-                                a frame at the same ratio and spans would make the grid one
-                                column. Heights are in pixels, because a tile is its image plus
-                                the name under it, so the placement does depend on the column
-                                width. Pure, and tested on its own.
+                                (`ai/picking.md` §7). `photoColumnCount()` is as many columns as
+                                fit at the width it is given, and `photoColumnWidth()` is the
+                                share of the space, so the space is used up rather than leaving a
+                                strip at the right narrower than a column; `photoSpanCount()` is
+                                the number of columns a landscape takes, the number that makes it
+                                as wide as the landscape width it is given, because a grid can
+                                only be a whole number of columns wide. pictureHeight() and
+                                tileHeight() are what a tile takes in a column of a given width,
+                                tileHeight with the gap that is its own padding.
+                                `masonryPositions()`: the placement for a grid of columns of
+                                equal width — each photo goes to the columns that are highest at
+                                the point it is added, ties to the lower index, and the order is
+                                the order the source gives. A photo at or above
+                                `landscapeSpanRatio` spans as many columns as the caller allows,
+                                and a span starts where all of its columns are free, so the
+                                others keep a gap. The Screenshots grid asks for a span of one,
+                                because every file there is a frame at the same ratio and spans
+                                would make the grid one column. Heights are in pixels, because a
+                                tile is its image plus the lines under it, so the placement does
+                                depend on the column width. Pure, and tested on its own.
     native_tools/
       tool_locator.dart         ToolLocator: where a tool's executable is — the
                                 app bundle first, then PATH. A tool with a
@@ -3030,28 +3032,26 @@ block shows what it decided rather than letting the user change it. `PhotosetCon
 the photos the rule picked into the release under the display name — the release folder mirrors the
 structure the user picked for the images that are copied into it — and records them as `kind: photo`
 with `item` set to the set's path, replacing the photo records this run writes while the poster and
-the records of other kinds are kept. The picked photos are grouped per set, in the order the source
-gives them, matching how the message groups them (`ai/photoset_pack.md` §7). For a pack the grid fits
-its own columns: as many as fit at the minimum `photoset_group.dart` gives it, and each is drawn at
-the share of the space but never wider than the maximum, so what is left when the share is more than
-the maximum is empty space at the right of the grid rather than part of a column; the number is capped
-at the number of sets, because a column with no set in it is not a column the grid has. Each set is
-drawn in one of those columns, at that column's width, with the line naming the set above it and
-nothing spanning, because a set is the width of its column whatever shape its photos are — a set is
-what the user reads as one group. For a single photoset there are no columns to put the photos in, so
-the block draws them as the masonry it always drew: columns of equal width, each photo placed where
-its column is free, each tile at the ratio the photo has, so nothing is cropped, and a photo at or
-above a ratio of 1.2 spans two columns, which is what makes a landscape read as a landscape rather
-than as a small tile; a span starts where both of its columns are free, so the other column keeps a
-gap, and filling it would put a photo out of the order the source gives. The ratio comes from the
-header, read synchronously, because a grid cannot be laid out before it knows the shape of each tile
-and a widget builds synchronously — the same reason `ImagesStore.loadSync` exists. A photo whose
-header cannot be read takes a square tile. Both place by position rather than by nesting: a tile can
-span two columns in one case, and a set takes a whole column in the other. The picked number in a row
-comes from the records that exist, so it appears only after a pick: the feature shows what is on disk.
-A photo that could not be read or written, and a set with no photos, are reported rather than left
-out, and a set with no photos still takes a column in a pack's grid, because a column is a set and the
-scan found that set. Re-picking writes the same names, so the block records what its run wrote and the
+the records of other kinds are kept. The picked photos are one grid, in the order the source gives the
+sets and, within a set, the order it gives the photos; the message still groups them by set
+(`ai/photoset_pack.md` §7), because that is a list rather than a grid, and a tile says which set its
+photo is from because nothing else does. The grid is as many columns of `photosetColumnWidth` as fit
+in the space it is given, and what those columns cannot use is shared out rather than left as a strip
+at the right, so the space is used up; a photo at or above a ratio of 1.2 spans the number of columns
+that makes it `photosetLandscapeWidth`, which is what makes a landscape read as a landscape rather
+than as a small tile, and a span starts where all of its columns are free, so the others keep a gap —
+filling it would put a photo out of the order the source gives. The columns have no gap of their own,
+because a spanned column must be exactly as many of them as the two widths say: the space between two
+tiles is the padding inside them. A single photoset has no space beside its block, so its block draws
+the same grid at the whole width, and a tile there keeps its file name only, because its block names
+the one set above the photos. The ratio comes from the header, read synchronously, because a grid
+cannot be laid out before it knows the shape of each tile and a widget builds synchronously — the same
+reason `ImagesStore.loadSync` exists. A photo whose header cannot be read takes a square tile. The
+grid places by position rather than by nesting, because a tile can span columns. The picked number in
+a row comes from the records that exist, so it appears only after a pick: the feature shows what is on
+disk. A photo that could not be read or written, and a set with no photos, are reported rather than
+left out, and a set with no photos is only its line in the block, because with nothing grouping the
+photos there is no column for it. Re-picking writes the same names, so the block records what its run wrote and the
 tiles are keyed with a generation that moves on each run, as the rule above requires; that generation
 is the shared state's rather than the block's own counter, because for a pack the pictures are drawn
 by `PhotosetGallery`, and the block reports the run to the editor so the page builds again and the
@@ -4179,16 +4179,21 @@ pack — the section, the Upload section with the Message section are the column
 after the form, and the Torrent section is the last thing in the form's second
 column, below its last field with the gap between sections rather than the gap
 between the rows of a column, in the four-column layout and in the single-column
-one. For the photoset pack the block is the form's first column, below the
-fields, and the photo area is the columns after it: the area is placed in the
-grid as the column it spans is, so its top is where that column's title would
-have been. Which column each set is drawn in is not this test's — that is
+one. For the photoset pack the block is the page's second column, at the most
+the width this feature gives it, and the photo area is what the row has left:
+the test reads the two column widths, the area and the two gaps and checks that
+together they make the page, so nothing is left over at the right, and that the
+block and the area both start at the top of the row. The other half of the rule
+is its own test, at a window where the row cannot hold one column of the grid:
+there the area is below the row at the whole width and the space beside the
+capped block is left empty, and the same is checked at a window with room for
+one column only, where everything is stacked and the block is capped there too.
+Which column a photo is drawn in is not this test's — that is
 `test/photosets_test.dart`, where the drawing is checked against the assignment.
 The test reads the rows inside the block — the source row and the count field —
 because for a pack those are the block's rows rather than the form's. The Upload
-section and the Message section with the draft are below the block in that same
-column, at its width, and when only one column fits the area is below the form
-at that width, fitting its own columns inside it. At 1200 px the sections are
+section and the Message section with the draft are below the fields in the
+fields' column, at its width. At 1200 px the sections are
 the same width but below the form, at the left edge, for the types with two form
 columns; for a pack that is only when a single column fits, which its test uses
 800 px for, because a pack has no second form column to make two fit. A field's
@@ -4284,16 +4289,14 @@ ratio takes two columns, one below it and one whose header could not be read
 take one, a span starts where both of its columns are free so the other keeps a
 gap, ties go to the lower column index, and a grid that caps its span at one
 puts every photo in one column and packs them as the shortest column, which is
-what the Screenshots grid asks for. It also covers the pack's grid: a picture is
-the width of its column at the ratio the photo has, a group is its header line
-and its photos with the gap after each, a group goes whole to the column that is
-highest up when it is placed, ties go to the lower index, a group with no photos
-is its header alone so it takes a column, the placement depends on the column
-width because the name line is a fixed height rather than a share of it, and the
-same groups give the same placement twice. It also covers the columns the pack's
-grid fits for itself: as many as fit at the minimum, a column never wider than
-the maximum, so a space that cannot hold both is read as the minimum with the
-rest left unused, and a space narrower than the minimum is one column.
+what the Screenshots grid asks for. It covers the columns the grid fits from the
+two widths it is given: as many as fit at the portrait width, each drawn at the
+share of the space so the space is used up rather than leaving a strip at the
+right that is narrower than a column, and a space narrower than the width is one
+column. It covers the number of columns a landscape takes as the rule that works
+it out of the two widths, including a pair that is not a whole multiple apart,
+which takes the nearest whole number, and a landscape narrower than one column,
+which takes one.
 `test/section_title_test.dart` covers the shared title row: the title is at the
 left and the action at the right edge, the title is centred on the row because
 the row is as tall as the action, that the action is at least `actionMinWidth`
@@ -4330,17 +4333,19 @@ type it is showing, and that its Scan and Pick buttons are in its heading row
 rather than in a row of their own. A test builds the block and the area with the
 state they share, as the editor does, and builds them again after a run, because
 a test is not the editor and the area shows what a run wrote only when the page
-builds again. For a pack the test asks the rule for the picks rather than
-assuming them, so the names it compares are the ones the pick writes, and the
-drawing is checked against the assignment the service gives for those names; the
-space the area was given is read from what it drew, and the number of columns
-and the width each is drawn at are worked out from it with the rule rather than
-assumed — so the test follows whatever the two constants are changed to; the
-fixture is a space that cannot hold both, so it also shows a set sharing a
-column. The same set's line is expected in the block and above its column, which
-is why the two lines cannot carry the same key, and a set with no photos still
-shows its line above its column. A single photoset places its tiles by the
-masonry, and a landscape spans two, because its block draws the photos itself.
+builds again. For a pack the test asks the rule for the picks rather than assuming them, so
+the names it compares are the ones the pick writes, and the drawing is checked
+against the assignment the service gives for those names; the space the area was
+given is read from what it drew, and the number of columns, the width each is
+drawn at and the number a landscape spans are worked out from it with the rule
+rather than assumed — so the test follows whatever the constants are changed to.
+Each tile is expected to carry the line naming its set and its file name,
+because nothing groups the photos, and the block's line is expected once, not
+also above a column; the fixture is a space that holds more than one column,
+which is what a span needs. A set with no photos shows its line in the block and
+nothing in the grid. A single photoset places its tiles by the same grid, and a
+landscape spans the columns the two widths give, because its block draws them
+itself, and a tile there carries its file name only.
 `test/image_folder_test.dart` covers the controller and the section: the scan
 records the one item the picked folder is, copies every image into the release
 in filename order — the fixtures are written out of order, so the test shows the

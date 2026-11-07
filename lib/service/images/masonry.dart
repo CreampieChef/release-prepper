@@ -45,29 +45,31 @@ const minColumnWidth = 430.0;
 /// its own columns so that they are the page's columns.
 const columnGap = 24.0;
 
-/// How many columns of photos fit in [width] (`ai/picking.md` §7): as many as fit
-/// at [min], so the columns are as narrow as the minimum allows. The caller caps
-/// the number at the number of groups, because a column with no group in it is not
-/// a column the grid has.
-int photoColumnCount({
-  required double width,
-  required double min,
-  required double gap,
-}) => math.max(((width + gap) / (min + gap)).floor(), 1);
+/// How many columns of photos fit in [width] (`ai/picking.md` §7): as many as
+/// fit at [min], so the grid is as dense as the width allows. At least one: a
+/// space narrower than [min] is the one column it is, rather than no column at
+/// all. The columns are not separated by a gap of their own, because a spanned
+/// column has to be exactly as many of them as the numbers say: the space
+/// between two tiles is the padding inside them.
+int photoColumnCount({required double width, required double min}) =>
+    math.max(width ~/ min, 1);
 
-/// The width one of those columns is drawn at (`ai/picking.md` §7): the share of
-/// [width], but never more than [max]. A space that cannot hold both is read as the
-/// minimum rather than as less than it, because the number of columns is what the
-/// minimum decides: when the share is bigger than [max] the column is drawn at the
-/// cap and the rest of the space is left unused rather than a column being made
-/// narrower than the minimum. The drawing and the assignment use this one width, so
-/// they agree on it.
-double photoColumnWidth({
-  required double width,
-  required int columnCount,
-  required double max,
-  required double gap,
-}) => math.min((width - gap * (columnCount - 1)) / columnCount, max);
+/// The width one of those columns is drawn at (`ai/picking.md` §7): the share
+/// of [width], which is [min] or more, so the space is used up rather than
+/// leaving a strip at the right that is narrower than a column. The drawing and
+/// the assignment use this one width, so they agree on it.
+double photoColumnWidth({required double width, required int columnCount}) =>
+    width / columnCount;
+
+/// How many columns a landscape takes (`ai/picking.md` §7): the number that
+/// makes a column [landscapeWidth] wide when a portrait's column is
+/// [portraitWidth]. A grid can only be a whole number of columns wide, so when
+/// the two are not a whole multiple apart this is the nearest whole number, and
+/// a pair below one column is one column.
+int photoSpanCount({
+  required double portraitWidth,
+  required double landscapeWidth,
+}) => math.max((landscapeWidth / portraitWidth).round(), 1);
 
 /// The height a photo takes in a column of this width: the image at the ratio it
 /// has, plus the name line under it. The name line is a fixed height rather than
@@ -90,64 +92,12 @@ double tileHeight(
   double gap,
 ) => pictureHeight(ratio, columnWidth) + labelHeight + gap;
 
-/// The height a group takes in a column: its header line and then its photos,
-/// each at its full height with the gap that is its own padding. A group is
-/// placed as one block, so its height
-/// is what decides which column it goes to, and the assignment compares the height
-/// as the drawing reserves it. A group with no photos is its header alone, because
-/// a set the app could not read is still shown (`ai/picking.md` §7).
-double groupHeight(
-  List<double?> ratios,
-  double columnWidth,
-  double headerHeight,
-  double labelHeight,
-  double gap,
-) =>
-    headerHeight +
-    ratios.fold(
-      0.0,
-      (total, ratio) =>
-          total + tileHeight(ratio, columnWidth, labelHeight, gap),
-    );
-
-/// Which column each group's stack goes to, in the order the source gives the
-/// groups (`ai/picking.md` §7): the column that is highest up when the group is
-/// placed, ties to the lower column index, so the same input gives the same
-/// output. The returned list is one entry per group, in the order the groups were
-/// given.
-///
-/// This is the packing with groups rather than photos: photos from one group never
-/// share a column with photos from another, so a group is placed whole, and no
-/// photo spans — every tile in a group is the width of its column, whether the
-/// photo is portrait or landscape.
-List<int> groupColumns({
-  required List<double> groupHeights,
-  required int columnCount,
-}) {
-  final heights = List<double>.filled(columnCount, 0);
-  final columns = <int>[];
-
-  for (final height in groupHeights) {
-    var column = 0;
-
-    for (var candidate = 1; candidate < columnCount; candidate++) {
-      if (heights[candidate] < heights[column]) {
-        column = candidate;
-      }
-    }
-
-    columns.add(column);
-    heights[column] += height;
-  }
-
-  return columns;
-}
-
 /// The grid the section draws (`ai/picking.md` §7): columns of equal width,
 /// each photo placed at the point where its column is free, each tile at the
 /// ratio the photo has, so nothing is cropped. A photo clearly wider than it is
-/// tall spans two columns, which is what makes a landscape read as a landscape
-/// rather than as a small tile, unless [maxSpan] says the grid does not span.
+/// tall spans as many columns as [maxSpan] says, which is what makes a
+/// landscape read as a landscape rather than as a small tile, unless [maxSpan]
+/// says the grid does not span.
 ///
 /// A spanning tile can only start where both of its columns are free, so it
 /// starts at the lower of the two and the other column has a gap until it is
@@ -157,7 +107,7 @@ List<int> groupColumns({
 /// the gaps are left.
 ///
 /// The heights are in pixels rather than relative, because a tile is its image
-/// plus the name under it, and the name is a fixed height, not a share of the
+/// plus the lines under it, and those are a fixed height, not a share of the
 /// column width. So the assignment does depend on the column width, and a
 /// resized window can lay the same photos out differently.
 ///
@@ -178,10 +128,11 @@ List<GridTile> masonryPositions({
     // square is one column.
     final ratio = ratios[index] ?? 1;
 
-    // A tile spans only as far as the caller allows. With maxSpan 1 this is the
-    // plain shortest-column packing.
-    final span = ratio >= landscapeSpanRatio && columnCount >= 2 && maxSpan >= 2
-        ? 2
+    // A tile spans as far as the caller allows, and only as far as the grid has
+    // columns for. With maxSpan 1 this is the plain shortest-column packing.
+    final span =
+        ratio >= landscapeSpanRatio && maxSpan >= 2 && columnCount >= maxSpan
+        ? maxSpan
         : 1;
 
     var column = 0;

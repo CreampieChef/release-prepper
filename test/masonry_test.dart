@@ -103,136 +103,59 @@ void main() {
 
     expect(shape(place(ratios, 3)), shape(place(ratios, 3)));
   });
-
-  // The pack's grid (`ai/picking.md` §7): a group is placed whole, so the column
-  // is chosen from the height the group takes as a block — its header plus its
-  // photos, each at the column's width. A photo is never wider than its column,
-  // so a landscape is not a two-column tile here.
-  test('a group takes the width of its column, at the ratio the photo has', () {
+  // A photo is placed at the ratio it has, so a tile is as wide as the columns
+  // it takes and its height is that width divided by the ratio. A photo whose
+  // header could not be read is laid out as a square.
+  test('a photo is laid out at the ratio its column gives it', () {
     expect(pictureHeight(1.5, 100), 100 / 1.5);
-
-    // A photo whose header could not be read is laid out as a square.
     expect(pictureHeight(null, 100), 100);
   });
 
-  test('the height a group takes is its header and its photos', () {
-    // One photo at the column's width plus its name line, with the header above
-    // them, and the gap after the photo: that is what the drawing reserves in the
-    // column before the next group can start.
-    expect(groupHeight([1.0], 100, 24, 20, 8), 24 + (100 + 20 + 8));
-
-    // A set the app could not read is shown as its header alone.
-    expect(groupHeight([], 100, 24, 20, 8), 24);
-  });
-
-  test('a group goes to the column that is highest up when it is placed', () {
-    expect(groupColumns(groupHeights: [200, 60, 200, 100], columnCount: 3), [
-      0,
-      1,
-      2,
-      1,
-    ]);
-  });
-
-  test('ties go to the lower column index', () {
-    expect(groupColumns(groupHeights: [100, 100], columnCount: 2), [0, 1]);
-
-    // A group with no photos is its header alone, and a column with nothing in it
-    // is higher up than one with a group, so the header takes its column.
-    expect(
-      groupColumns(
-        groupHeights: [groupHeight([], 100, 24, 20, 8), 124],
-        columnCount: 2,
-      ),
-      [0, 1],
-    );
-  });
-
-  // The name line is a fixed height rather than a share of the column width, so
-  // the same groups can be placed differently in a window of a different width —
-  // the same reason the masonry packing works in pixels.
-  test('the assignment depends on the column width', () {
-    // Two short photos of the same height against one tall one: at a wide column
-    // the photos are what decide it, at a narrow one the name lines are.
-    final wide = [
-      groupHeight([4, 4], 100, 24, 20, 8),
-      groupHeight([1.0], 100, 24, 20, 8),
-      groupHeight([4, 4], 100, 24, 20, 8),
-    ];
-
-    expect(groupColumns(groupHeights: wide, columnCount: 2), [0, 1, 0]);
-
-    final narrow = [
-      groupHeight([4, 4], 20, 24, 20, 8),
-      groupHeight([1.0], 20, 24, 20, 8),
-      groupHeight([4, 4], 20, 24, 20, 8),
-    ];
-
-    expect(groupColumns(groupHeights: narrow, columnCount: 2), [0, 1, 1]);
-  });
-
-  test('the same groups give the same placement twice', () {
-    final List<List<double?>> groups = [
-      [0.5, null],
-      [1.5],
-      [],
-      [0.75, 2.0],
-    ];
-    final heights = [
-      for (final group in groups) groupHeight(group, 100, 24, 20, 8),
-    ];
-
-    // The three columns hold the first three groups, and the fourth is bigger
-    // than any of them, so it goes to the one that is highest up: the one with
-    // only a header in it.
-    expect(groupColumns(groupHeights: heights, columnCount: 3), [0, 1, 2, 2]);
-    expect(
-      groupColumns(groupHeights: heights, columnCount: 3),
-      groupColumns(groupHeights: heights, columnCount: 3),
-    );
-  });
-
-  // The pack's grid fits its own columns (`ai/picking.md` §7): the number is as many
-  // as fit at the minimum, and a column is never wider than the maximum.
-  test('the number of columns is as many as fit at the minimum', () {
-    // 7 * 220 + 6 * 24 = 1624, and an eighth would need 1868, so seven fit in 1792;
-    // each then gets the share of the space, which is above the minimum and below the
-    // maximum, so the cap does not apply here.
-    expect(photoColumnCount(width: 1792, min: 220, gap: 24), 7);
-    expect(
-      photoColumnWidth(width: 1792, columnCount: 7, max: 300, gap: 24),
-      closeTo((1792 - 6 * 24) / 7, 0.01),
-    );
-  });
-
-  test('a column is never wider than the maximum', () {
-    // Two columns fit at the minimum, and the share of the space is 338, more than the
-    // maximum allows, so each is drawn at the cap and the rest is left unused.
-    expect(photoColumnCount(width: 700, min: 220, gap: 24), 2);
-    expect(
-      photoColumnWidth(width: 700, columnCount: 2, max: 300, gap: 24),
-      300,
+  // A span is as wide as the caller says, which is the number of columns the
+  // two widths the feature gives derive; with the default it is two.
+  test('a span is as many columns as the caller allows', () {
+    final tiles = masonryPositions(
+      ratios: [1.5],
+      columnCount: 3,
+      columnWidth: 100,
+      labelHeight: 0,
+      gap: 0,
+      maxSpan: 3,
     );
 
-    // A space that cannot hold both: one column at the minimum would be 450, and two
-    // columns at the minimum would need 464. The number is still what the minimum
-    // decides, so the column is drawn at the cap rather than below the minimum.
-    expect(photoColumnCount(width: 450, min: 220, gap: 24), 1);
-    expect(
-      photoColumnWidth(width: 450, columnCount: 1, max: 300, gap: 24),
-      300,
-    );
+    expect(tiles.single.span, 3);
+    expect(tiles.single.height, 300 / 1.5);
   });
 
-  // A space narrower than the minimum can only hold one column, and that column is
-  // the space itself: the minimum is what decides the number, so it is not broken by
-  // making a second column, and the maximum is not reached because the space is less
-  // than it.
-  test('a space narrower than the minimum is one column', () {
-    expect(photoColumnCount(width: 200, min: 220, gap: 24), 1);
-    expect(
-      photoColumnWidth(width: 200, columnCount: 1, max: 300, gap: 24),
-      200,
-    );
+  // The grid's columns are the width the feature gives a portrait, and the
+  // space is used up rather than leaving a strip at the right that is narrower
+  // than a column, so a column is the share of the space (`ai/picking.md` §7).
+  test('the number of columns is as many as fit at the width', () {
+    // Eight fit in 1792, a ninth would need 1800, so each gets the share of the
+    // space: 224, which is the width used up to.
+    expect(photoColumnCount(width: 1792, min: 200), 8);
+    expect(photoColumnWidth(width: 1792, columnCount: 8), 1792 / 8);
+  });
+
+  // A space narrower than the width can only hold one column, and that column
+  // is the space itself: the number is what the width decides, so nothing is
+  // left unused.
+  test('a space narrower than the width is one column', () {
+    expect(photoColumnCount(width: 199, min: 200), 1);
+    expect(photoColumnWidth(width: 199, columnCount: 1), 199);
+  });
+
+  // How many columns a landscape takes is derived from the two widths rather
+  // than being hard coded, so changing them changes the grid.
+  test('a landscape takes the columns that make it its width', () {
+    expect(photoSpanCount(portraitWidth: 200, landscapeWidth: 400), 2);
+
+    // A grid can only be a whole number of columns wide, so a pair that is not
+    // a whole multiple takes the nearest number.
+    expect(photoSpanCount(portraitWidth: 200, landscapeWidth: 300), 2);
+    expect(photoSpanCount(portraitWidth: 200, landscapeWidth: 250), 1);
+
+    // A landscape narrower than one portrait column is one column.
+    expect(photoSpanCount(portraitWidth: 200, landscapeWidth: 100), 1);
   });
 }

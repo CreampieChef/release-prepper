@@ -8,33 +8,35 @@ import 'photoset_group.dart';
 import 'photosets_controller.dart';
 
 /// The Photoset data block (`ai/picking.md` §7, `ai/photoset_pack.md` §4, §6,
-/// `ai/single_photoset.md` §7): its heading with the Scan and Pick buttons at the
-/// right, the rows the editor gives it, and the line naming each set the scan
-/// found.
+/// `ai/single_photoset.md` §7): its heading with the Scan and Pick buttons at
+/// the right, the rows the editor gives it, and the line naming each set the
+/// scan found.
 ///
-/// For a pack the block is the page's first column. Its rows are the path the user
-/// picked and the counts the scan took from that folder — the rows the other types
-/// have as form rows, which for this type belong to the block — and the lines
-/// below them. The photos those lines describe are the columns after the first, so
-/// they are drawn by `PhotosetGallery`, in another grid cell: one widget cannot be
-/// two cells, which is why the block and the gallery are two widgets sharing one
-/// `PhotosetState`.
+/// For a pack the block is the page's second column, at the most the width this
+/// feature gives it. Its rows are the path the user picked and the counts the
+/// scan took from that folder — the rows the other types have as form rows,
+/// which for this type belong to the block — and the lines below them. The
+/// photos those lines describe are the photo area, which is another grid cell
+/// and is drawn by `PhotosetGallery`: one widget cannot be two cells, which is
+/// why the block and the gallery are two widgets sharing one `PhotosetState`.
 ///
-/// For a single photoset there are no columns to put the pictures in, so the block
-/// is the whole section below the form: it is given no rows, and it draws its
-/// photos under the line at the whole width. The strings are the only thing
-/// branched on the type, as they are for the other sections (`ai/single_photoset.md`
+/// For a single photoset there are no columns to put the pictures in, so the
+/// block is the whole section below the form: it is given no rows, and it draws
+/// its photos under the line at the whole width, with the same grid the pack
+/// uses (`ai/single_photoset.md` §7). The strings are the only thing branched
+/// on the type, as they are for the other sections (`ai/single_photoset.md`
 /// §4).
 ///
-/// There is no slider: the number is decided by the rule, and the block shows what
-/// it decided rather than letting the user change it. Pick is disabled until a scan
-/// has run, because the rule reads the counts.
+/// There is no slider: the number is decided by the rule, and the block shows
+/// what it decided rather than letting the user change it. Pick is disabled
+/// until a scan has run, because the rule reads the counts.
 ///
-/// The widget owns the widget state — the busy flag and the last scan it was given
-/// — but not the state the pictures read: the controller and the generation live in
-/// `PhotosetState`, because the gallery reads them too. It writes no fields itself:
-/// the values the scan counts are handed to the editor's single write path through
-/// `onApplyValues`, so the tab becomes dirty and Ctrl+S saves them.
+/// The widget owns the widget state — the busy flag and the last scan it was
+/// given — but not the state the pictures read: the controller and the
+/// generation live in `PhotosetState`, because the gallery reads them too. It
+/// writes no fields itself: the values the scan counts are handed to the
+/// editor's single write path through `onApplyValues`, so the tab becomes dirty
+/// and Ctrl+S saves them.
 class PhotosetBlock extends StatefulWidget {
   const PhotosetBlock({
     required this.state,
@@ -258,18 +260,12 @@ class _PhotosetBlockState extends State<PhotosetBlock> {
           Text(strings.emptyText, style: theme.textTheme.bodyMedium)
         else
           for (final group in groups) ...[
-            photosetLine(
-              context,
-              l10n,
-              state,
-              group,
-              ValueKey(('groupHeader', group.item.path)),
-            ),
-            // For a pack the photos of this set are in one of the gallery's
-            // columns, so the block shows the line only.
+            photosetLine(context, l10n, state, group),
+            // For a pack the photos of this set are in the photo area, so the
+            // block shows the line only.
             if (!isPack) ...[
               const SizedBox(height: _rowGap),
-              photosetMasonry(context, l10n, state, group),
+              photosetPhotoGrid(state, [group]),
             ],
           ],
       ],

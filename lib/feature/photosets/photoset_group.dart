@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -23,27 +21,29 @@ const photosetLabelHeight = 20.0;
 // The space between two tiles, which is the padding inside each one.
 const photosetTileGap = 8.0;
 
-// The line naming a set, with the space above and below it. The packing counts
-// it, because a group is its line and its photos stacked, and the height of a
-// group is what decides which column it goes to.
-const photosetHeaderHeight = 24.0;
+// The line naming the set a tile's photo is from, with the gap above it, at the
+// style the tile draws it in. It is drawn only when the grid shows photos from
+// more than one set, which is the pack's, because with no grouping a tile has
+// to say which set it is from (`ai/picking.md` §7). A single photoset has one
+// set, which its block names above the photos, so its tiles keep one line.
+const photosetSetLineHeight = 24.0;
 
-// The width a tile is laid out at when the page has given the section no columns,
-// which is the single photoset's whole-width masonry. Only that grid uses this:
-// the pack's grid lays its own columns out, at the widths below.
-const photosetTileWidth = 160.0;
+// The width a portrait photo's column is, and the width a landscape's is
+// (`ai/picking.md` §7): as many columns of the portrait width as fit in the
+// space are drawn, and the space they cannot use is shared out rather than left
+// as a strip at the right. A landscape takes as many of those columns as make
+// it the landscape width, so the two numbers have to stay a whole multiple
+// apart. These are the numbers to change when the grid is being tried at a
+// different density; the columns have no gap of their own, because a spanned
+// column must be exactly as many of them as these two say — the space between
+// two tiles is the padding inside them.
+const photosetColumnWidth = 200.0;
+const photosetLandscapeWidth = 400.0;
 
-// The narrowest and the widest a column of the pack's grid may be
-// (`ai/picking.md` §7). The number of columns is as many as fit at the narrowest,
-// so a grid is as dense as the minimum allows, and each column is drawn at the
-// share of the space but never wider than the widest — so with fewer sets than the
-// space has room for columns, or a space too narrow for both numbers, the extra is
-// left unused rather than a column being made wider or narrower than these say.
-// These are the two numbers to change when the pack's layout is being tried at a
-// different density; the gap between the columns is the page's, and is the shared
-// `columnGap`.
-const photosetColumnMin = 180.0;
-const photosetColumnMax = 200.0;
+// The widest the block's column is. The width it does not use is the photo
+// area's, so the cap does not leave an empty strip beside the block
+// (`ai/picking.md` §7).
+const photosetBlockMaxWidth = 400.0;
 
 /// The state the block and the gallery read: the controller both use, and the
 /// generation the pictures are keyed with. For a pack the two are separate
@@ -176,23 +176,21 @@ String photosetCountText(
 }
 
 /// The line naming one set: its name, the count the scan wrote, and the picked
-/// count. Shared, because the block and the grid both draw it. The key is the one
-/// the caller gives: for a pack the same set is named twice — in the block and
-/// above its column — so the two lines cannot carry the key the model gives them
+/// count. It is drawn once, in the block, because the grid no longer names a
+/// set above its photos — the tile says which set its photo is from instead
 /// (`ai/picking.md` §7).
 Widget photosetLine(
   BuildContext context,
   AppLocalizations l10n,
   PhotosetState state,
   PhotosetGroup group,
-  Key key,
 ) {
   final theme = Theme.of(context);
 
   return Row(
     // The key is the item's path, not the name it is shown under: two items whose
     // display names collide are still two sets (§5.3).
-    key: key,
+    key: ValueKey(('groupHeader', group.item.path)),
     children: [
       Expanded(
         child: Text(
@@ -215,61 +213,94 @@ Widget photosetLine(
   );
 }
 
-/// One picked photo as the app shows it, in the box the packing worked out for it,
-/// which is its own ratio, so nothing is cropped.
-Widget photosetTile(PhotosetState state, String path, double pictureHeight) =>
-    Padding(
-      padding: EdgeInsets.all(photosetTileGap / 2),
-      child: ImageTile(
-        path: path,
-        height: pictureHeight,
-        picture: imageFromFile(path, state.generation, fit: BoxFit.cover),
-      ),
-    );
-
-/// The picked photos of one set as the plain masonry (`ai/picking.md` §7): columns
-/// of equal width, each photo placed where its column is free, and a photo clearly
-/// wider than it is tall spanning two columns. A photo whose header could not be
-/// read takes a square tile.
-///
-/// This is the shape for a single photoset, which is the whole width below the form
-/// and is read at that width, so it fits its own columns rather than being given
-/// the page's. A tile that spans two columns cannot be a child of one column, so
-/// the grid is placed by position rather than by nesting, and the positions come
-/// from the pure function.
-Widget photosetMasonry(
-  BuildContext context,
-  AppLocalizations l10n,
+/// One picked photo as the app shows it, in the box the packing worked out for
+/// it, which is its own ratio, so nothing is cropped. `setName` is the line
+/// naming the set the photo is from, which only a grid mixing sets draws
+/// (`ai/picking.md` §7).
+Widget photosetTile(
   PhotosetState state,
-  PhotosetGroup group,
-) {
+  String path,
+  double pictureHeight, {
+  String? setName,
+}) => Padding(
+  padding: EdgeInsets.all(photosetTileGap / 2),
+  child: ImageTile(
+    path: path,
+    height: pictureHeight,
+    groupLabel: setName,
+    picture: imageFromFile(path, state.generation, fit: BoxFit.cover),
+  ),
+);
+
+/// One photo in the grid: the set it is from and which of that set's photos it
+/// is. The grid is the photos of every set together, in the order the source
+/// gives the sets and, within a set, the order it gives the photos, so a tile
+/// is not part of one set's stack (`ai/picking.md` §7).
+class _GridPhoto {
+  const _GridPhoto({required this.group, required this.index});
+
+  final PhotosetGroup group;
+  final int index;
+
+  String get path => group.paths[index];
+}
+
+/// The picked photos as the grid both types draw, at the two widths this file
+/// gives (`ai/picking.md` §7): as many columns of `photosetColumnWidth` as fit
+/// in the space, with the space the columns cannot use shared out rather than
+/// left as a strip at the right, and a photo clearly wider than it is tall
+/// taking the number of columns that makes it `photosetLandscapeWidth` wide,
+/// which is what makes a landscape read as a landscape. A photo whose header
+/// could not be read takes a square tile.
+///
+/// The columns have no gap of their own, because a spanned column must be
+/// exactly as many of them as the two widths say: the space between two tiles
+/// is the padding inside them.
+///
+/// A tile that spans cannot be a child of one column, so the grid is placed by
+/// position rather than by nesting, and the positions come from the pure
+/// function. A tile labels itself with its file name, and with the set it is
+/// from when the grid has more than one set, because with no grouping a tile
+/// has to say which set its photo is from.
+Widget photosetPhotoGrid(PhotosetState state, List<PhotosetGroup> groups) {
   return LayoutBuilder(
     builder: (context, constraints) {
       final width = constraints.maxWidth.isFinite
           ? constraints.maxWidth
-          : photosetTileWidth * 3;
+          : photosetColumnWidth;
 
-      // At least one column. Each column is at least the tile width, so the
-      // number of columns is bounded by the space there is, and no cap is
-      // needed. With one column nothing can span.
-      final columnCount = width >= photosetTileWidth
-          ? width ~/ photosetTileWidth
-          : 1;
-      final columnWidth = width / columnCount;
+      final columns = photoColumnCount(width: width, min: photosetColumnWidth);
+      final columnWidth = photoColumnWidth(width: width, columnCount: columns);
+      final span = photoSpanCount(
+        portraitWidth: photosetColumnWidth,
+        landscapeWidth: photosetLandscapeWidth,
+      );
+
+      final photos = [
+        for (final group in groups)
+          for (var index = 0; index < group.paths.length; index++)
+            _GridPhoto(group: group, index: index),
+      ];
+
+      // The set line is only drawn where the grid mixes sets, which is the
+      // pack's: a single photoset's block names the one set above its photos.
+      final showSet = groups.length > 1;
+      final labelHeight =
+          photosetLabelHeight + (showSet ? photosetSetLineHeight : 0);
 
       final tiles = masonryPositions(
-        ratios: group.ratios,
-        columnCount: columnCount,
+        ratios: [for (final photo in photos) photo.group.ratios[photo.index]],
+        columnCount: columns,
         columnWidth: columnWidth,
-        labelHeight: photosetLabelHeight,
+        labelHeight: labelHeight,
         gap: photosetTileGap,
+        maxSpan: span,
       );
 
       var gridHeight = 0.0;
 
       for (final tile in tiles) {
-        final bottom =
-            tile.top + tile.height + photosetLabelHeight + photosetTileGap;
+        final bottom = tile.top + tile.height + labelHeight + photosetTileGap;
 
         if (bottom > gridHeight) {
           gridHeight = bottom;
@@ -282,186 +313,25 @@ Widget photosetMasonry(
           children: [
             for (final tile in tiles)
               Positioned(
+                key: ValueKey(('photoTile', photos[tile.index].path)),
                 left: tile.column * columnWidth,
                 top: tile.top,
                 width: tile.span * columnWidth,
-                height: tile.height + photosetLabelHeight + photosetTileGap,
+                height: tile.height + labelHeight + photosetTileGap,
                 child: photosetTile(
                   state,
-                  group.paths[tile.index],
+                  photos[tile.index].path,
                   tile.height,
+                  setName: showSet
+                      ? state.controller.displayName(
+                          photos[tile.index].group.item.path,
+                        )
+                      : null,
                 ),
               ),
           ],
         ),
       );
     },
-  );
-}
-
-/// The picked photos as the pack's grid (`ai/picking.md` §7): one column per set,
-/// its photos stacked in that column at one width, and the sets placed in the
-/// column that is highest up when each is placed — so a set that does not fit
-/// continues below the sets already in a column, and nothing is cropped. The line
-/// naming the set is above its photos, because a column of pictures has to say
-/// which set they are from.
-///
-/// The columns are the grid's own: as many as fit at `photosetColumnMin`, each
-/// drawn at the share of the space but never more than `photosetColumnMax`, with
-/// the page's gap between them. What is left when the share is more than the cap is
-/// unused, rather than a column being made wider or narrower than the two say.
-/// Their number is capped at the number of groups: a column with no group in it is
-/// not a column the grid has, and a set the app could not read still takes its
-/// column with its line and nothing under it.
-Widget photosetGroupGrid(
-  BuildContext context,
-  AppLocalizations l10n,
-  PhotosetState state,
-  List<PhotosetGroup> groups,
-) {
-  return LayoutBuilder(
-    builder: (context, constraints) {
-      final width = constraints.maxWidth.isFinite
-          ? constraints.maxWidth
-          : photosetColumnMin;
-
-      final columns = math.max(
-        math.min(
-          photoColumnCount(
-            width: width,
-            min: photosetColumnMin,
-            gap: columnGap,
-          ),
-          groups.length,
-        ),
-        1,
-      );
-
-      final columnWidth = photoColumnWidth(
-        width: width,
-        columnCount: columns,
-        max: photosetColumnMax,
-        gap: columnGap,
-      );
-
-      final assignment = groupColumns(
-        groupHeights: [
-          for (final group in groups)
-            groupHeight(
-              group.ratios,
-              columnWidth,
-              photosetHeaderHeight,
-              photosetLabelHeight,
-              photosetTileGap,
-            ),
-        ],
-        columnCount: columns,
-      );
-
-      final byColumn = [
-        for (var column = 0; column < columns; column++)
-          [
-            for (var index = 0; index < groups.length; index++)
-              if (assignment[index] == column) groups[index],
-          ],
-      ];
-
-      return Row(
-        // Drawn at the left: when the columns are at the cap the space that is left
-        // over is not part of any column, so it is the empty area at the right of
-        // the grid.
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (var column = 0; column < columns; column++) ...[
-            if (column > 0) SizedBox(width: columnGap),
-            SizedBox(
-              width: columnWidth,
-              child: photosetGroupColumn(
-                context,
-                l10n,
-                state,
-                column,
-                byColumn[column],
-                columnWidth,
-              ),
-            ),
-          ],
-        ],
-      );
-    },
-  );
-}
-
-/// One column of the pack's grid: the groups placed in it, in the order the source
-/// gives them, each as its line and then its photos stacked under it. The boxes are
-/// the heights the packing worked with — the line, and each photo's name line and
-/// picture at the column's width, with the gap — so what is drawn is what the
-/// assignment placed. A column with nothing in it draws nothing, because an empty
-/// column is not a column the page has.
-Widget photosetGroupColumn(
-  BuildContext context,
-  AppLocalizations l10n,
-  PhotosetState state,
-  int column,
-  List<PhotosetGroup> groups,
-  double columnWidth,
-) {
-  var top = 0.0;
-
-  final boxes = <Widget>[];
-
-  for (final group in groups) {
-    boxes.add(
-      Positioned(
-        left: 0,
-        top: top,
-        width: columnWidth,
-        height: photosetHeaderHeight,
-        child: photosetLine(
-          context,
-          l10n,
-          state,
-          group,
-          ValueKey(('groupColumnHeader', column, group.item.path)),
-        ),
-      ),
-    );
-
-    top += photosetHeaderHeight;
-
-    for (var index = 0; index < group.paths.length; index++) {
-      final picture = pictureHeight(group.ratios[index], columnWidth);
-
-      boxes.add(
-        Positioned(
-          key: ValueKey(('groupTile', group.paths[index])),
-          left: 0,
-          top: top,
-          width: columnWidth,
-          height: tileHeight(
-            group.ratios[index],
-            columnWidth,
-            photosetLabelHeight,
-            photosetTileGap,
-          ),
-          child: photosetTile(state, group.paths[index], picture),
-        ),
-      );
-
-      // The tile's height already reserves its own padding, so the column
-      // advances by exactly what was drawn.
-      top += tileHeight(
-        group.ratios[index],
-        columnWidth,
-        photosetLabelHeight,
-        photosetTileGap,
-      );
-    }
-  }
-
-  return SizedBox(
-    key: ValueKey(('photosetColumn', column)),
-    height: top,
-    child: Stack(children: boxes),
   );
 }

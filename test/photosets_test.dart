@@ -675,10 +675,13 @@ void main() {
     expect(result.emptySets, ['set01']);
     expect(result.written.map((record) => record.file), ['set02/a.png']);
   });
-
-  // The block names each set with its counts, and the gallery shows the photos the
-  // rule picked for it in the column that set is placed in (`ai/picking.md` §7).
-  testWidgets('the picked photos are shown grouped per set', (tester) async {
+  // The block names each set with its counts, and the grid shows the photos the
+  // rule picked for it — every set's photos together, not one column per set,
+  // so each tile says which set its photo is from as well as its file name
+  // (`ai/picking.md` §7).
+  testWidgets('the picked photos are one grid labelled with their set', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(2000, 2000);
     tester.view.devicePixelRatio = 1.0;
 
@@ -714,8 +717,8 @@ void main() {
 
     await clickAndWait(tester, find.text('Pick'), find.text('3 picked'));
 
-    // The counts are read from the block, which is where the sets are named. The
-    // same line is drawn above each column, so the test reads the block's.
+    // Each set is named once, in the block, because the grid does not name a
+    // set above its photos — the tile says which set its photo is from.
     expect(
       find.descendant(
         of: find.byKey(ValueKey(('groupHeader', 'set01'))),
@@ -736,26 +739,47 @@ void main() {
     // builds it again the way the editor does.
     await openPhotosets(tester, state, showGallery: true);
 
-    // The picks are the interval centres of each set, in the order the source gives
-    // them, and each is the tile the gallery draws in its own set's column.
-    for (final name in [
-      'set01/001.png',
-      'set01/005.png',
-      'set01/008.png',
-      'set02/002.png',
-      'set02/007.png',
-    ]) {
+    // The picks, in the order the source gives the sets and, within a set, the
+    // order it gives the photos: the test asks the rule rather than assuming,
+    // so the names it compares are the ones the pick wrote.
+    final picked = [
+      for (final pick in PhotosetPicker.pick([
+        for (final set in ['set01', 'set02'])
+          ScannedSet(
+            entry: SourceEntry(name: set, isDirectory: true, readPath: set),
+            photos: [
+              for (var index = 0; index < 10; index++)
+                ScannedPhoto(name: '${index.toString().padLeft(3, '0')}.png'),
+            ],
+          ),
+      ]).picks)
+        for (final photo in pick.photos) (pick.set.path, photo.name),
+    ];
+
+    for (final photo in picked) {
+      final path = p.join(directory.path, photo.$1, photo.$2);
+      final tile = find.byKey(ValueKey(('photoTile', path)));
+
+      expect(tile, findsOneWidget);
+
+      // The two lines a grid that mixes sets draws: the set it is from, and the
+      // file.
       expect(
-        find.byKey(ValueKey(('groupTile', p.join(directory.path, name)))),
+        find.descendant(of: tile, matching: find.text(photo.$1)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: tile, matching: find.text(photo.$2)),
         findsOneWidget,
       );
     }
   });
 
-  // A single photoset is one set, so its photos are placed by the masonry: a
-  // landscape spans two columns, and the tiles cannot share one shape
-  // (`ai/single_photoset.md` §6). The block is the whole width below the form, so it
-  // is not given columns and fits its own (`ai/picking.md` §7).
+  // A single photoset is one set, so its photos are placed by the same grid: a
+  // landscape spans the number of columns the two widths give, and the tiles
+  // cannot share one shape (`ai/single_photoset.md` §6, `ai/picking.md` §7).
+  // Its block names the one set above the photos, so a tile there keeps its
+  // file name only.
   testWidgets(
     'a single photoset places its tiles by the masonry, and a landscape spans two',
     (tester) async {
@@ -789,18 +813,23 @@ void main() {
           .toList();
 
       // The order is the order the source gives, so the second box is the
-      // landscape: two columns wide, while the other two take one.
+      // landscape: as many columns wide as the two widths the feature gives
+      // derive, while the other two take one.
       expect(boxes.length, 3);
 
       final columnWidth = boxes[0].width!;
+      final span = photoSpanCount(
+        portraitWidth: photosetColumnWidth,
+        landscapeWidth: photosetLandscapeWidth,
+      );
 
-      expect(boxes[1].width, 2 * columnWidth);
+      expect(span, 2);
+      expect(boxes[1].width, span * columnWidth);
       expect(boxes[2].width, columnWidth);
 
       // Each box is the shape the photo is. The name line and the gap are the
-      // constants the feature lays tiles out with, so the image is the rest of the
-      // box. The widget works with the width it is given, so the values are compared
-      // with the rounding a division by a column count introduces.
+      // constants the feature lays tiles out with, so the image is the rest of
+      // the box. One set, so one line (`ai/picking.md` §7).
       final labelAndGap = photosetLabelHeight + photosetTileGap;
 
       expect(
@@ -809,46 +838,51 @@ void main() {
       );
       expect(
         boxes[1].height! - labelAndGap,
-        closeTo(2 * columnWidth / (300 / 100), 0.01),
+        closeTo(span * columnWidth / (300 / 100), 0.01),
       );
       expect(boxes[2].height! - labelAndGap, closeTo(columnWidth, 0.01));
+
+      // A tile here does not name its set, because there is one set and the
+      // block names it above the photos.
+      for (final name in ['a.png', 'b.png', 'c.png']) {
+        final tile = find.byKey(
+          ValueKey(('photoTile', p.join(directory.path, 'source', name))),
+        );
+
+        expect(
+          find.descendant(of: tile, matching: find.text('source')),
+          findsNothing,
+        );
+      }
     },
   );
 
-  // The pack groups by set instead: one column per set, its photos stacked at one
-  // width, and the line naming the set above them (`ai/picking.md` §7,
-  // `ai/photoset_pack.md` §6). The drawing uses the same heights the assignment
-  // works with, so the test works the placement out with the rule and the packing
-  // and compares the boxes against it.
-  //
-  // The columns are the grid's own: as many as fit at the minimum, each at the share
-  // of the space but never wider than the maximum, so the test works that out with
-  // the rule and compares the drawing against it.
-  testWidgets('the pack draws each set in the column the assignment gives', (
+  // The pack's grid is the same drawing at the same two widths, and a tile
+  // there does name its set, because the grid mixes sets. The drawing uses the
+  // same heights the assignment works with, so the test works the placement out
+  // with the rule and compares the boxes against it (`ai/picking.md` §7).
+  testWidgets('the pack draws the photos in the columns the assignment gives', (
     tester,
   ) async {
-    // A space narrow enough that the two numbers cannot both be satisfied, so fewer
-    // columns are drawn than there are sets — that is what makes a set share a
-    // column, which is what this test is about.
+    // A space that holds three columns of the portrait width, so a landscape
+    // can span and the columns are more than one — that is what this test is
+    // about.
     tester.view.physicalSize = const Size(700, 4000);
     tester.view.devicePixelRatio = 1.0;
 
-    // Four sets of three, so more sets than columns: the last one has to share
-    // a column. The first set's photos are taller than the others, so the
-    // shortest column is not the one with the set's number. The dimensions are
-    // the ratios themselves, so the test compares with the same numbers the
-    // reader will read from the fixtures.
-    const sets = ['set01', 'set02', 'set03', 'set04'];
+    // Three sets of two, one landscape, one portrait, one read as a square, so
+    // the placement is not the same for every tile. The dimensions are the
+    // ratios themselves, so the test compares with the same numbers the reader
+    // reads from the fixtures.
+    const sets = ['set01', 'set02', 'set03'];
     const sizes = [
+      [300, 100],
       [100, 300],
       [100, 100],
-      [100, 100],
-      [100, 100],
     ];
-    final ratios = [for (final size in sizes) size[0] / size[1]];
 
     for (var set = 0; set < sets.length; set++) {
-      for (var index = 0; index < 3; index++) {
+      for (var index = 0; index < 2; index++) {
         writePhotoAt(
           'source/${sets[set]}',
           'p$index.png',
@@ -861,169 +895,146 @@ void main() {
     final release = testRelease(p.join(directory.path, 'source'));
     final state = testState(release);
 
-    // What the rule picks for this fixture, in the order the source gives it:
-    // the test asks the rule rather than assuming, so the names it compares are
-    // the ones the pick will write.
+    // What the rule picks for this fixture, in the order the source gives the
+    // sets and, within a set, the order it gives the photos: the test asks the
+    // rule rather than assuming, so the names it compares are the ones the pick
+    // writes, and the order the assignment works with is the order the drawing
+    // uses.
     final scanned = [
-      for (var set = 0; set < sets.length; set++)
+      for (final set in sets)
         ScannedSet(
-          entry: SourceEntry(
-            name: sets[set],
-            isDirectory: true,
-            readPath: sets[set],
-          ),
+          entry: SourceEntry(name: set, isDirectory: true, readPath: set),
           photos: [
-            for (var index = 0; index < 3; index++)
+            for (var index = 0; index < 2; index++)
               ScannedPhoto(name: 'p$index.png'),
           ],
         ),
     ];
-    final picks = PhotosetPicker.pick(scanned);
+    final picked = [
+      for (final pick in PhotosetPicker.pick(scanned).picks)
+        for (final photo in pick.photos) (pick.set.path, photo.name),
+    ];
 
     await openPhotosets(tester, state, showGallery: true);
 
     await clickAndWait(tester, find.text('Scan'), find.text('set01'));
 
-    // The pick runs in the block, which is the widget that ran it; the gallery is
-    // another widget, so a run reaches it only when the page builds again — here the
-    // test builds it again the way the editor does. The wait is on the block's line,
-    // because the pick is what makes the picked count appear on it.
+    // The pick runs in the block, which is the widget that ran it; the gallery
+    // is another widget, so a run reaches it only when the page builds again —
+    // here the test builds it again the way the editor does. The wait is on the
+    // block, because the pick is what makes a picked count appear there.
     await clickAndWait(
       tester,
       find.text('Pick'),
       find.descendant(
         of: find.byKey(const ValueKey(('groupHeader', 'set01'))),
-        matching: find.text('2 picked'),
+        matching: find.textContaining('picked'),
       ),
     );
 
     await openPhotosets(tester, state, showGallery: true);
 
-    // The names the pick wrote, in the order the source gives them: the paths the
-    // gallery keys its tiles by.
-    final namesBySet = [
-      for (final pick in picks.picks)
-        [
-          for (final photo in pick.photos)
-            p.join(directory.path, pick.set.path, photo.name),
-        ],
-    ];
+    // More than one photo and more than one set, which is what the drawing
+    // needs: a grid that mixes sets names the set on each tile.
+    expect(picked.length, greaterThan(1));
+    expect(picked.map((photo) => photo.$1).toSet().length, greaterThan(1));
 
-    // The constants the feature lays a group out with: the line naming it, the name
-    // line under a tile, and the padding inside each tile. The gap between the
-    // columns is the shared one.
-    //
-    // The space the gallery was given, taken from what it drew: the test cannot know
-    // what a widget is given by its parent, so it reads the drawing. From that the
-    // rule gives the number of columns and the width each is drawn at, and the drawing
-    // is compared against both, so the test follows whatever the two constants are
-    // changed to. The first group is always placed in the first column, so its line is
-    // where the test reads the drawn width from.
     final gallery = tester.getRect(
       find.byKey(const ValueKey('photosetGallery')),
     );
 
-    // The fixture is a space that cannot hold both numbers, so the columns are fewer
-    // than the sets; the numbers themselves are tested as a rule in
-    // `test/masonry_test.dart`.
+    // The test cannot know what a widget is given by its parent, so it reads
+    // the drawing for the space, and from that the rule gives the columns and
+    // the width each is drawn at. The drawing is then compared against both, so
+    // the test follows whatever the two constants are changed to.
     final columnCount = photoColumnCount(
       width: gallery.width,
-      min: photosetColumnMin,
-      gap: columnGap,
+      min: photosetColumnWidth,
     );
-
-    expect(columnCount, lessThan(sets.length));
-
     final columnWidth = photoColumnWidth(
       width: gallery.width,
       columnCount: columnCount,
-      max: photosetColumnMax,
-      gap: columnGap,
+    );
+    final span = photoSpanCount(
+      portraitWidth: photosetColumnWidth,
+      landscapeWidth: photosetLandscapeWidth,
     );
 
-    final firstLine = find.byKey(ValueKey(('groupColumnHeader', 0, sets[0])));
+    // What makes this fixture worth drawing at all: more than one column, so a
+    // landscape spans, and more than one set, so a tile names its set.
+    expect(columnCount, greaterThan(1));
+    expect(span, greaterThan(1));
 
-    // What is drawn is what the rule says for the space the widget was given.
-    expect(tester.getRect(firstLine).width, closeTo(columnWidth, 0.5));
+    final labelHeight = photosetLabelHeight + photosetSetLineHeight;
 
-    expect(namesBySet.map((names) => names.length).toList(), [2, 1, 1, 1]);
-
-    final heights = [
+    final ratiosBySet = {
       for (var set = 0; set < sets.length; set++)
-        groupHeight(
-          [for (final _ in namesBySet[set]) ratios[set]],
-          columnWidth,
-          photosetHeaderHeight,
-          photosetLabelHeight,
-          photosetTileGap,
-        ),
-    ];
+        sets[set]: sizes[set][0] / sizes[set][1],
+    };
 
-    final columns = groupColumns(
-      groupHeights: heights,
+    final tiles = masonryPositions(
+      ratios: [for (final photo in picked) ratiosBySet[photo.$1]!],
       columnCount: columnCount,
+      columnWidth: columnWidth,
+      labelHeight: labelHeight,
+      gap: photosetTileGap,
+      maxSpan: span,
     );
 
-    // The assignment is what the rule gives for the fixture: the first set's photos
-    // are taller, so it keeps the column it was placed in and the sets after it go to
-    // the one that is highest up. The test does not assume which column that is, so
-    // what it asserts is that a set shares a column, which is what the fixture and the
-    // two constants give here.
-    expect(columns.toSet().length, lessThan(sets.length));
+    // The gallery's title row is above the grid, and its height comes from
+    // measuring text, which the test cannot compute from the constants. So the
+    // origin is read from the drawing: the first photo in the order is placed
+    // at the top of the first column, so its box is where the grid starts.
+    final origin = tester.getRect(
+      find.byKey(
+        ValueKey((
+          'photoTile',
+          p.join(directory.path, picked.first.$1, picked.first.$2),
+        )),
+      ),
+    );
 
-    // The gallery's title row is above the grid, and its height comes from measuring
-    // text, which the test cannot compute from the constants. So the test takes the
-    // top of the grid from what it drew: the first group is the one at the top of the
-    // first column, and every other group is compared against that origin.
-    final gridTop = tester.getRect(firstLine).top;
+    for (var index = 0; index < tiles.length; index++) {
+      final tile = tiles[index];
+      final finder = find.byKey(
+        ValueKey((
+          'photoTile',
+          p.join(directory.path, picked[index].$1, picked[index].$2),
+        )),
+      );
+      final rect = tester.getRect(finder);
 
-    var columnTops = List.filled(columnCount, 0.0);
-
-    for (var set = 0; set < sets.length; set++) {
-      final column = columns[set];
-
-      // The grid is drawn at the left of the space it is given, so a column's left is
-      // the origin plus the columns and gaps before it; the space after the last one is
-      // the empty area the cap leaves.
-      final left = gallery.left + column * (columnWidth + columnGap);
-      final top = gridTop + columnTops[column];
-
-      final line = tester.getRect(
-        find.byKey(ValueKey(('groupColumnHeader', column, sets[set]))),
+      expect(rect.left, closeTo(origin.left + tile.column * columnWidth, 0.5));
+      expect(rect.top, closeTo(origin.top + tile.top, 0.5));
+      expect(rect.width, closeTo(tile.span * columnWidth, 0.5));
+      expect(
+        rect.height,
+        closeTo(tile.height + labelHeight + photosetTileGap, 0.5),
       );
 
-      expect(line.left, closeTo(left, 0.5));
-      expect(line.top, closeTo(top, 0.5));
-
-      var tileTop = top + photosetHeaderHeight;
-
-      for (final name in namesBySet[set]) {
-        final tile = tester.getRect(find.byKey(ValueKey(('groupTile', name))));
-
-        expect(tile.left, closeTo(left, 0.5));
-        expect(tile.top, closeTo(tileTop, 0.5));
-
-        tileTop += tileHeight(
-          ratios[set],
-          columnWidth,
-          photosetLabelHeight,
-          photosetTileGap,
-        );
-      }
-
-      columnTops[column] += heights[set];
+      // A tile in a grid that mixes sets names the set its photo is from,
+      // because there is no group to say it, and its file name under that.
+      expect(
+        find.descendant(of: finder, matching: find.text(picked[index].$1)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: finder, matching: find.text(picked[index].$2)),
+        findsOneWidget,
+      );
     }
 
-    // The block in the first column lists the same lines, in the order the source
-    // gives them, and says nothing about which column a set is drawn in — that is
-    // what the assignment above works out (`ai/picking.md` §7).
+    // The block lists each set once, in the order the source gives them, and
+    // says nothing about which column a photo is drawn in — that is what the
+    // assignment above works out (`ai/picking.md` §7).
     for (final set in sets) {
       expect(find.byKey(ValueKey(('groupHeader', set))), findsOneWidget);
     }
   });
 
-  // A set with no photos still takes its column: the line naming it is drawn on
-  // its own, because the scan found that set (`ai/photoset_pack.md` §6).
+  // A set with no picked photos is only in the block's list: with no grouping
+  // there is no column for it to take, so nothing is drawn for it in the grid
+  // (`ai/photoset_pack.md` §6).
   testWidgets('a set with no picked photos still shows its line', (
     tester,
   ) async {
@@ -1045,8 +1056,7 @@ void main() {
 
     await clickAndWait(tester, find.text('Scan'), find.text('set02'));
 
-    // Each set is named in the block, and the same line is drawn above the column
-    // its photos are in.
+    // Each set is named in the block, and only there.
     for (final set in ['set01', 'set02']) {
       expect(find.byKey(ValueKey(('groupHeader', set))), findsOneWidget);
     }
@@ -1067,29 +1077,21 @@ void main() {
     // test builds it again the way the editor does.
     await openPhotosets(tester, state, showGallery: true);
 
-    expect(
-      find.byKey(const ValueKey(('groupColumnHeader', 0, 'set01'))),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey(('groupColumnHeader', 1, 'set02'))),
-      findsOneWidget,
-    );
-
-    // Only the set with photos has anything under its line. The tile keys are the
-    // paths the gallery shows the photos from, as in the drawing test.
-    final names = [
-      for (var index = 0; index < 3; index++)
-        p.join(directory.path, 'set01', 'p$index.png'),
-    ];
-
-    for (final name in names) {
-      expect(find.byKey(ValueKey(('groupTile', name))), findsOneWidget);
+    for (var index = 0; index < 3; index++) {
+      expect(
+        find.byKey(
+          ValueKey((
+            'photoTile',
+            p.join(directory.path, 'set01', 'p$index.png'),
+          )),
+        ),
+        findsOneWidget,
+      );
     }
 
-    // Two lines and three tiles: nothing is drawn under the line of the set with
-    // no photos.
-    expect(find.byType(Positioned), findsNWidgets(2 + 3));
+    // Three tiles and nothing else: the set with no photos has no tile, and its
+    // line is not drawn again above a column.
+    expect(find.byType(Positioned), findsNWidgets(3));
   });
 }
 

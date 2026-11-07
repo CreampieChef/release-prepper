@@ -12,6 +12,7 @@ import 'package:provider/single_child_widget.dart';
 import 'package:release_prepper/feature/message/message_controller.dart';
 import 'package:release_prepper/feature/message/message_store.dart';
 import 'package:release_prepper/feature/message/screenshot_layout.dart';
+import 'package:release_prepper/feature/photosets/photoset_group.dart';
 import 'package:release_prepper/feature/release/release.dart';
 import 'package:release_prepper/feature/release/release_editor.dart';
 import 'package:release_prepper/feature/release/release_editor_controller.dart';
@@ -1754,16 +1755,15 @@ void main() {
     expect(message.width, greaterThan(videos.width));
     expect(message.left, closeTo(left.left, 0.5));
   });
-
-  // The photoset pack's first column is the fields it has and the Photosets block,
-  // and the columns after the first are the area that shows the photos, one per set,
-  // so the form has one column and the sections that are not that area — the Upload
-  // section, the Message section — are stacked below the block in the first column
-  // (`ai/picking.md` §7). The area spans the remaining columns, and inside that
-  // space it fits its own columns, as many as fit at the minimum and none wider than
-  // the maximum.
+  // The photoset pack's first column is the fields it has and the sections that
+  // need a column's width, and its second column is the Photosets block at the
+  // most the width this feature gives it; the photo area is what the row has
+  // left, and inside that space it fits its own columns (`ai/picking.md` §7).
+  // The width the page gives is read from the field, and the padding from where
+  // the first column starts, so the numbers the test compares are the constants
+  // rather than what they work out to here.
   testWidgets(
-    'a photoset pack puts its block in the first column and its photos in the columns after it',
+    'a photoset pack puts its block in the second column and its photos in the space left',
     (tester) async {
       tester.view.physicalSize = const Size(2000, 2000);
       tester.view.devicePixelRatio = 1.0;
@@ -1773,12 +1773,23 @@ void main() {
       final field = tester.getRect(find.byKey(const ValueKey('siteOrJournal')));
       final columnWidth = field.width;
 
-      // The block is in that same column: same width, same left edge, below the
-      // fields.
+      // The page is the window with the padding the editor puts around it, and
+      // the padding is where the first column starts.
+      final pageWidth =
+          tester.getSize(find.byType(SingleChildScrollView)).width -
+          2 * field.left;
+
+      // A page column is wider than the block's cap here, so the block is drawn
+      // at the cap, and the width it does not use is the photo area's rather
+      // than empty space beside it.
       final block = tester.getRect(find.byKey(const ValueKey('photosetBlock')));
-      expect(block.width, closeTo(columnWidth, 0.5));
-      expect(block.left, closeTo(field.left, 0.5));
-      expect(block.top, greaterThan(field.bottom));
+      expect(block.width, closeTo(photosetBlockMaxWidth, 0.5));
+      expect(block.left, closeTo(field.right + columnGap, 0.5));
+
+      // The block is a section, so it starts at the top of its column the way a
+      // titled column does.
+      final title = tester.getRect(find.byKey(const ValueKey('columnTitle')));
+      expect(block.top, closeTo(title.top, 0.5));
 
       // The rows the block draws are the ones the editor built, because they are
       // form rows: the path the user picked and the counts the scan took from it.
@@ -1802,6 +1813,8 @@ void main() {
       // it is said twice.
       expect(find.text('Photosets'), findsNWidgets(2));
 
+      // The sections that need a column's width stay below the fields, in the
+      // first column, because the block's column is too narrow for their rows.
       final upload = tester.getRect(
         find.byKey(const ValueKey('uploadSection')),
       );
@@ -1811,30 +1824,31 @@ void main() {
 
       expect(upload.width, closeTo(columnWidth, 0.5));
       expect(upload.left, closeTo(field.left, 0.5));
-      expect(upload.top, greaterThan(block.bottom));
+      expect(upload.top, greaterThan(field.bottom));
 
       expect(message.width, closeTo(columnWidth, 0.5));
       expect(message.left, closeTo(field.left, 0.5));
       expect(message.top, greaterThan(upload.bottom));
 
-      // The area is the columns that are left: their widths with the gaps between
-      // them, beside the first column rather than below it, and starting at the top
-      // like every other column of the page.
+      // What the row has left is the area, and the three widths with the two
+      // gaps make the page: nothing is left over at the right, and the area
+      // starts at the top of the row like the columns beside it.
       final gallery = tester.getRect(
         find.byKey(const ValueKey('photosetGallery')),
       );
+
       expect(
-        gallery.width,
-        closeTo(columnWidth * 3 + columnGap * 2, 0.5),
-        reason: 'the three columns after the first',
+        columnWidth + block.width + gallery.width + 2 * columnGap,
+        closeTo(pageWidth, 0.5),
       );
-      expect(gallery.left, closeTo(field.right + columnGap, 0.5));
+      expect(gallery.left, closeTo(block.right + columnGap, 0.5));
+      expect(gallery.top, closeTo(block.top, 0.5));
+
+      // The space it was given holds more than one column of the grid, which is
+      // what puts it beside the row rather than below it.
       expect(
-        gallery.top,
-        closeTo(
-          tester.getRect(find.byKey(const ValueKey('columnTitle'))).top,
-          0.5,
-        ),
+        photoColumnCount(width: gallery.width, min: photosetColumnWidth),
+        greaterThan(1),
       );
 
       // Said once, because it is the title of the area rather than of a set.
@@ -1842,9 +1856,52 @@ void main() {
     },
   );
 
-  // And the same fallback: when only one column fits, the block is the whole width,
-  // and the area is below it rather than beside it, at that width and fitting its
-  // own columns inside it (`ai/picking.md` §7).
+  // The same rule at a width where the row cannot hold one column of the grid:
+  // the area is below the row at the whole width, and the space beside the
+  // capped block is empty, which is what a strict maximum costs at a narrow
+  // window (`ai/picking.md` §7).
+  testWidgets(
+    'a photoset pack shows its photos below the row when the row has no room for a column',
+    (tester) async {
+      tester.view.physicalSize = const Size(950, 2000);
+      tester.view.devicePixelRatio = 1.0;
+
+      await openEditor(tester, testPackRelease('/tmp/x'));
+
+      final field = tester.getRect(find.byKey(const ValueKey('siteOrJournal')));
+      final pageWidth =
+          tester.getSize(find.byType(SingleChildScrollView)).width -
+          2 * field.left;
+
+      // There is room for two columns, so the block is still the second one, at
+      // its cap rather than at the page's column width.
+      expect(field.width, greaterThan(photosetBlockMaxWidth));
+
+      final block = tester.getRect(find.byKey(const ValueKey('photosetBlock')));
+      expect(block.width, closeTo(photosetBlockMaxWidth, 0.5));
+      expect(block.left, closeTo(field.right + columnGap, 0.5));
+
+      // What the row has left is less than one column of the grid, so the area
+      // is not beside it: it is below the whole row, at the whole width, and
+      // the space beside the block is left empty.
+      expect(
+        pageWidth - field.width - block.width - 2 * columnGap,
+        lessThan(photosetColumnWidth),
+      );
+
+      final gallery = tester.getRect(
+        find.byKey(const ValueKey('photosetGallery')),
+      );
+
+      expect(gallery.width, closeTo(pageWidth, 0.5));
+      expect(gallery.left, closeTo(field.left, 0.5));
+      expect(gallery.top, greaterThan(block.bottom));
+    },
+  );
+
+  // And the same at a width with room for one column only: everything is
+  // stacked, and the block is capped there too, at the left of the space it is
+  // given (`ai/picking.md` §7).
   testWidgets(
     'a photoset pack shows its photos below the form when only one column fits',
     (tester) async {
@@ -1855,10 +1912,12 @@ void main() {
 
       final field = tester.getRect(find.byKey(const ValueKey('siteOrJournal')));
 
-      // One column, so the field is the whole width, and the block is in it below
-      // the fields.
+      // One column, so the field is the whole width, and the block is below the
+      // fields at its cap rather than at that width.
+      expect(field.width, greaterThan(photosetBlockMaxWidth));
+
       final block = tester.getRect(find.byKey(const ValueKey('photosetBlock')));
-      expect(block.width, closeTo(field.width, 0.5));
+      expect(block.width, closeTo(photosetBlockMaxWidth, 0.5));
       expect(block.left, closeTo(field.left, 0.5));
       expect(block.top, greaterThan(field.bottom));
 
@@ -1872,11 +1931,12 @@ void main() {
       expect(upload.width, closeTo(field.width, 0.5));
       expect(message.width, closeTo(field.width, 0.5));
 
-      // Below the whole first column, at the same width: the one column the area
-      // fits is that width.
+      // Below everything, at the whole width: the one column the area fits is
+      // that width.
       final gallery = tester.getRect(
         find.byKey(const ValueKey('photosetGallery')),
       );
+
       expect(gallery.width, closeTo(field.width, 0.5));
       expect(gallery.left, closeTo(field.left, 0.5));
       expect(gallery.top, greaterThan(message.bottom));
