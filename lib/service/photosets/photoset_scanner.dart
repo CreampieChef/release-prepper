@@ -38,14 +38,21 @@ class SourceEntry {
   final String readPath;
 }
 
-/// One photo the scan found: its name inside the set, and what its header says
-/// the dimensions are. Null dimensions means the header could not be read — the
-/// photo is still counted, because the extension list is what decides what a
-/// photo is, and the scan reports it.
+/// One photo the scan found: its name inside the set, the size the file has in
+/// the source, and what its header says the dimensions are. Null dimensions
+/// means the header could not be read — the photo is still counted, because the
+/// extension list is what decides what a photo is, and the scan reports it.
 class ScannedPhoto {
-  const ScannedPhoto({required this.name, this.dimensions});
+  const ScannedPhoto({required this.name, required this.size, this.dimensions});
 
   final String name;
+
+  /// The size the file has in the source: the size on disk for a file in a
+  /// folder, the entry's size in an archive. That is what the total size field
+  /// is built from, so the two sources give the same kind of number
+  /// (`ai/photoset_pack.md` §3).
+  final int size;
+
   final ImageDimensions? dimensions;
 
   /// The extension the photo name has, lowercased. This is what the format
@@ -205,6 +212,16 @@ final class ScanSuccess extends ScanResult {
   int get totalPhotoCount =>
       [for (final set in sets) set.photoCount]
           .fold(0, (total, count) => total + count);
+
+  /// The sizes the counted photos have in the source, summed
+  /// (`ai/photoset_pack.md` §3). A photo whose header could not be read is
+  /// still counted, and the size the source gives it is still known, so the
+  /// total is the whole counted set rather than only the photos that could be
+  /// measured.
+  int get totalSize => [
+    for (final set in sets)
+      for (final photo in set.photos) photo.size,
+  ].fold(0, (total, size) => total + size);
 
   /// The smallest and the largest photo by pixel area, across all photos. There
   /// is no per-set minimum or maximum (`ai/photoset_pack.md` §3). Null when no

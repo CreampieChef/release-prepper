@@ -279,6 +279,7 @@ const photosetPackFieldList = FieldList(
     FieldSpec(name: 'genreTags'),
     FieldSpec(name: 'photosetCount', filledByApp: true),
     FieldSpec(name: 'totalPhotoCount', filledByApp: true),
+    FieldSpec(name: 'totalSize', filledByApp: true, isByteCount: true),
     FieldSpec(name: 'minResolution', filledByApp: true),
     FieldSpec(name: 'maxResolution', filledByApp: true),
     _parentForum,
@@ -358,6 +359,7 @@ const singlePhotosetFieldList = FieldList(
     FieldSpec(name: 'genreTags'),
     FieldSpec(name: 'description'),
     FieldSpec(name: 'totalPhotoCount', filledByApp: true),
+    FieldSpec(name: 'totalSize', filledByApp: true, isByteCount: true),
     FieldSpec(name: 'minResolution', filledByApp: true),
     FieldSpec(name: 'maxResolution', filledByApp: true),
     FieldSpec(name: 'imageFormats', filledByApp: true),
@@ -479,8 +481,9 @@ String fieldLabel(
         ? l10n.maxImageResolutionLabel
         : l10n.maxResolutionLabel,
   'imageFormats' => l10n.imageFormatsLabel,
-  // A key of its own rather than `fileSizeLabel`: this is the size of the whole
-  // folder, not of one file, so the words differ.
+  // A key of its own rather than `fileSizeLabel`: the value is the sizes the
+  // counted files added together, not the size of one file, so the words
+  // differ.
   'totalSize' => l10n.totalSizeLabel,
   'videoCount' => l10n.videoCountLabel,
   'videoResolutions' => l10n.videoResolutionsLabel,

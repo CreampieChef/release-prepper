@@ -56,6 +56,7 @@ App-generated, at the release level:
 | Field | Meaning |
 | --- | --- |
 | `totalPhotoCount` | the number of photos in the set |
+| `totalSize` | the size the counted photos have in the source, summed |
 | `minResolution` | the smallest photo by pixel area |
 | `maxResolution` | the largest photo by pixel area |
 | `imageFormats` | the distinct formats among the counted photos |
@@ -71,9 +72,11 @@ writes the item's value, the section shows the count per set, and the aggregate 
 already has. Dropping either would make one of the two read the other.
 
 Resolution is compared by pixel area, as for a pack, and a resolution value is written as
-`WIDTHxHEIGHT`. `imageFormats` is the distinct extensions among the counted photos, lowercased and
-sorted alphabetically, joined with `, ` — the same rule as `videoFormats` (`ai/video_pack.md` §4). A
-photo whose header cannot be read is still counted, because the extension list is what decides what a
+`WIDTHxHEIGHT`. `totalSize` is the same name and the same rule as the pack's (`ai/photoset_pack.md`
+§3): the sizes the counted photos have in the source, summed — with one item that is the set's own
+total. `imageFormats` is the distinct extensions among the counted photos, lowercased and sorted
+alphabetically, joined with `, ` — the same rule as `videoFormats` (`ai/video_pack.md` §4). A photo
+whose header cannot be read is still counted, because the extension list is what decides what a
 photo is, and it is reported.
 
 The derived values describe **the source as scanned**, not the photos the picking rule chose: the post
@@ -94,10 +97,10 @@ the Video pack section, so its signature took the type; what it returns for the 
 change. The Stash section has no release to ask, so the type is passed to it — it is only ever rendered
 for a single video.
 
-The same applies to the strings the Photosets section shows. "Photo packs", "There are no photosets" and
-"Pick the folder with the photosets" read wrong for one set, so the section's strings are resolved per
-type as well, by `_strings()` — one switch over the type, no table, the same shape as `_sourceLabel` in
-the editor. The three keys that were named for the pack were given pack names, because they are no
+The same applies to the strings the Photosets block shows. "Photo packs", "There are no photosets" and
+"Pick the folder with the photosets" read wrong for one set, so the strings are resolved per type as
+well, by `photosetStrings()` in `photoset_group.dart` — one switch over the type, no table, the same
+shape as `_sourceLabel` in the editor. The three keys that were named for the pack were given pack names, because they are no
 longer the only ones. The Scan and Pick buttons, the count line and the report lines keep their existing
 wording, because they say the same thing for one set as for many.
 
@@ -145,15 +148,21 @@ The picked photos are copied into the release, mirroring the structure the user 
 `kind: photo` with `item` set to the item path — the Upload section's progress bars count them
 unchanged.
 
-## 7. The section
+## 7. The block
 
-The Photosets section is the same widget, not a new one and not a different layout: Scan and Pick, the
-set with its count, the picked photos as a masonry, and what the scan or the pick could not take. With
-one item the grid holds one card. The layout does not branch on the release type; only its strings do
-(§4).
+For a single photoset the block is the whole feature, because there is no space beside it for its
+pictures: Scan and Pick in its heading row, the set with its count, and the picked photos with the
+same grid drawing the pack uses, at the whole width, at the same two widths the feature gives it
+(`ai/picking.md` §7). There is no header naming a list above the line, because one item is not a list
+(`ai/picking.md` §7). It is not split by kind, because with one item the grid holds one set and there
+is nothing to group, so its photos are in the order the source gives them, and a tile there labels
+itself with its file name only: the block names the set above the photos, so there is nothing for a
+tile to say about which set it is from.
 
-Re-picking writes the same names, so the section needs the cache eviction and a key that changes on
-each run, as `AGENTS.md` §5 requires — the rule the section already follows.
+Re-picking writes the same names, so the block needs the cache eviction and a key that changes on each
+run, as `AGENTS.md` §5 requires — the rule the feature already follows. Here that key can be the
+block's own counter, because the block is the widget that shows the pictures; for a pack it cannot be,
+because the pictures are in another widget (`ai/picking.md` §7).
 
 ## 8. The message
 
@@ -190,16 +199,18 @@ change".
    field list as `itemBoundary`, and `SourceEntry.readPath`, so a picked file is not joined to the
    source twice. The readers and the header reader do not change.
 5. `lib/feature/photosets/` — the controller writes the formats field and keeps the values it returns
-   to the names the type has, and the section shows one card with the per-type strings.
+   to the names the type has, and the block shows the set with the per-type strings.
 6. l10n keys in both arb files: the type label, the source row label, the two field labels, and the
-   section's strings for this type. The pack's own keys were renamed to say they are the pack's,
+   block's strings for this type. The pack's own keys were renamed to say they are the pack's,
    because they are no longer the only ones.
 7. `assets/templates/pornolab/singlePhotoset.txt`, and `TemplateStore` reading the title per type with
    the tracker's file as the fallback.
 8. Tests: the form for the type, the scan with the source as the item, the formats field, the
-   section's strings, and the title template of the type with the tracker's as the fallback.
+   block's strings, and the title template of the type with the tracker's as the fallback.
 
-The picking rule and the masonry are already written and tested; they do not change.
+The picking rule does not change for this type, and its tests already cover a single set as a pack of
+one. The grid the block draws with does change — the two widths, and the split by kind — but one set is
+never split, so the grid here is the one zone that is the whole space (`ai/picking.md` §7).
 
 ## 10. Open questions
 

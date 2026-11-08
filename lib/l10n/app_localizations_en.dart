@@ -298,6 +298,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get photosetPackSectionTitle => 'Photosets';
 
   @override
+  String get photosetListSectionTitle => 'Photoset List';
+
+  @override
   String get singlePhotosetSectionTitle => 'Photoset';
 
   @override
@@ -307,13 +310,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pickPhotosets => 'Pick';
 
   @override
-  String photosetPhotoCount(int count) {
-    return '$count photos';
-  }
-
-  @override
-  String photosetPickedCount(int count) {
-    return '$count picked';
+  String photosetPickedOfTotal(int picked, String total) {
+    return '$picked / $total';
   }
 
   @override

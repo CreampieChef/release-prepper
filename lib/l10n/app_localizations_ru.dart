@@ -298,6 +298,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get photosetPackSectionTitle => 'Фотосеты';
 
   @override
+  String get photosetListSectionTitle => 'Список фотосетов';
+
+  @override
   String get singlePhotosetSectionTitle => 'Фотосет';
 
   @override
@@ -307,13 +310,8 @@ class AppLocalizationsRu extends AppLocalizations {
   String get pickPhotosets => 'Выбрать';
 
   @override
-  String photosetPhotoCount(int count) {
-    return '$count фото';
-  }
-
-  @override
-  String photosetPickedCount(int count) {
-    return '$count выбрано';
+  String photosetPickedOfTotal(int picked, String total) {
+    return '$picked / $total';
   }
 
   @override

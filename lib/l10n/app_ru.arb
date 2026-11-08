@@ -98,22 +98,18 @@
     "columnTitlePhotosets": "Фотосеты",
     "columnTitleImages": "Изображения",
     "photosetPackSectionTitle": "Фотосеты",
+    "photosetListSectionTitle": "Список фотосетов",
     "singlePhotosetSectionTitle": "Фотосет",
     "scanPhotosets": "Сканировать",
     "pickPhotosets": "Выбрать",
-    "photosetPhotoCount": "{count} фото",
-    "@photosetPhotoCount": {
+    "photosetPickedOfTotal": "{picked} / {total}",
+    "@photosetPickedOfTotal": {
         "placeholders": {
-            "count": {
+            "picked": {
                 "type": "int"
-            }
-        }
-    },
-    "photosetPickedCount": "{count} выбрано",
-    "@photosetPickedCount": {
-        "placeholders": {
-            "count": {
-                "type": "int"
+            },
+            "total": {
+                "type": "String"
             }
         }
     },

@@ -1,11 +1,11 @@
 # Photoset pack
 
-**Design. The field list, the form, the scan, the header reader, the two readers and the photosets
-section are implemented; the picker and the template are not.** This is the fourth release type,
-after Single video, the video pack and the single photoset. It follows `ai/release_structure.md`:
-the containers are one shape for every type, and a new type is a field list plus a template. When
-the rest is implemented, `ai/doc.md` §7 is rewritten in the same change, as the project rule
-requires.
+**Design. The field list, the form, the scan, the header reader, the two readers, the picker, the
+block and the photo area are implemented; the message template is not.** This is the fourth release
+type, after Single video, the video pack and the single photoset. It follows
+`ai/release_structure.md`: the containers are one shape for every type, and a new type is a field
+list plus a template. When the template is implemented, `ai/doc.md` §7 is rewritten in the same
+change, as the project rule requires.
 
 ## 1. One release type, not two
 
@@ -63,6 +63,7 @@ App-generated, at the release level:
 | --- | --- |
 | `photosetCount` | the number of items |
 | `totalPhotoCount` | the number of photos across all items |
+| `totalSize` | the size the counted photos have in the source, summed |
 | `minResolution` | the smallest photo by pixel area, across all photos |
 | `maxResolution` | the largest photo by pixel area, across all photos |
 
@@ -74,6 +75,14 @@ App-generated, at the item level:
 
 Resolution is compared by pixel area, not by a side, and it is aggregated at the release level
 only — there is no per-set min/max. A resolution value is written as `WIDTHxHEIGHT`.
+
+`totalSize` is the same name the video pack has, so it is the same kind of value and the same label
+(`ai/video_pack.md` §3): the bytes each counted photo has in the source. That is the size on disk
+for a file in a folder, and the size the archive states for an entry, which is its uncompressed
+length — the same kind of number, so the two sources give one field. A photo whose header cannot be
+read is still counted, and the size the source gives it is still known, so the total is the whole
+counted set rather than only the photos that could be measured. It is the order of this list that
+decides where the row is: below `totalPhotoCount`, as the field lists are read in order.
 
 The scan also counts the distinct extensions among the photos it counted, lowercased and sorted.
 That is the value the single photoset has (`ai/single_photoset.md` §6); this type's field list does
@@ -97,11 +106,11 @@ Two things follow from the editor becoming type-driven:
 A service under `lib/service/`, called only when the user asks: opening a release is a read and
 changes nothing (`ai/release_structure.md` §4).
 
-It reads the picked folder, decides which entries are items — the rule is given to it per type
-as `ItemBoundary`, and for this type it is the entries under the source (`ai/single_photoset.md`
-§5) — and for each item enumerates its photos, counts them and reads their dimensions. It writes
-the items with `type: photoset` and the generated fields, and the aggregate values at the
-release level.
+It reads the picked folder, decides which entries are items — the rule is given to it per type as
+`ItemBoundary`, and for this type it is the entries under the source (`ai/single_photoset.md` §5) —
+and for each item enumerates its photos, counts them, takes the size each has in the source, and
+reads their dimensions. It writes the items with `type: photoset` and the generated fields, and the
+aggregate values at the release level.
 
 The rules it is written to:
 
@@ -165,7 +174,12 @@ Implemented. The rule is `ai/picking.md`; the seam defined here is what the code
 - A selector takes the scanned items and a rule and returns the photos it picks.
 - The picked photos are copied into the release, mirroring the structure the user picked
   (`ai/release_structure.md` §4), and recorded as `kind: photo`.
-- The section shows them in place of the screenshots, grouped per set (`ai/picking.md` §7).
+- The section shows them in place of the screenshots as one grid of tiles, where each tile names the
+  set its photo is from as well as its file name, because nothing groups them (`ai/picking.md` §7).
+- For a pack that grid is split by kind: the portraits in the columns of the portrait width,
+  the landscapes in the columns of the landscape width, never mixed, and the counts of the photos
+  decide how many columns each kind gets. A single photoset is not split, because with one set there
+  is nothing to group (`ai/picking.md` §7, `ai/single_photoset.md` §7).
 - The scan runs before the picker, because the picking reads the counts. The resolutions are not
   part of the rule (`ai/picking.md` §4).
 
@@ -205,10 +219,12 @@ Done:
    through the same format dispatch.
 6. `lib/service/photosets/` — the scan behind the reader interface, and one file per reader:
    `directory_reader.dart` and `zip_reader.dart`.
-7. `lib/feature/photosets/` — the controller and the section that shows the photosets with their
-   counts. The picked photos come with the picker.
-8. l10n keys in both arb files, and the tests for the pack form, the header reader, the scan and
-   the section.
+7. `lib/feature/photosets/` — the controller, the block that lists the photosets with their counts,
+   the header naming that list, the area that draws the picked photos as the grid the feature
+   fits from the two widths it gives, split by kind for a pack, and the state and the drawing
+   helpers the two share.
+8. l10n keys in both arb files, and the tests for the pack form, the header reader, the scan, the
+   block, the area and the shared tile.
 9. `zip_reader.dart` — the ZIP reader through the `archive` package, and `pubspec.yaml` with it;
    rule 12 in `ai/doc.md` now lists `archive` as the package used for reading archives and for
    nothing else. The display-name collision report comes with it, since with directories only it

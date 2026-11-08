@@ -45,6 +45,10 @@ class ZipPhotosetReader implements PhotosetReader {
         photos.add(
           ScannedPhoto(
             name: p.basename(entry.name),
+            // The entry's size as the archive states it, uncompressed, which is
+            // the size the file has there: the same kind of number as the size
+            // on disk for a file in a folder (`ai/photoset_pack.md` §3).
+            size: entry.size,
             dimensions: await readImageDimensionsFrom(
               (length) => _readHeader(entry, length),
             ),

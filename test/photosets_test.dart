@@ -3,10 +3,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:provider/provider.dart';
 
 import 'package:release_prepper/feature/photosets/photosets_controller.dart';
-import 'package:release_prepper/feature/photosets/photosets_section.dart';
+import 'package:release_prepper/feature/photosets/photoset_block.dart';
+import 'package:release_prepper/feature/photosets/photoset_gallery.dart';
+import 'package:release_prepper/feature/photosets/photoset_group.dart';
 import 'package:release_prepper/feature/release/release.dart';
 import 'package:release_prepper/feature/release/release_fields.dart';
 import 'package:release_prepper/feature/release/release_store.dart';
@@ -17,7 +18,9 @@ import 'package:release_prepper/feature/tab/tab_manager.dart';
 import 'package:release_prepper/l10n/app_localizations.dart';
 import 'package:release_prepper/feature/screenshots/images.dart';
 import 'package:release_prepper/feature/screenshots/images_store.dart';
+import 'package:release_prepper/service/images/masonry.dart';
 import 'package:release_prepper/service/photosets/directory_reader.dart';
+import 'package:release_prepper/service/photosets/photoset_picker.dart';
 import 'package:release_prepper/service/photosets/photoset_scanner.dart';
 
 void main() {
@@ -91,6 +94,12 @@ void main() {
     File(p.join(set.path, name)).writeAsBytesSync(bytes);
   }
 
+  // The size a photo has is the bytes the fixture wrote, so the total a test
+  // expects is the sum of the fixtures it wrote rather than a number written
+  // out.
+  String totalOf(List<List<int>> fixtures) =>
+      '${fixtures.fold(0, (total, bytes) => total + bytes.length)}';
+
   Release testRelease(
     String source, {
     ReleaseType releaseType = ReleaseType.photosetPack,
@@ -104,22 +113,76 @@ void main() {
     items: [],
   );
 
-  PhotosetScanner testScanner() =>
-      PhotosetScanner(readers: [const DirectoryPhotosetReader()]);
-
   PhotosetController testController(
     Release release,
     ImagesStore store,
     TabManager tabManager,
-    String tabId,
-  ) => PhotosetController(
+    String tabId, {
+    List<PhotosetReader>? readers,
+  }) => PhotosetController(
     release: release,
-    scanner: testScanner(),
+    scanner: PhotosetScanner(
+      readers: readers ?? [const DirectoryPhotosetReader()],
+    ),
     store: store,
     releaseStore: ReleaseStore(),
     tabManager: tabManager,
     tabId: tabId,
   );
+
+  // The state the two widgets share is built by the editor, so a test builds it the
+  // way the editor does.
+  PhotosetState testState(Release release, {List<PhotosetReader>? readers}) {
+    final tabManager = TabManager();
+    final tabId = tabManager.addReleaseEditor(release);
+
+    return PhotosetState(
+      controller: testController(
+        release,
+        ImagesStore(),
+        tabManager,
+        tabId,
+        readers: readers,
+      ),
+    );
+  }
+
+  // The block is the page's first column and the gallery the columns after it, so a
+  // test that shows a pack builds both with the state they share. A test is not the
+  // editor, so it cannot rebuild on a run the way the editor does; where a test
+  // needs the gallery to show what a run wrote, it calls this again, which builds
+  // both widgets again against the state the run changed.
+  //
+  // The gallery is only built when the test is about the pack, because a single
+  // photoset has no area beside its block.
+  Future<void> openPhotosets(
+    WidgetTester tester,
+    PhotosetState state, {
+    void Function(Map<String, String> values) onApplyValues = discardValues,
+    bool showGallery = false,
+  }) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                PhotosetBlock(
+                  state: state,
+                  onApplyValues: onApplyValues,
+                  onRunWritten: () {},
+                ),
+                if (showGallery) PhotosetGallery(state: state),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   // The scan and the pick are async, and the widget does not hand out their
   // future, so a test that clicks one has to wait for it. Waiting for a fixed
@@ -176,6 +239,7 @@ void main() {
       expect(result.values, {
         'photosetCount': '1',
         'totalPhotoCount': '2',
+        'totalSize': totalOf([pngPhoto(100, 100), pngPhoto(400, 150)]),
         'minResolution': '100x100',
         'maxResolution': '400x150',
       });
@@ -213,6 +277,7 @@ void main() {
 
     expect(result.values, {
       'totalPhotoCount': '2',
+      'totalSize': totalOf([pngPhoto(100, 100), pngPhoto(400, 150)]),
       'minResolution': '100x100',
       'maxResolution': '400x150',
       'imageFormats': 'jpg, png',
@@ -241,6 +306,7 @@ void main() {
     expect(result.values.keys, [
       'photosetCount',
       'totalPhotoCount',
+      'totalSize',
       'minResolution',
       'maxResolution',
     ]);
@@ -294,7 +360,7 @@ void main() {
     expect(controller.displayName('set01.zip'), 'set01');
   });
 
-  testWidgets('the section shows the photosets with their counts', (
+  testWidgets('the block shows the photosets with their counts', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(2000, 2000);
@@ -307,29 +373,12 @@ void main() {
 
     final release = testRelease(directory.path);
     final applied = <Map<String, String>>[];
+    final state = testState(release);
 
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          Provider<PhotosetScanner>(create: (_) => testScanner()),
-          ChangeNotifierProvider<TabManager>(create: (_) => TabManager()),
-          Provider<ImagesStore>(create: (_) => ImagesStore()),
-          Provider<ReleaseStore>(create: (_) => ReleaseStore()),
-        ],
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: PhotosetSection(
-                release: release,
-                tabId: 'tab-1',
-                onApplyValues: (values) => applied.add(values),
-              ),
-            ),
-          ),
-        ),
-      ),
+    await openPhotosets(
+      tester,
+      state,
+      onApplyValues: (values) => applied.add(values),
     );
 
     // Nothing is shown before the scan: opening a release is a read and changes
@@ -342,9 +391,9 @@ void main() {
     await clickAndWait(tester, find.text('Scan'), find.text('set01'));
 
     expect(find.text('set01'), findsOneWidget);
-    expect(find.text('1 photos'), findsOneWidget);
+    expect(find.text('0 / 1'), findsOneWidget);
 
-    // The values go through the editor's write path, not the section's.
+    // The values go through the editor's write path, not the block's.
     expect(applied.single['photosetCount'], '1');
     expect(applied.single['totalPhotoCount'], '1');
 
@@ -352,39 +401,18 @@ void main() {
     expect(find.text('Not photosets: cover.png'), findsOneWidget);
   });
 
-  // The two buttons are in the title row, at the right of the section's title,
-  // because they are the actions of the whole section rather than a row inside
-  // it.
-  testWidgets('the Scan and Pick buttons are in the title row', (tester) async {
+  // The two buttons are in the block's heading row, at the right of its title,
+  // because they are the actions of the whole block rather than a row inside it.
+  testWidgets('the Scan and Pick buttons are in the heading row', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(2000, 2000);
     tester.view.devicePixelRatio = 1.0;
 
     final release = testRelease('');
-    final applied = <Map<String, String>>[];
+    final state = testState(release);
 
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          Provider<PhotosetScanner>(create: (_) => testScanner()),
-          ChangeNotifierProvider<TabManager>(create: (_) => TabManager()),
-          Provider<ImagesStore>(create: (_) => ImagesStore()),
-          Provider<ReleaseStore>(create: (_) => ReleaseStore()),
-        ],
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: PhotosetSection(
-                release: release,
-                tabId: 'tab-1',
-                onApplyValues: (values) => applied.add(values),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+    await openPhotosets(tester, state);
 
     for (final key in ['photosetScanButton', 'photosetPickButton']) {
       expect(
@@ -397,9 +425,42 @@ void main() {
     }
   });
 
-  // The same widget for a single set: the layout is not branched on the type,
-  // only the strings it shows are (`ai/single_photoset.md` §4, §7).
-  testWidgets('the section shows the strings of the type it is showing', (
+  // The header naming the list is drawn above the lines, and only for the type
+  // that has a list: before a scan there is nothing to name, so nothing is
+  // drawn above the placeholder (`ai/picking.md` §7).
+  testWidgets('the header naming the list is drawn above the lines', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    writePhotoAt('source/set01', 'a.png', 100, 100);
+
+    final release = testRelease(p.join(directory.path, 'source'));
+    final state = testState(release);
+
+    await openPhotosets(tester, state);
+
+    expect(find.text('Photoset List'), findsNothing);
+
+    await clickAndWait(tester, find.text('Scan'), find.text('set01'));
+
+    expect(find.text('Photoset List'), findsOneWidget);
+
+    // The block's heading row names the block; the header names the lines, so
+    // it is drawn below that row and above the first line.
+    final heading = tester.getRect(find.text('Photosets'));
+    final header = tester.getRect(find.text('Photoset List'));
+    final line = tester.getRect(find.byKey(ValueKey(('groupHeader', 'set01'))));
+
+    expect(header.top, greaterThan(heading.bottom));
+    expect(line.top, greaterThan(header.bottom));
+  });
+
+  // The same block for a single set: the strings are the ones that read wrong for
+  // one set, so they are resolved per type, and it shows the photos itself because
+  // a single set has no columns to put them in (`ai/single_photoset.md` §4, §7).
+  testWidgets('the block shows the strings of the type it is showing', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(2000, 2000);
@@ -407,35 +468,22 @@ void main() {
 
     writePhotoAt('set01', 'a.png', 100, 100);
 
-    // The source is empty at first, so the section says which folder it needs.
+    // The source is empty at first, so the block says which folder it needs.
     final release = testRelease('', releaseType: ReleaseType.singlePhotoset);
     final applied = <Map<String, String>>[];
+    final state = testState(release);
 
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          Provider<PhotosetScanner>(create: (_) => testScanner()),
-          ChangeNotifierProvider<TabManager>(create: (_) => TabManager()),
-          Provider<ImagesStore>(create: (_) => ImagesStore()),
-          Provider<ReleaseStore>(create: (_) => ReleaseStore()),
-        ],
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: PhotosetSection(
-                release: release,
-                tabId: 'tab-1',
-                onApplyValues: (values) => applied.add(values),
-              ),
-            ),
-          ),
-        ),
-      ),
+    await openPhotosets(
+      tester,
+      state,
+      onApplyValues: (values) => applied.add(values),
     );
 
+    // One title, and it is the one this type reads right for one set. The
+    // header naming a list is not drawn, because this type has one set
+    // (`ai/picking.md` §7).
     expect(find.text('Photoset'), findsOneWidget);
+    expect(find.text('Photoset List'), findsNothing);
     expect(
       find.text('There are no photos. Pick the folder and scan it.'),
       findsOneWidget,
@@ -455,7 +503,7 @@ void main() {
     await clickAndWait(tester, find.text('Scan'), find.text('set01'));
 
     expect(find.text('set01'), findsOneWidget);
-    expect(find.text('1 photos'), findsOneWidget);
+    expect(find.text('0 / 1'), findsOneWidget);
 
     expect(applied.last['imageFormats'], 'png');
     expect(applied.last.containsKey('photosetCount'), isFalse);
@@ -468,30 +516,9 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
 
     final release = testRelease(p.join(directory.path, 'missing'));
+    final state = testState(release);
 
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          Provider<PhotosetScanner>(create: (_) => testScanner()),
-          ChangeNotifierProvider<TabManager>(create: (_) => TabManager()),
-          Provider<ImagesStore>(create: (_) => ImagesStore()),
-          Provider<ReleaseStore>(create: (_) => ReleaseStore()),
-        ],
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: PhotosetSection(
-                release: release,
-                tabId: 'tab-1',
-                onApplyValues: (_) {},
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+    await openPhotosets(tester, state);
 
     await clickAndWait(
       tester,
@@ -517,34 +544,12 @@ void main() {
         .writeAsStringSync('not a real archive');
 
     final release = testRelease(directory.path);
-
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          Provider<PhotosetScanner>(
-            create: (_) => PhotosetScanner(
-              readers: [const DirectoryPhotosetReader(), _FakeArchiveReader()],
-            ),
-          ),
-          ChangeNotifierProvider<TabManager>(create: (_) => TabManager()),
-          Provider<ImagesStore>(create: (_) => ImagesStore()),
-          Provider<ReleaseStore>(create: (_) => ReleaseStore()),
-        ],
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: PhotosetSection(
-                release: release,
-                tabId: 'tab-1',
-                onApplyValues: (_) {},
-              ),
-            ),
-          ),
-        ),
-      ),
+    final state = testState(
+      release,
+      readers: [const DirectoryPhotosetReader(), _FakeArchiveReader()],
     );
+
+    await openPhotosets(tester, state);
 
     await clickAndWait(
       tester,
@@ -714,8 +719,13 @@ void main() {
     expect(result.emptySets, ['set01']);
     expect(result.written.map((record) => record.file), ['set02/a.png']);
   });
-
-  testWidgets('the picked photos are shown grouped per set', (tester) async {
+  // The block names each set with its counts, and the grid shows the photos the
+  // rule picked for it — every set's photos together, not one column per set,
+  // so each tile says which set its photo is from as well as its file name
+  // (`ai/picking.md` §7).
+  testWidgets('the picked photos are one grid labelled with their set', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(2000, 2000);
     tester.view.devicePixelRatio = 1.0;
 
@@ -728,30 +738,9 @@ void main() {
     }
 
     final release = testRelease(p.join(directory.path, 'source'));
+    final state = testState(release);
 
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          Provider<PhotosetScanner>(create: (_) => testScanner()),
-          ChangeNotifierProvider<TabManager>(create: (_) => TabManager()),
-          Provider<ImagesStore>(create: (_) => ImagesStore()),
-          Provider<ReleaseStore>(create: (_) => ReleaseStore()),
-        ],
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: PhotosetSection(
-                release: release,
-                tabId: 'tab-1',
-                onApplyValues: (_) {},
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+    await openPhotosets(tester, state, showGallery: true);
 
     // The rule reads the counts, so it cannot run before the scan has.
     final pickButton = tester.widget<FilledButton>(
@@ -761,65 +750,114 @@ void main() {
 
     await clickAndWait(tester, find.text('Scan'), find.text('set01'));
 
-    // Nothing is copied yet, so nothing is shown: the section shows what is on
-    // disk.
-    expect(find.text('3 picked'), findsNothing);
+    // The pair the line shows is the number the rule picked and the number the
+    // scan counted, so before a run the first part is 0 while the second is the
+    // count the scan wrote (`ai/picking.md` §7). The numbers below are the ones
+    // the rule gives for this fixture, the same ones the test asks the rule for
+    // further down.
+    expect(
+      find.descendant(
+        of: find.byKey(ValueKey(('groupHeader', 'set01'))),
+        matching: find.text('0 / 10'),
+      ),
+      findsOneWidget,
+    );
 
-    await clickAndWait(tester, find.text('Pick'), find.text('3 picked'));
+    await clickAndWait(tester, find.text('Pick'), find.text('3 / 10'));
 
-    expect(find.text('3 picked'), findsOneWidget);
-    expect(find.text('2 picked'), findsOneWidget);
+    // Each set is named once, in the block, because the grid does not name a
+    // set above its photos — the tile says which set its photo is from.
+    expect(
+      find.descendant(
+        of: find.byKey(ValueKey(('groupHeader', 'set01'))),
+        matching: find.text('3 / 10'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(ValueKey(('groupHeader', 'set02'))),
+        matching: find.text('2 / 10'),
+      ),
+      findsOneWidget,
+    );
 
-    // The picks are the interval centres of each set, in the order the source
-    // gives them.
-    expect(find.text('001.png'), findsOneWidget);
-    expect(find.text('005.png'), findsOneWidget);
-    expect(find.text('008.png'), findsOneWidget);
-    expect(find.text('002.png'), findsOneWidget);
-    expect(find.text('007.png'), findsOneWidget);
+    // A run rebuilds the block, which is the widget that ran it. The gallery is
+    // another widget, so it is rebuilt by the page that places both — here the test
+    // builds it again the way the editor does.
+    await openPhotosets(tester, state, showGallery: true);
+
+    // The picks, in the order the source gives the sets and, within a set, the
+    // order it gives the photos: the test asks the rule rather than assuming,
+    // so the names it compares are the ones the pick wrote.
+    final picked = [
+      for (final pick in PhotosetPicker.pick([
+        for (final set in ['set01', 'set02'])
+          ScannedSet(
+            entry: SourceEntry(name: set, isDirectory: true, readPath: set),
+            photos: [
+              // The rule reads counts, not sizes, so the fixture gives none.
+              for (var index = 0; index < 10; index++)
+                ScannedPhoto(
+                  name: '${index.toString().padLeft(3, '0')}.png',
+                  size: 0,
+                ),
+            ],
+          ),
+      ]).picks)
+        for (final photo in pick.photos) (pick.set.path, photo.name),
+    ];
+
+    for (final photo in picked) {
+      final path = p.join(directory.path, photo.$1, photo.$2);
+      final tile = find.byKey(ValueKey(('photoTile', path)));
+
+      expect(tile, findsOneWidget);
+
+      // The two lines a grid that mixes sets draws: the set it is from, and the
+      // file.
+      expect(
+        find.descendant(of: tile, matching: find.text(photo.$1)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: tile, matching: find.text(photo.$2)),
+        findsOneWidget,
+      );
+    }
   });
 
+  // A single photoset is one set, so its photos are placed by the same grid: a
+  // landscape spans the number of columns the two widths give, and the tiles
+  // cannot share one shape (`ai/single_photoset.md` §6, `ai/picking.md` §7).
+  // Its block names the one set above the photos, so a tile there keeps its
+  // file name only.
   testWidgets(
-    'the grid places each tile where the packing put it, and a landscape spans two',
+    'a single photoset places its tiles by the masonry, and a landscape spans two',
     (tester) async {
       tester.view.physicalSize = const Size(2000, 2000);
       tester.view.devicePixelRatio = 1.0;
 
-      // Three photos: a portrait, a landscape, and one whose header is not one
-      // the reader understands. The tiles cannot share one shape, and the third
-      // takes a square.
-      writePhotoAt('source/set01', 'a.png', 100, 300);
-      writePhotoAt('source/set01', 'b.png', 300, 100);
-      writeRawAt('source/set01', 'c.png', [0x47, 0x49, 0x46, 0x38, 0x39]);
+      // The source is the set, so the photos are at its top level. Three of
+      // them: a portrait, a landscape, and one whose header is not one the
+      // reader understands. The tiles cannot share one shape, and the third
+      // takes a square. A set this small is picked in full (`ai/picking.md` §1),
+      // so all three are drawn.
+      writePhotoAt('source', 'a.png', 100, 300);
+      writePhotoAt('source', 'b.png', 300, 100);
+      writeRawAt('source', 'c.png', [0x47, 0x49, 0x46, 0x38, 0x39]);
 
-      final release = testRelease(p.join(directory.path, 'source'));
-
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            Provider<PhotosetScanner>(create: (_) => testScanner()),
-            ChangeNotifierProvider<TabManager>(create: (_) => TabManager()),
-            Provider<ImagesStore>(create: (_) => ImagesStore()),
-            Provider<ReleaseStore>(create: (_) => ReleaseStore()),
-          ],
-          child: MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: SingleChildScrollView(
-                child: PhotosetSection(
-                  release: release,
-                  tabId: 'tab-1',
-                  onApplyValues: (_) {},
-                ),
-              ),
-            ),
-          ),
-        ),
+      final release = testRelease(
+        p.join(directory.path, 'source'),
+        releaseType: ReleaseType.singlePhotoset,
       );
+      final state = testState(release);
 
-      await clickAndWait(tester, find.text('Scan'), find.text('set01'));
+      await openPhotosets(tester, state);
 
+      await clickAndWait(tester, find.text('Scan'), find.text('source'));
+
+      // The block draws these itself, so it is the widget a run rebuilds.
       await clickAndWait(tester, find.text('Pick'), find.byType(Positioned));
 
       final boxes = tester
@@ -827,19 +865,24 @@ void main() {
           .toList();
 
       // The order is the order the source gives, so the second box is the
-      // landscape: two columns wide, while the other two take one.
+      // landscape: as many columns wide as the two widths the feature gives
+      // derive, while the other two take one.
       expect(boxes.length, 3);
 
       final columnWidth = boxes[0].width!;
+      final span = photoSpanCount(
+        portraitWidth: photosetColumnWidth,
+        landscapeWidth: photosetLandscapeWidth,
+      );
 
-      expect(boxes[1].width, 2 * columnWidth);
+      expect(span, 2);
+      expect(boxes[1].width, span * columnWidth);
       expect(boxes[2].width, columnWidth);
 
       // Each box is the shape the photo is. The name line and the gap are the
-      // section's constants, so the image is the rest of the box. The widget
-      // works with the width it is given, so the values are compared with the
-      // rounding a division by a column count introduces.
-      const labelAndGap = 28.0;
+      // constants the feature lays tiles out with, so the image is the rest of
+      // the box. One set, so one line (`ai/picking.md` §7).
+      final labelAndGap = photosetLabelHeight + photosetTileGap;
 
       expect(
         boxes[0].height! - labelAndGap,
@@ -847,12 +890,311 @@ void main() {
       );
       expect(
         boxes[1].height! - labelAndGap,
-        closeTo(2 * columnWidth / (300 / 100), 0.01),
+        closeTo(span * columnWidth / (300 / 100), 0.01),
       );
       expect(boxes[2].height! - labelAndGap, closeTo(columnWidth, 0.01));
+
+      // A tile here does not name its set, because there is one set and the
+      // block names it above the photos.
+      for (final name in ['a.png', 'b.png', 'c.png']) {
+        final tile = find.byKey(
+          ValueKey(('photoTile', p.join(directory.path, 'source', name))),
+        );
+
+        expect(
+          find.descendant(of: tile, matching: find.text('source')),
+          findsNothing,
+        );
+      }
     },
   );
+
+  // The pack's grid is the same drawing at the same two widths, and a tile
+  // there does name its set, because the grid mixes sets. The drawing uses the
+  // same heights the assignment works with, so the test works the placement out
+  // with the rule, including the split by kind, and compares the boxes against
+  // it (`ai/picking.md` §7).
+  testWidgets('the pack draws the photos in the columns the assignment gives', (
+    tester,
+  ) async {
+    // A space that can hold a column of both kinds: one for a portrait and one
+    // for a landscape is the least the two zones can be given, and below that
+    // the grid is not split at all (`ai/picking.md` §7).
+    tester.view.physicalSize = const Size(1400, 4000);
+    tester.view.devicePixelRatio = 1.0;
+
+    // Three sets of two, one landscape, one portrait, one read as a square, so
+    // both kinds are present and the placement is not the same for every tile.
+    // The dimensions are the ratios themselves, so the test compares with the
+    // same numbers the reader reads from the fixtures.
+    const sets = ['set01', 'set02', 'set03'];
+    const sizes = [
+      [300, 100],
+      [100, 300],
+      [100, 100],
+    ];
+
+    for (var set = 0; set < sets.length; set++) {
+      for (var index = 0; index < 2; index++) {
+        writePhotoAt(
+          'source/${sets[set]}',
+          'p$index.png',
+          sizes[set][0],
+          sizes[set][1],
+        );
+      }
+    }
+
+    final release = testRelease(p.join(directory.path, 'source'));
+    final state = testState(release);
+
+    // What the rule picks for this fixture, in the order the source gives the
+    // sets and, within a set, the order it gives the photos: the test asks the
+    // rule rather than assuming, so the names it compares are the ones the pick
+    // writes, and the order the assignment works with is the order the drawing
+    // uses.
+    final scanned = [
+      for (final set in sets)
+        ScannedSet(
+          entry: SourceEntry(name: set, isDirectory: true, readPath: set),
+          photos: [
+            // The rule reads counts, not sizes, so the fixture gives none.
+            for (var index = 0; index < 2; index++)
+              ScannedPhoto(name: 'p$index.png', size: 0),
+          ],
+        ),
+    ];
+    final picked = [
+      for (final pick in PhotosetPicker.pick(scanned).picks)
+        for (final photo in pick.photos) (pick.set.path, photo.name),
+    ];
+
+    // What the line for the first set says after a run: the number the rule
+    // gave that set, taken from the rule, and the number its fixture has.
+    final firstSetCount = picked.where((photo) => photo.$1 == sets[0]).length;
+
+    await openPhotosets(tester, state, showGallery: true);
+
+    await clickAndWait(tester, find.text('Scan'), find.text('set01'));
+
+    // The pick runs in the block, which is the widget that ran it; the gallery
+    // is another widget, so a run reaches it only when the page builds again —
+    // here the test builds it again the way the editor does. The wait is on the
+    // block's line, because that is where the picked number changes.
+    await clickAndWait(
+      tester,
+      find.text('Pick'),
+      find.descendant(
+        of: find.byKey(ValueKey(('groupHeader', sets[0]))),
+        matching: find.text('$firstSetCount / 2'),
+      ),
+    );
+
+    await openPhotosets(tester, state, showGallery: true);
+
+    // More than one photo and more than one set, which is what the drawing
+    // needs: a grid that mixes sets names the set on each tile.
+    expect(picked.length, greaterThan(1));
+    expect(picked.map((photo) => photo.$1).toSet().length, greaterThan(1));
+
+    final gallery = tester.getRect(
+      find.byKey(const ValueKey('photosetGallery')),
+    );
+
+    // The test cannot know what a widget is given by its parent, so it reads
+    // the drawing for the space, and from that the rule gives the columns and
+    // the width each is drawn at. The drawing is then compared against both, so
+    // the test follows whatever the two constants are changed to.
+    final span = photoSpanCount(
+      portraitWidth: photosetColumnWidth,
+      landscapeWidth: photosetLandscapeWidth,
+    );
+    final fit = photoColumnCount(
+      width: gallery.width,
+      min: photosetColumnWidth,
+    );
+
+    final ratiosBySet = {
+      for (var set = 0; set < sets.length; set++)
+        sets[set]: sizes[set][0] / sizes[set][1],
+    };
+
+    // The two zones, in the order the drawing places them: portraits first,
+    // then landscapes. Within a zone the order is the order the source gives,
+    // which is the order the picked list is in, so the test keeps it as it is.
+    final portraits = [
+      for (final photo in picked)
+        if (!isLandscape(ratiosBySet[photo.$1])) photo,
+    ];
+    final landscapes = [
+      for (final photo in picked)
+        if (isLandscape(ratiosBySet[photo.$1])) photo,
+    ];
+    final zones = photoZoneColumnCounts(
+      portraitPhotos: portraits.length,
+      landscapePhotos: landscapes.length,
+      columnCount: fit,
+      landscapeSpan: span,
+    );
+
+    // What makes this fixture worth drawing as two zones: both kinds have
+    // photos, the space can hold a column of each, and neither zone is the
+    // single column a kind is given when it has nothing else to fill it with.
+    expect(fit, greaterThanOrEqualTo(1 + span));
+    expect(zones, isNotNull);
+    expect(portraits.length, greaterThan(1));
+    expect(landscapes.length, greaterThan(1));
+    expect(zones!.portraitColumns, greaterThan(1));
+    expect(zones.landscapeColumns, greaterThan(span));
+
+    final columnWidth = photoColumnWidth(
+      width: gallery.width,
+      columnCount: zones.portraitColumns + zones.landscapeColumns,
+      maxWidth: photosetColumnMaxWidth,
+    );
+
+    final labelHeight = photosetLabelHeight + photosetSetLineHeight;
+
+    // The gallery's title row is above the grid, and its height comes from
+    // measuring text, which the test cannot compute from the constants. So the
+    // origin is read from the drawing: the first photo of the first zone is
+    // placed at the top of its first column, so its box is where the grid
+    // starts.
+    final origin = tester.getRect(
+      find.byKey(
+        ValueKey((
+          'photoTile',
+          p.join(directory.path, portraits.first.$1, portraits.first.$2),
+        )),
+      ),
+    );
+
+    var start = 0;
+
+    for (final zone in [
+      (photos: portraits, columns: zones.portraitColumns),
+      (photos: landscapes, columns: zones.landscapeColumns),
+    ]) {
+      final tiles = masonryPositions(
+        ratios: [for (final photo in zone.photos) ratiosBySet[photo.$1]!],
+        columnCount: zone.columns,
+        columnWidth: columnWidth,
+        labelHeight: labelHeight,
+        gap: photosetTileGap,
+        maxSpan: span,
+      );
+
+      // A photo is placed in the columns of its own kind, so a tile is never
+      // drawn in the other zone, and the second zone starts at the column the
+      // first ends at and at the same top, which is what the expectation is.
+      for (final tile in tiles) {
+        final photo = zone.photos[tile.index];
+        final finder = find.byKey(
+          ValueKey(('photoTile', p.join(directory.path, photo.$1, photo.$2))),
+        );
+        final rect = tester.getRect(finder);
+
+        expect(
+          rect.left,
+          closeTo(origin.left + (start + tile.column) * columnWidth, 0.5),
+        );
+        expect(rect.top, closeTo(origin.top + tile.top, 0.5));
+        expect(rect.width, closeTo(tile.span * columnWidth, 0.5));
+        expect(
+          rect.height,
+          closeTo(tile.height + labelHeight + photosetTileGap, 0.5),
+        );
+
+        // A tile in a grid that mixes sets names the set its photo is from,
+        // because there is no group to say it, and its file name under that.
+        expect(
+          find.descendant(of: finder, matching: find.text(photo.$1)),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: finder, matching: find.text(photo.$2)),
+          findsOneWidget,
+        );
+      }
+
+      start += zone.columns;
+    }
+
+    // The block lists each set once, in the order the source gives them, and
+    // says nothing about which column a photo is drawn in — that is what the
+    // assignment above works out (`ai/picking.md` §7).
+    for (final set in sets) {
+      expect(find.byKey(ValueKey(('groupHeader', set))), findsOneWidget);
+    }
+  });
+
+  // A set with no picked photos is only in the block's list: with no grouping
+  // there is no column for it to take, so nothing is drawn for it in the grid
+  // (`ai/photoset_pack.md` §6).
+  testWidgets('a set with no picked photos still shows its line', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    for (var index = 0; index < 3; index++) {
+      writePhotoAt('source/set01', 'p$index.png', 100, 100);
+    }
+
+    // A set the scan finds but cannot read has nothing to show but its line.
+    Directory(p.join(directory.path, 'source/set02'))
+        .createSync(recursive: true);
+
+    final release = testRelease(p.join(directory.path, 'source'));
+    final state = testState(release);
+
+    await openPhotosets(tester, state, showGallery: true);
+
+    await clickAndWait(tester, find.text('Scan'), find.text('set02'));
+
+    // Each set is named in the block, and only there.
+    for (final set in ['set01', 'set02']) {
+      expect(find.byKey(ValueKey(('groupHeader', set))), findsOneWidget);
+    }
+
+    // A set this small is picked in full, so the pair is the whole count twice;
+    // the set with no photos is picked as nothing, so its pair says 0. The wait
+    // is on the block's line, because that is where the picked number changes.
+    await clickAndWait(
+      tester,
+      find.text('Pick'),
+      find.descendant(
+        of: find.byKey(const ValueKey(('groupHeader', 'set01'))),
+        matching: find.text('3 / 3'),
+      ),
+    );
+
+    // The gallery shows what the pick wrote only when the page builds again, so the
+    // test builds it again the way the editor does.
+    await openPhotosets(tester, state, showGallery: true);
+
+    for (var index = 0; index < 3; index++) {
+      expect(
+        find.byKey(
+          ValueKey((
+            'photoTile',
+            p.join(directory.path, 'set01', 'p$index.png'),
+          )),
+        ),
+        findsOneWidget,
+      );
+    }
+
+    // Three tiles and nothing else: the set with no photos has no tile, and its
+    // line is not drawn again above a column.
+    expect(find.byType(Positioned), findsNWidgets(3));
+  });
 }
+
+/// What the block hands to the editor's write path is the values the scan counted.
+/// A test that does not check them takes a function that takes nothing, because the
+/// helper's default has to be one value rather than a function written at each call.
+void discardValues(Map<String, String> values) {}
 
 /// A reader for an archive, so two items can share a display name without
 /// writing a real ZIP.
@@ -862,7 +1204,7 @@ class _FakeArchiveReader implements PhotosetReader {
 
   @override
   Future<List<ScannedPhoto>> read(String path) async => [
-    const ScannedPhoto(name: 'a.png'),
+    const ScannedPhoto(name: 'a.png', size: 0),
   ];
 
   @override

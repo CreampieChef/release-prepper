@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -7,15 +8,20 @@ import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../service/images/masonry.dart';
 import '../../service/native_tools/ffmpeg.dart';
 import '../../service/native_tools/ffprobe.dart';
 import '../../service/native_tools/media_info.dart';
 import '../../service/network/image_downloader.dart';
+import '../../service/photosets/photoset_scanner.dart';
 import '../draft/draft_section.dart';
 import '../image_folder/image_folder_section.dart';
 import '../message/message_section.dart';
 import '../message/screenshot_layout.dart';
-import '../photosets/photosets_section.dart';
+import '../photosets/photoset_block.dart';
+import '../photosets/photoset_gallery.dart';
+import '../photosets/photoset_group.dart';
+import '../photosets/photosets_controller.dart';
 import '../screenshots/images_store.dart';
 import '../screenshots/screenshots_section.dart';
 import '../stashdb/stash_section.dart';
@@ -51,6 +57,13 @@ class ReleaseEditor extends StatefulWidget {
 
 class _ReleaseEditorState extends State<ReleaseEditor> {
   late final ReleaseEditorController _controller;
+
+  /// The controller and the generation the photoset widgets read. It belongs to this
+  /// widget rather than to either of them, because for a pack the block and the
+  /// gallery are two grid cells and cannot share one widget's state (`AGENTS.md`
+  /// §5). Only the two photoset types have it: the other types have no photosets,
+  /// so there is no controller for them to read.
+  PhotosetState? _photosets;
 
   /// The field list of the type this release is. It is what says which names
   /// exist; the values are the same `FieldValues` model for every type. Every
@@ -165,10 +178,24 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
     }
   }
 
+  /// A photoset run wrote files. The block that runs and the pictures that show
+  /// what it wrote are two widgets in two grid cells, so the generation the
+  /// pictures are keyed with lives in the state this widget built, and the only way
+  /// the gallery sees a run is for this widget to build again — the same as the
+  /// sections that show images being told when a run ends (`AGENTS.md` §5).
+  void _photosetsRunWritten() {
+    setState(() {});
+  }
+
   /// Which fields are in which column is the widget's layout, not the field
   /// model. The switch is exhaustive over the release types, so a type added to
   /// `ReleaseType` has to be given a layout here; the compiler says so, which
   /// is what a runtime fallback used to do silently.
+  ///
+  /// For the photoset pack these are the two blocks of its one column — the
+  /// fields the user writes and the values the scan wrote — placed one above the
+  /// other. Only the first is drawn as a column of rows: the second belongs to the
+  /// Photosets block, which draws its rows under its heading (`ai/picking.md` §7).
   List<List<FieldSpec>> _columns() {
     List<FieldSpec> rows(List<String> names) => [
       for (final name in names) _fieldList.field(name),
@@ -215,10 +242,11 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
       l10n.columnTitleReleaseInfo,
       l10n.columnTitleSourceFolder,
     ],
-    ReleaseType.photosetPack => [
-      l10n.columnTitleReleaseInfo,
-      l10n.columnTitlePhotosets,
-    ],
+    // The pack's fields are in its first column, so that is the only column
+    // this widget titles. Its second column is the Photosets block, which
+    // titles itself as a section does, and the photo area titles itself too
+    // (`ai/picking.md` §7).
+    ReleaseType.photosetPack => [l10n.columnTitleReleaseInfo, null],
     ReleaseType.singlePhotoset => [
       l10n.columnTitleReleaseInfo,
       l10n.columnTitlePhotosets,
@@ -252,6 +280,7 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
   static const _photosetPackRight = [
     'photosetCount',
     'totalPhotoCount',
+    'totalSize',
     'minResolution',
     'maxResolution',
   ];
@@ -291,6 +320,7 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
 
   static const _singlePhotosetRight = [
     'totalPhotoCount',
+    'totalSize',
     'minResolution',
     'maxResolution',
     'imageFormats',
@@ -333,6 +363,29 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
     }
 
     _sourceController = TextEditingController(text: _controller.release.source);
+
+    // The state the two photoset widgets share. Only the photoset types have one:
+    // the other types show their pictures with the Screenshots, Video pack and
+    // Image folder sections, and each of those builds its own controller.
+    final hasPhotosets = switch (widget.release.releaseType) {
+      ReleaseType.photosetPack || ReleaseType.singlePhotoset => true,
+      ReleaseType.singleVideo ||
+      ReleaseType.videoPack ||
+      ReleaseType.imageFolderUpload => false,
+    };
+
+    if (hasPhotosets) {
+      _photosets = PhotosetState(
+        controller: PhotosetController(
+          release: widget.release,
+          scanner: context.read<PhotosetScanner>(),
+          store: context.read<ImagesStore>(),
+          releaseStore: context.read<ReleaseStore>(),
+          tabManager: context.read<TabManager>(),
+          tabId: widget.tabId,
+        ),
+      );
+    }
   }
 
   @override
@@ -1166,27 +1219,27 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
     );
   }
 
-  /// The gap between the columns and between the sections.
-  static const _columnGap = 24.0;
-
-  /// The narrowest a column may be. The number of columns is however many of
-  /// this width fit in the space the page has. The columns after the two the
-  /// form has are the sections' columns, and only the types
-  /// `_sectionsAreColumns` says have them; for the others the section is the
-  /// whole width below the form.
-  static const _minColumnWidth = 430.0;
+  /// The gap between the columns and between the sections, and the narrowest a
+  /// column may be. Both are the shared values in
+  /// `lib/service/images/masonry.dart`, so a section placed as the columns after
+  /// the form lays out exactly those columns.
+  static const _columnGap = columnGap;
+  static const _minColumnWidth = minColumnWidth;
 
   /// Whether the type's section can be one of the columns after the form. A
   /// switch, like the other per-type rules, so a type added to `ReleaseType`
   /// has to say. The two video types can, because the page is the same shape
-  /// for them. The masonry types cannot: a masonry is read at the whole width,
-  /// so their sections stay below the form (`ai/photoset_pack.md` §6,
+  /// for them. The photoset pack can too, but it is the one type that takes all
+  /// of those columns: its grid is one column per photoset, so its form is the
+  /// first column and nothing else (`ai/picking.md` §7). The single photoset and
+  /// the image folder cannot: a masonry is read at the whole width, so their
+  /// sections stay below the form (`ai/photoset_pack.md` §6,
   /// `ai/image_folder_upload.md` §5).
   bool _sectionsAreColumns(ReleaseType type) => switch (type) {
     ReleaseType.singleVideo => true,
     ReleaseType.videoPack => true,
-    ReleaseType.photosetPack || ReleaseType.singlePhotoset => false,
-    ReleaseType.imageFolderUpload => false,
+    ReleaseType.photosetPack => true,
+    ReleaseType.singlePhotoset || ReleaseType.imageFolderUpload => false,
   };
 
   /// How many columns of at least the minimum width fit in the space the page
@@ -1255,10 +1308,20 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
         release: release,
         onImagesChanged: _imagesChanged,
       ),
-      ReleaseType.photosetPack || ReleaseType.singlePhotoset => PhotosetSection(
-        release: release,
-        tabId: widget.tabId,
+      // This is the half of the feature that draws the photos, as the grid the
+      // feature fits from the two widths it gives; its data block is the page's
+      // second column, where `build` places it (`ai/picking.md` §7). It is not
+      // told how many columns the page has, because its grid is fitted from the
+      // space it is placed in.
+      ReleaseType.photosetPack => PhotosetGallery(state: _photosets!),
+      // A single photoset is read at the whole width, so it is not given columns and
+      // fits its own. Its block is the whole feature for it: the heading, the lines,
+      // and the photos under them, with no rows because the path it reads is the
+      // form's row (`ai/picking.md` §7, `ai/single_photoset.md` §7).
+      ReleaseType.singlePhotoset => PhotosetBlock(
+        state: _photosets!,
         onApplyValues: _applyFieldValues,
+        onRunWritten: _photosetsRunWritten,
       ),
       ReleaseType.videoPack => VideoPackSection(
         release: release,
@@ -1332,6 +1395,7 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
     // the release rather than to an item, so every type has it
     // (`ai/release_structure.md` §4, `ai/video_pack.md` §6).
     final isSingleVideo = fieldList.releaseType == ReleaseType.singleVideo;
+    final isPhotosetPack = fieldList.releaseType == ReleaseType.photosetPack;
     final sectionColumns = _sectionsAreColumns(fieldList.releaseType);
     final hasDraftSection = _hasDraftSection(release);
     final columns = _columns();
@@ -1344,14 +1408,33 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
           builder: (context, constraints) {
             final width = constraints.maxWidth;
             // A type whose section can be a column has as many columns as fit:
-            // the two the form has, its section, and the Upload section with
+            // the ones the form has, its section, and the Upload section with
             // the Message section. The other types stop at two, because their
-            // section is a masonry that cannot be read at one column width.
+            // section is a masonry that cannot be read at one column width. For
+            // the pack the form has one column and the rest of the row is its
+            // photo area, so the count is what keeps the fields' column at the
+            // minimum and gives what the page has left to the photos
+            // (`ai/picking.md` §7).
             final count = _columnCount(width, sectionColumns ? 4 : 2);
             final columnWidth = (width - _columnGap * (count - 1)) / count;
 
+            // The width the block's column is. For the pack that is the cap
+            // this feature gives it, or the page's column width when that is
+            // narrower, so the cap only ever makes the block smaller; the width
+            // the page has left is the photo area's, so the cap does not leave
+            // an empty strip beside the block (`ai/picking.md` §7). For the
+            // other types the second block of the form is a page column like
+            // any other.
+            final blockColumnWidth = isPhotosetPack
+                ? math.min(photosetBlockMaxWidth, columnWidth)
+                : columnWidth;
+
             final titles = _columnTitles(l10n);
 
+            // The section the type has. Whether it is one of the columns after the
+            // form or the whole width below it is what the placement below decides;
+            // the pack's grid is not told the number either way, because it fits its
+            // own columns from the space it is placed in (`ai/picking.md` §7).
             final typeSection = _typeSection(l10n);
             final upload = UploadSection(
               release: release,
@@ -1384,6 +1467,13 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
               onPrivateSaved: _saveTorrentPrivate,
             );
 
+            // Whether the Message section is inside a column rather than the whole
+            // width below everything: the pack's first column (`ai/picking.md` §7),
+            // or the fourth column for the types that can have one
+            // (`ai/description_template.md`).
+            final messageInColumn =
+                isPhotosetPack || (sectionColumns && count == 4);
+
             final left = _column(
               [
                 // The scene link row is the first one, because it is what the
@@ -1396,37 +1486,66 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
               imageBox: _posterBox(l10n),
             );
 
-            // The second column, with the Torrent section at its end. It is
-            // part of this column rather than one of the columns after the form
-            // (`ai/torrents.md`), so the gap before it is the one between
-            // sections rather than the one between the rows of a column.
+            // The rows the second block of the first column has: the path the user
+            // picked, where the path field has always been, and the values the scan
+            // counted.
+            final rightRows = [
+              _sourceRow(l10n),
+              for (final field in columns[1]) _fieldWidget(field, l10n),
+            ];
+
+            // For the pack these rows are part of its Photosets block, which draws
+            // them between its heading and the lines it lists, so the block is what
+            // this place holds instead (`ai/picking.md` §7).
+            final block = isPhotosetPack
+                ? PhotosetBlock(
+                    state: _photosets!,
+                    onApplyValues: _applyFieldValues,
+                    onRunWritten: _photosetsRunWritten,
+                    rows: rightRows,
+                  )
+                : null;
+
+            // The second block of the form. The Torrent section is the last
+            // thing in it for every type except the pack, whose first column is
+            // the one that holds the sections below the fields, so for the pack
+            // the section goes there instead, above the Upload section
+            // (`ai/torrents.md`).
             final right = Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _column(
-                  [
-                    // The path the user picked is the first row of the right
-                    // column, where the path field has always been.
-                    _sourceRow(l10n),
-                    for (final field in columns[1]) _fieldWidget(field, l10n),
-                  ],
-                  title: titles[1],
-                  imageBox: isSingleVideo ? _thumbnailBox(l10n) : null,
-                ),
-                const SizedBox(height: _columnGap),
-                torrent,
+                block ??
+                    _column(
+                      rightRows,
+                      title: titles[1],
+                      imageBox: isSingleVideo ? _thumbnailBox(l10n) : null,
+                    ),
+                if (!isPhotosetPack) ...[
+                  const SizedBox(height: _columnGap),
+                  torrent,
+                ],
               ],
             );
 
+            // The block's column, at the width worked out above. A fixed width
+            // is only kept when the surrounding column does not stretch it, so
+            // wherever it is placed it is held in a row that holds its width.
+            final blockColumn = Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [SizedBox(width: blockColumnWidth, child: right)],
+            );
+
             // One column when there is room for one, two when there is room for
-            // two.
+            // two. The pack's two blocks are placed by the grid branch below,
+            // because for it the second column is the block and what the row
+            // has left is the photo area (`ai/picking.md` §7).
             final form = count == 1
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       left,
                       SizedBox(height: _columnGap),
-                      right,
+                      blockColumn,
                     ],
                   )
                 : Row(
@@ -1434,7 +1553,7 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
                     children: [
                       SizedBox(width: columnWidth, child: left),
                       SizedBox(width: _columnGap),
-                      SizedBox(width: columnWidth, child: right),
+                      blockColumn,
                     ],
                   );
 
@@ -1443,11 +1562,73 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
             Widget sectionColumn(List<Widget> sections) =>
                 SizedBox(width: columnWidth, child: _stack(sections));
 
-            // The sections are the columns after the form when there is room
-            // for them; otherwise they are below the form, left-aligned, at the
-            // same width.
             final Widget grid;
-            if (sectionColumns && count >= 3) {
+
+            if (isPhotosetPack) {
+              // The pack's columns: the fields, the Photosets block at the most
+              // the width this feature gives it, and the photo area for what
+              // the row has left. The sections that need a column's width — the
+              // Upload section, the Message section, the draft — are stacked
+              // below the fields, because the block's column is too narrow for
+              // their rows (`ai/picking.md` §7). The Torrent section is at the
+              // top of that stack, above the Upload section, because it is the
+              // first section of the form rather than one of the columns after
+              // it (`ai/torrents.md`).
+              final fieldsColumn = sectionColumn([
+                left,
+                torrent,
+                upload,
+                message,
+                ?draft,
+              ]);
+
+              // The photo area is beside them only when what the row has left
+              // can hold one column of the grid; otherwise it is below the row
+              // at the whole width, and the space beside the block is empty —
+              // that is what a strict maximum costs at a narrow window. With
+              // one column there is no row, so the block is stacked after the
+              // fields, at its cap as well, and the section is still above the
+              // Upload section because it is in the same stack.
+              final photoArea =
+                  width - columnWidth - blockColumnWidth - 2 * _columnGap;
+
+              grid = count == 1
+                  ? _stack([
+                      left,
+                      blockColumn,
+                      torrent,
+                      upload,
+                      message,
+                      ?draft,
+                      typeSection,
+                    ])
+                  : photoArea >= photosetColumnWidth
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        fieldsColumn,
+                        const SizedBox(width: _columnGap),
+                        blockColumn,
+                        const SizedBox(width: _columnGap),
+                        SizedBox(width: photoArea, child: typeSection),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            fieldsColumn,
+                            const SizedBox(width: _columnGap),
+                            blockColumn,
+                          ],
+                        ),
+                        const SizedBox(height: _columnGap),
+                        typeSection,
+                      ],
+                    );
+            } else if (sectionColumns && count >= 3) {
               grid = Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1521,11 +1702,12 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
                 const SizedBox(height: 12),
                 grid,
                 // The Message section, below the form and the sections, at the
-                // whole width, unless it is the fourth column
-                // (`ai/description_template.md`). The Upload draft section follows
-                // it in whichever of the two places that is
-                // (`ai/uploading_draft.md` §5).
-                if (!(sectionColumns && count == 4)) ...[
+                // whole width, unless it is in a column: the fourth one when there
+                // is room for four (`ai/description_template.md`), or the pack's
+                // first column, where the sections that follow it are
+                // (`ai/picking.md` §7). The Upload draft section follows it in
+                // whichever of the places that is (`ai/uploading_draft.md` §5).
+                if (!messageInColumn) ...[
                   const SizedBox(height: 24),
                   message,
                   if (draft != null) ...[const SizedBox(height: 24), draft],

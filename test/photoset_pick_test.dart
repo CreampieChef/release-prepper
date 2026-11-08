@@ -6,12 +6,13 @@ import 'package:release_prepper/service/photosets/photoset_scanner.dart';
 
 void main() {
   // A set with [count] photos, named so the positions can be read back. No
-  // files: the rule is arithmetic, and it does not read anything.
+  // files: the rule is arithmetic, and it does not read anything — the sizes
+  // are what it does not read, so the fixture gives none.
   ScannedSet set(String path, int count) => ScannedSet(
     entry: SourceEntry(name: path, isDirectory: true, readPath: path),
     photos: [
       for (var index = 0; index < count; index++)
-        ScannedPhoto(name: '${index.toString().padLeft(3, '0')}.jpg'),
+        ScannedPhoto(name: '${index.toString().padLeft(3, '0')}.jpg', size: 0),
     ],
   );
 
@@ -143,6 +144,7 @@ void main() {
       for (var index = 0; index < 20; index++)
         ScannedPhoto(
           name: '${index.toString().padLeft(3, '0')}.jpg',
+          size: 0,
           dimensions: ImageDimensions(width: 100, height: 100),
         ),
     ];
@@ -151,6 +153,7 @@ void main() {
       for (var index = 0; index < 20; index++)
         ScannedPhoto(
           name: '${index.toString().padLeft(3, '0')}.jpg',
+          size: 0,
           dimensions: index == 7
               ? null
               : ImageDimensions(width: 100, height: 100),
