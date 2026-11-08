@@ -208,7 +208,9 @@ change".
 8. Tests: the form for the type, the scan with the source as the item, the formats field, the
    block's strings, and the title template of the type with the tracker's as the fallback.
 
-The picking rule and the masonry are already written and tested; they do not change.
+The picking rule does not change for this type, and its tests already cover a single set as a pack of
+one. The grid the block draws with does change — the two widths, and the split by kind — but one set is
+never split, so the grid here is the one zone that is the whole space (`ai/picking.md` §7).
 
 ## 10. Open questions
 

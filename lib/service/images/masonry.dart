@@ -163,10 +163,6 @@ int photoSpanCount({
   required double landscapeWidth,
 }) => math.max((landscapeWidth / portraitWidth).round(), 1);
 
-/// The height a photo takes in a column of this width: the image at the ratio it
-/// has, plus the name line under it. The name line is a fixed height rather than
-/// a share of the column width, which is why the packing works in pixels. A photo
-/// whose header could not be read is laid out as a square.
 /// The height the picture itself takes in a column of this width, at the ratio
 /// the photo has. A photo whose header could not be read is laid out as a square.
 double pictureHeight(double? ratio, double columnWidth) =>

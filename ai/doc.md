@@ -1191,22 +1191,29 @@ lib/
                                drawing places the zones side by side (`ai/picking.md` §7). The
                                numbers are here because a private helper in one file cannot be
                                read from the other.
-      photoset_block.dart      PhotosetBlock: the data block as the page's second column, at the
-                               most the width this feature gives it — its
-                               heading with the Scan and Pick buttons at the right, the rows the
-                               editor gives it, and the line naming each set the scan found. Pick
-                               is disabled until a scan has run, because the rule reads the
-                               counts. No slider: the number is decided by the rule, and the
-                               block shows what it decided (`ai/picking.md` §7). Its rows are the
-                               path the user picked and the counts the scan took, which the
-                               editor builds because they are form rows; every other type keeps
-                               those as rows of the form. For a single photoset it is the whole
-                               feature, because there is no space beside it for the pictures, and
-                               it draws them with the same grid this feature uses
-                               (`ai/single_photoset.md` §7). What the scan
-                               or the pick could not take is reported as a message. The lines are
-                               keyed `groupHeader` by the item's path rather than the name it is
-                               shown under — two items that would share a display name are still
+      photoset_block.dart      PhotosetBlock: the data block as the page's
+                               second column, at the most the width this feature
+                               gives it — its heading with the Scan and Pick
+                               buttons at the right, the header naming the list
+                               of sets, which only a pack has and which is drawn
+                               only when the list is drawn (`ai/picking.md` §7),
+                               the rows the editor gives it, and the line naming
+                               each set the scan found. Pick is disabled until a
+                               scan has run, because the rule reads the counts.
+                               No slider: the number is decided by the rule, and
+                               the block shows what it decided (`ai/picking.md`
+                               §7). Its rows are the path the user picked and
+                               the counts the scan took, which the editor builds
+                               because they are form rows; every other type
+                               keeps those as rows of the form. For a single
+                               photoset it is the whole feature, because there
+                               is no space beside it for the pictures, and it
+                               draws them with the same grid this feature uses
+                               (`ai/single_photoset.md` §7). What the scan or
+                               the pick could not take is reported as a message.
+                               The lines are keyed `groupHeader` by the item's
+                               path rather than the name it is shown under — two
+                               items that would share a display name are still
                                two sets.
       photoset_gallery.dart    PhotosetGallery: the area a pack shows its picked photos in — the
                                title row, and the grid this feature fits from the two widths it
@@ -3589,6 +3596,7 @@ counted — so its second placeholder is a String rather than an int: the value 
 String placeholder is what lets a count a user edited in `release.json` be shown as it is. There is
 no plural form anywhere, and none is needed: the pair is one format string, and the Russian value is
 the same shape as the English one.
+The Video pack family (`videoFolderLabel`, `videoPackSectionTitle`, `scanVideos`, `noVideos`,
 `videoSkippedFiles`, `videoUnprobedFiles`, `videoEmptyFolders`, `videoUnreadableFolders`,
 `videoSourceEmpty`, `videoSourceNotFound`, `videoSourceNotReadable`) is in both files and is used by
 `release_editor.dart` and `video_pack_section.dart`. The four report keys take a `{names}` placeholder and
@@ -4209,13 +4217,14 @@ pack — the section, the Upload section with the Message section are the column
 after the form, and the Torrent section is the last thing in the form's second
 column, below its last field with the gap between sections rather than the gap
 between the rows of a column, in the four-column layout and in the single-column
-For a photoset pack the section is in the fields' column instead, because for
-that type the form's second column is its data block, and in both layouts it is
-the row above the Upload section, at the width of the fields' column. The test
-reads it in both: at 2000 px it is below the fields at that width, and at 800
-px, where there is one column, it is still the row above the Upload section.
-one. For the photoset pack the block is the page's second column, at the most
-the width this feature gives it, and the photo area is what the row has left:
+one. For a photoset pack the Torrent section is in the fields' column instead,
+because for that type the form's second column is its data block, and in both
+layouts it is the row above the Upload section, at the width of the fields'
+column. The test reads it in both: at 2000 px it is below the fields at that
+width, and at 800 px, where there is one column, it is still the row above the
+Upload section. For the photoset pack the block is the page's second column, at
+the most the width this feature gives it, and the photo area is what the row has
+left:
 the test reads the two column widths, the area and the two gaps and checks that
 together they make the page, so nothing is left over at the right, and that the
 block and the area both start at the top of the row. The other half of the rule
@@ -4340,6 +4349,13 @@ the other; and that a space which cannot hold a column of both kinds is not
 split at all, and that the share of the space is bounded only when the caller
 gives a maximum: with one the columns are drawn at the bound and the width past
 it is left, and a share below the bound is still the share.
+`test/image_tile_test.dart` covers the shared tile's labels: two tiles at the
+same width that differ only in the length of their text are the same height, for
+the file name line and for the line naming the group, because the height the
+packing reserves counts one line for each label (`ai/picking.md` §7). Both tiles
+come from one run, so the test does not depend on what a line of the label style
+measures, and it also checks that the whole name is still what the widget holds:
+only what is painted is cut.
 `test/section_title_test.dart` covers the shared title row: the title is at the
 left and the action at the right edge, the title is centred on the row because
 the row is as tall as the action, that the action is at least `actionMinWidth`
@@ -4353,12 +4369,12 @@ a subfolder inside a set is not read, and when the boundary it is given is the
 source the source itself is the item and its path is the source's own name, the
 order is the order the source gives, the minimum and the maximum are decided by
 pixel area across all photos, a photo whose header cannot be read is counted and
-reported, the formats are the distinct extensions among the counted photos
-the size a photo has is the bytes the source gives it — the size on disk for a
-file in a folder, the entry's own length for an archive, including the cases
-where the header holds placeholders instead of the sizes — and the total is
-summed across the sets, so a photo whose header cannot be read is still in it,
-lowercased and sorted, display names two items would share are reported rather
+reported, the size a photo has is the bytes the source gives it — the size on
+disk for a file in a folder, the entry's own length for an archive, including
+the cases where the header holds placeholders instead of the sizes, and the
+total is summed across the sets, so a photo whose header cannot be read is still
+in it; the formats are the distinct extensions among the counted photos,
+lowercased and sorted; display names two items would share are reported rather
 than renamed, a source that is not there is a failure, and the scan reads
 through the reader interface — a test with a fake archive reader shows that
 adding a format does not change it. The ZIP fixtures are written by hand,
@@ -4367,113 +4383,6 @@ a stored entry, a deflated one, a data descriptor, a zip64 central directory, an
 encrypted entry with no password, and a file that is not an archive at all. A
 JPEG is included because its header needs a second read, which has to start from
 the beginning of the entry again rather than from where the first read ended.
-`test/photosets_test.dart` covers the controller and the two widgets: the scan records the
-items and the per-item counts and returns the values for the editor's write path, kept to
-the names the type's field list has — a pack is not given the formats because it has no
-such field, and a single photoset is not given a count of sets because it has no such field
-— and a single photoset is the source itself, so the scan records one item named by the
-source. A re-scan replaces the items, the display name is derived from the path rather than
-stored, and the block shows the sets with their counts and reports what it could not take,
-including a name two items would share, and shows the strings of the type it is showing,
-and that its Scan and Pick buttons are in its heading row rather than in a row of their
-own. A test builds the block and the area with the state they share, as the editor does,
-and builds them again after a run, because a test is not the editor and the area shows what
-a run wrote only when the page builds again. For a pack the test asks the rule for the
-picks rather than assuming them, so the names it compares are the ones the pick writes, and
-the drawing is checked against the assignment the service gives for those names, for each
-zone on its own; the space the area was given is read from what it drew, and the number of
-columns, the width each is drawn at, the number a landscape spans and the columns each kind
-is given are worked out from it with the rule rather than assumed — so the test follows
-whatever the constants are changed to. Each tile is expected to carry the line naming its
-set and its file name, because nothing groups the photos, and the block's line is expected
-once, not also above a column; the fixture is a space that can hold a column of both kinds
-and has photos of both kinds, so neither zone is the single column a kind is given when it
-has nothing else to fill it with — that is what the split is tested against, and each tile
-is compared with the columns of its own kind, with the column its zone starts at added. A
-set with no photos shows its line in the block and nothing in the grid. A single photoset
-places its tiles by the same grid, not split, because one set is nothing to group, and a
-landscape spans the columns the two widths give, because its block draws them itself, and a
-tile there carries its file name only.
-The header naming the list is its own test: before a scan it is not drawn, because there
-is nothing to name above the placeholder that says the list is empty, and after one it is
-read as being between the rows the block was given and the first line; the test for the
-type with no list asserts it is absent there. The pair a line shows is checked as the
-number the rule gives for the fixture and the number the fixture has, so both come from
-the rule and the fixtures rather than from a number written out, and before a pick its
-first number is 0. The values include the total size, and the number a test expects is the
-sum of the bytes its fixtures wrote, so an expected total is computed from the fixtures
-rather than written out.
-`test/image_folder_test.dart` covers the controller and the section: the scan
-records the one item the picked folder is, copies every image into the release
-in filename order — the fixtures are written out of order, so the test shows the
-order is the name order and not the creation order — records them as `kind:
-photo` for that item, and returns the values it counted for the editor's write
-path; the picked folder is left as it is, because the copy is what makes a
-record uploadable. A file that is not an image is not counted and is reported by
-the feature rather than by the scan, and a re-scan replaces the photos this run
-writes while keeping the poster. The widget tests check that nothing is shown
-before a scan, that the section shows the images it copied with the count line,
-that the values go through the editor's write path rather than the section's,
-that what the run could not take is reported, that a run with no picked folder
-says which folder it needs, and that the Scan button is in the title row.
-`test/video_scan_test.dart` covers the walk: every video file is an item
-wherever it is, including the ones in subfolders, with the path relative to the
-source; a file outside the extension list is reported rather than counted, the
-list is matched case-insensitively, a file the probe cannot read is still an
-item and is reported, a subfolder with no video in it is reported, the
-resolutions are distinct and sorted numerically by height rather than as text,
-the formats are the distinct extensions lowercased and sorted — from the file
-name, not from what the probe reports as the container — the total sums the
-sizes the files have on disk rather than what the probe reports for the
-containers, so a file the probe cannot read is still counted, the probe is
-called once per item in the order the walk found them, a picked file is treated
-as a directory containing only itself, and a source that is not there is a
-failure. The probe is a fake, so these tests do not need ffprobe. A folder the
-walk could not read is not tested, as the photoset scan's unreadable entry is
-not: making a directory unreadable needs file permissions, which a test process
-may ignore — running as root it reads a mode 000 directory — so such a test
-could only pass for the wrong reason. `test/video_pack_test.dart` covers the
-controller and the section: the scan records the items and the values the probe
-reported for each and returns the aggregates for the editor's write path, a file
-that could not be probed is recorded with empty fields, a re-scan replaces the
-items, the section shows each video as a table row with its name, size and
-duration and shows the values the row does not only when the row is clicked, and
-a release opened with items shows them without a scan, because the section reads
-what the release stores. It also shows what the scan could not take — nothing
-before a scan — and a source that is not there as a message. For the generation
-it covers the run recording what it wrote for every item in the order the scan
-recorded them and reporting each record as its file is written — the test
-asserts the report arrives while the run is still going and that the reported
-records are the same ones the manifest holds at the end — a run with 0 writing
-only the screenlist, a file that failed not stopping the run, a tool that is not
-available stopping it, and a record whose file was deleted not being shown. The
-widget tests check the value columns are right-aligned and the name is not, the
-rows alternate with the tint on every other row and not on the header, the tint
-read from the row's own `Material` — the nearest one above its content, which is
-the surface the hover highlight is painted on — and covering the detail as well
-because the band belongs to the row, the slider starts at 0 with the range the
-pack allows, the button is disabled until there are items, the Scan and Generate
-buttons are in the title row while the row below it holds only the label, the
-slider and the count, the two flag columns show the checkmark and the count
-after a run and are empty before it, the files the run could not do are a report
-line that a re-scan clears, a tool that is not installed is a message, the open
-row shows the images the run wrote while a closed row shows none, a record whose
-file was deleted is not shown in the open row, and a tile's key changes when the
-run rewrites the file it shows. The tools are fakes that write the files the app
-decides by, so these tests do not need ffmpeg or mtn. `test/tab_strip_test.dart`
-covers the tab card clicks: the middle button closes a tab without selecting it,
-the primary button still selects it, and the hover tint on an unselected card is
-gone when the card is clicked while the pointer is still over it — the card is a
-stateful widget that paints the tint from its own hover state, so the test
-hovers it, reads the colour from its `Material`, clicks it, and reads the colour
-again. `test/tab_close_test.dart` covers the shared close flow: a clean tab
-closes without a popup, a dirty tab shows the three options, Cancel keeps it,
-Close without saving closes it, Save and close writes the manifest and closes
-it, a failed save keeps both the popup and the tab open, the flow selects the
-tab each popup names, and closing the app asks for each dirty tab (Cancel
-aborts, confirming all closes, a clean tab is skipped). The save is real file
-IO, so those tests run inside `runAsync` and stay in it for the whole flow: once
-a flow starts outside the fake-async zone, its continuations only run while that
 zone is active.
 
 `test/tab_navigation_test.dart` covers the content area's page keys. It runs on

@@ -1,11 +1,11 @@
 # Photoset pack
 
-**Design. The field list, the form, the scan, the header reader, the two readers and the photosets
-section are implemented; the picker and the template are not.** This is the fourth release type,
-after Single video, the video pack and the single photoset. It follows `ai/release_structure.md`:
-the containers are one shape for every type, and a new type is a field list plus a template. When
-the rest is implemented, `ai/doc.md` §7 is rewritten in the same change, as the project rule
-requires.
+**Design. The field list, the form, the scan, the header reader, the two readers, the picker, the
+block and the photo area are implemented; the message template is not.** This is the fourth release
+type, after Single video, the video pack and the single photoset. It follows
+`ai/release_structure.md`: the containers are one shape for every type, and a new type is a field
+list plus a template. When the template is implemented, `ai/doc.md` §7 is rewritten in the same
+change, as the project rule requires.
 
 ## 1. One release type, not two
 
@@ -220,11 +220,11 @@ Done:
 6. `lib/service/photosets/` — the scan behind the reader interface, and one file per reader:
    `directory_reader.dart` and `zip_reader.dart`.
 7. `lib/feature/photosets/` — the controller, the block that lists the photosets with their counts,
-      the header naming that list, the area that draws the picked photos as the grid the feature
-      fits from the two widths it gives, split by kind for a pack, and the state and the drawing
-      helpers the two share.
-8. l10n keys in both arb files, and the tests for the pack form, the header reader, the scan and
-   the block and the area.
+   the header naming that list, the area that draws the picked photos as the grid the feature
+   fits from the two widths it gives, split by kind for a pack, and the state and the drawing
+   helpers the two share.
+8. l10n keys in both arb files, and the tests for the pack form, the header reader, the scan, the
+   block, the area and the shared tile.
 9. `zip_reader.dart` — the ZIP reader through the `archive` package, and `pubspec.yaml` with it;
    rule 12 in `ai/doc.md` now lists `archive` as the package used for reading archives and for
    nothing else. The display-name collision report comes with it, since with directories only it
