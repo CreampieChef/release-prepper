@@ -129,6 +129,28 @@ void main() {
     );
   }
 
+  // The same wait for the other direction: what a run takes away. A run's end is
+  // what the widget shows when it is over, so a test that asserts what a run
+  // leaves behind has to wait for that rather than for the last report before it
+  // — the last report is not the end, and the two are not the same moment.
+  Future<void> waitUntilGone(WidgetTester tester, Finder until) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+
+    while (DateTime.now().isBefore(deadline)) {
+      await tester.pump();
+
+      if (until.evaluate().isEmpty) {
+        return;
+      }
+
+      await Future.delayed(const Duration(milliseconds: 10));
+    }
+
+    throw StateError(
+      '${until.describeMatch(Plurality.one)} was still there after 10 seconds',
+    );
+  }
+
   Future<void> clickAndWait(
     WidgetTester tester,
     Finder trigger,
@@ -335,39 +357,47 @@ void main() {
     },
   );
 
-  testWidgets(
-    'the section shows the images it copied and what it could not take',
-    (tester) async {
-      tester.view.physicalSize = const Size(2000, 2000);
-      tester.view.devicePixelRatio = 1.0;
+  testWidgets('the section shows the images it copied and what it could not take', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
 
-      writePhoto('a.png');
-      File(p.join(pickedDir.path, 'notes.txt')).writeAsBytesSync([0x68, 0x69]);
+    writePhoto('a.png');
+    File(p.join(pickedDir.path, 'notes.txt')).writeAsBytesSync([0x68, 0x69]);
 
-      final release = testRelease(pickedDir.path);
-      final applied = <Map<String, String>>[];
+    final release = testRelease(pickedDir.path);
+    final applied = <Map<String, String>>[];
 
-      await openSection(tester, release, applied);
+    await openSection(tester, release, applied);
 
-      // Nothing is shown before the scan: opening a release is a read and
-      // changes nothing.
-      expect(
-        find.text('There are no images. Pick the folder and scan it.'),
-        findsOneWidget,
-      );
+    // Nothing is shown before the scan: opening a release is a read and
+    // changes nothing.
+    expect(
+      find.text('There are no images. Pick the folder and scan it.'),
+      findsOneWidget,
+    );
 
-      await clickAndWait(tester, find.text('Scan'), find.text('1 images'));
+    // The wait is on what the run shows at its end: the report about what it
+    // could not take, which the section shows after the values are applied. The
+    // count line is a mid-run report — it says the number of images the section
+    // can show, so it appears when the file is copied, which is before the run
+    // ends — so waiting on it would assert the values and the report while the
+    // run is still going, and the test would pass by luck.
+    await clickAndWait(
+      tester,
+      find.text('Scan'),
+      find.text('Not images: notes.txt'),
+    );
 
-      expect(find.text(p.basename(pickedDir.path)), findsOneWidget);
-      expect(find.text('a.png'), findsOneWidget);
+    expect(find.text(p.basename(pickedDir.path)), findsOneWidget);
+    expect(find.text('a.png'), findsOneWidget);
+    expect(find.text('1 images'), findsOneWidget);
 
-      // The values go through the editor's write path, not the section's.
-      expect(applied.single['totalPhotoCount'], '1');
-
-      // What the run could not take is reported rather than guessed at.
-      expect(find.text('Not images: notes.txt'), findsOneWidget);
-    },
-  );
+    // The values go through the editor's write path, not the section's, and the
+    // run is what applies them, at its end.
+    expect(applied.single['totalPhotoCount'], '1');
+  });
 
   testWidgets('the section says which folder it needs when none is picked', (
     tester,
@@ -444,13 +474,17 @@ void main() {
 
       // The tile for the second image is there when its file is copied.
       await waitUntil(tester, find.text('b.png'));
+
+      // Then the end of the run, which is the last thing it changes: the row for
+      // a run that is not going is not drawn, and that is what the assertions
+      // below are about. Waiting on the last copy would leave the run going — its
+      // last report is before the manifest is written — and the test would pass by
+      // luck rather than because the run is over.
+      await waitUntilGone(tester, find.byType(ProgressRow));
     });
 
-    await tester.pump();
-
-    // The run is over, so the row is not drawn for a run that is not going, and
-    // what the section shows is the manifest — both files.
-    expect(find.byType(ProgressRow), findsNothing);
+    // Both files are shown, from the manifest rather than from what the run
+    // reported, because the run is over.
     expect(find.text('a.png'), findsOneWidget);
     expect(find.text('b.png'), findsOneWidget);
   });

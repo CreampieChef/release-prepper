@@ -325,6 +325,22 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get pickOptionsTitle => 'Pick photos';
+
+  @override
+  String get pickExtremesLabel =>
+      'Make sure highest and lowest resolution photos are included';
+
+  @override
+  String get pickCountLabel => 'Number of photos';
+
+  @override
+  String get pickStrategyPerSet => 'In proportion to each set\'s size';
+
+  @override
+  String get pickStrategyWholePack => 'Evenly across all the photos as one set';
+
+  @override
   String get photosetPackNoPhotosets =>
       'There are no photosets. Pick the folder and scan it.';
 

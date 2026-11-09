@@ -325,6 +325,23 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String get pickOptionsTitle => 'Выбрать фото';
+
+  @override
+  String get pickExtremesLabel =>
+      'Убедиться, что включены фото с наибольшим и наименьшим разрешением';
+
+  @override
+  String get pickCountLabel => 'Количество фото';
+
+  @override
+  String get pickStrategyPerSet => 'Пропорционально размеру каждого набора';
+
+  @override
+  String get pickStrategyWholePack =>
+      'Равномерно по всем фото как по одному набору';
+
+  @override
   String get photosetPackNoPhotosets =>
       'Фотосетов нет. Выберите папку и сканируйте её.';
 

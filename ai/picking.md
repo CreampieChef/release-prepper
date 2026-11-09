@@ -2,15 +2,20 @@
 
 **Implemented.** The rule is `lib/service/photosets/photoset_picker.dart`; the writing is the
 photosets controller and the showing is the block and the photo area (§7). `ai/photoset_pack.md` §6
-is the seam this fills, and `ai/doc.md` §7 was rewritten in the same change, as the project rule
-requires.
+is the seam this fills, and the places in `ai/doc.md` that describe the feature — §2, the two
+inventory entries in §3, the runtime flow in §5, and the key list in §6 — were updated in the same
+change, as the project rule requires.
 
 ## 1. How many
 
-The number of photos to pick is one curve:
+The number is the user's: the popup asks for it and the rule runs with what it was asked for. What
+the rule holds is the value the popup's slider opens at, which is also the slider's minimum, so the
+user can only raise it — and only as far as the smaller of 100 and what the pack has, because a row
+cannot offer more than the pack has.
 
 ```
-N = min(total, clamp(ceil(5% × total), 5, 50))
+opens at = clamp(ceil(5% × total), 5, 50)
+can be raised to = min(100, total)
 ```
 
 - Below 100 photos the percentage is under 5, so the minimum shows: 5.
@@ -19,89 +24,154 @@ N = min(total, clamp(ceil(5% × total), 5, 50))
 
 The rule was described as three tiers, and they are the same curve at every point: at 100 the
 percentage is 5, at 1000 it is 50. The curve is what the code should hold, because three branches
-that agree everywhere are one rule written twice. `min(total, …)` is the case the tiers do not
-cover: a pack of 3 photos cannot pick 5.
+that agree everywhere are one rule written twice.
 
-Every set that has photos gets at least one, whatever the pack size. That is a floor on the result,
-not a share of its own: it only changes anything when a set's proportional share is below one, and
-when it does the total passes 50. The point of the minimum is that the post shows every set, so a
-cap cannot remove a set from the post.
+At the run the count is taken as far as the pack has, because the rule never promises more photos
+than exist: a pack of 3 photos picks 3. That is where `min(total, …)` belongs — not on the curve,
+because the curve is the number the row shows, and the row shows a number a user can be asked for.
+The two are `PhotosetPicker.initialCount` and the clamping in `pick`.
 
-So a pack of 20 sets picks at least 20, even though 5% of its photos is 5. The curve decides how
-many, the minimum decides that no set is left out, and the minimum wins when the two disagree.
+The same two bounds say what happens at or below the minimum: there is nothing to choose, because the
+value the row would open at is the whole of what exists, so the bounds are the same number and there
+is no range to move in. The row is not drawn for a pack of 5 or fewer, and the run copies everything,
+which is what the clamping already does. This is not a rule of its own — it is what the two bounds
+give at 5 — so the code draws the row only when they differ, and the tests show the absence as that
+case rather than as a fixed size.
 
-## 2. Which sets
+The old floor — every set with photos gets at least one, so a pack of 20 sets picked at least 20
+even though 5% of its photos is 5 — is gone. It only changed anything when a set's share was below
+one photo, and when it did the total was no longer the number asked for. When the number is the
+user's, the run copies exactly that number, so a set whose share is below one photo gets none: that
+is what §2 describes as the skipping of the smaller galleries, and what a small set is shown as in
+the post.
 
-N is divided across the sets in proportion to their size, by largest remainder:
+## 2. Which photos: the two strategies
 
-1. Each set's share is `N × its size / total`. Its count is the floor of that share.
-2. A set can never give more than it has, so a count is capped at the set's size.
+The popup offers two, and the rule runs with the one it was answered with. Both are the same
+arithmetic with the count the user chose; they differ only in what the count is divided across.
+
+Strategy one divides the count across the sets in proportion to their size, by largest remainder:
+
+1. Each set's share is `count × its size / total`. Its count is the floor of that share.
+2. A set can never give more than it has, so a count is capped at the set's size — which the
+   arithmetic already does, because the count is never above the total.
 3. The picks left over — from rounding, and from sets that could not give what their share asked
    for — go to the sets that can still take more, in order of the largest fractional part of their
-   share, until the total is N.
-4. Then a set that has photos but ended with nothing gets one, and the total grows by the number of
-   such sets. This is where the total can pass 50.
-5. A tie is broken by the order the source gives, so the same input gives the same output.
+   share, until the total is the count.
+4. A tie is broken by the order the source gives, so the same input gives the same output.
+
+There is no floor per set, so a set whose share is below one photo gets none. That is the skipping
+of the smaller galleries: not a step of its own, but what the division already does when the count
+is smaller than the number of sets. The result is exactly the number the user asked for, which is
+what the floor used to break.
+
+Strategy two treats the whole pack as one set: the count is placed evenly across the whole array of
+the photos, in the order the source gives the sets and, within a set, the order it gives the
+photos. The positions come from the same formula as §3, applied to the whole array instead of to one
+set; the result is still reported per set, in the order the source gives them, because the records
+are written per set (`ai/photoset_pack.md` §4).
 
 A set with no photos contributes nothing and is reported, as the scan reports what it cannot take.
 
-Example, the pack it was described with — 5 sets, 1200 photos, sizes 300, 250, 200, 250, 200:
+Example, the pack it was described with — 5 sets, 1200 photos, sizes 300, 250, 200, 250, 200, and
+the count 50 asked for:
 
-- N = min(1200, clamp(ceil(60), 5, 50)) = 50.
 - Shares: 12.5, 10.42, 8.33, 10.42, 8.33. Floors: 12, 10, 8, 10, 8 = 48.
 - The two remaining picks go to the largest fractional parts: the 300 set and the first 250 set.
-- Result: 13, 11, 8, 10, 8 = 50. Every share is above one, so the minimum does not bind here.
+- Result: 13, 11, 8, 10, 8 = 50.
 
-The same pack with 60 sets of 20 photos each is the case where it does: N is 50, every share is
-0.83, so 50 sets get one and 10 get none, and the 10 are given one each — 60 in total.
+The same pack with 60 sets of 20 photos each is the case where sets are skipped: every share is
+0.83, so the floors are all 0 and the 50 go to the largest fractional parts in the order the source
+gives the sets — the first 50 sets get one photo each and the last 10 get none. The total is 50,
+not 60, and that is the difference the floor used to make.
 
-## 3. Which photos inside a set
+Two sets of 10 photos with the count 5 asked for, as strategy two: the positions of the whole array
+of 20 are 2, 6, 10, 14, 18, so the first set gives photos 2 and 6 and the second gives 0, 4 and 8 —
+2 and 3, which is not what strategy one gives for the same pack (3 and 2).
 
-Within a set the picked photos are evenly spaced across it, so the set is sampled from end to end
-rather than taken from its start. Each pick is at the centre of its own interval: for a set of m
-photos giving k picks, the pick positions are
+## 3. Which photos inside a group
+
+Within the group a count is divided over, the picked photos are evenly spaced across it, so the group
+is sampled from end to end rather than taken from its start. Each pick is at the centre of its own
+interval: for a group of m photos giving k picks, the pick positions are
 
 ```
 floor((i + 0.5) × m / k)   for i = 0 … k−1
 ```
 
-which is evenly spaced, stays inside the set for every k, and starts at the middle of the first
-interval rather than at the first photo. For k = 1 it is the middle photo of the set, which is what
-the rule asks for when a set appears in the post with a single photo.
+which is evenly spaced, stays inside the group for every k, and starts at the middle of the first
+interval rather than at the first photo. For k = 1 it is the middle photo of the group, which is what
+the rule asks for when a set appears in the post with a single photo. The integer form the code uses
+is the same value, `(2i + 1) × m ÷ 2k` with integer division, because `round` gives positions past
+the end when a group gives every photo it has.
 
 The two things the rule was given as — evenly spaced, and around the middle — agree on this
-definition: the interval centres cover the set from end to end, and the middle is where a set that
+definition: the interval centres cover the group from end to end, and the middle is where a group that
 contributes one photo is sampled from.
+
+The same formula serves both strategies of §2, because strategy two is strategy one applied to the
+whole array instead of to one set: under strategy one the group is a set, under strategy two it is the
+pack, so the positions are read as positions in the whole array and then taken back per set. That is
+the only place the two differ, and it is why the formula is written once.
 
 The picked photos keep the order the source gives them. The picking chooses which photos, not what
 order they are written in, so the records stay in the order the scan wrote them
 (`ai/photoset_pack.md` §4).
 
-## 4. What the rule reads
+## 4. What the rule reads, and the extremes it keeps
 
-Counts only. The resolutions are fields the scan fills and the post shows; they do not decide which
-photos are picked. So the picker needs the scan to have run, for the counts, and nothing else from
-the scan.
+Counts. The resolutions are fields the scan fills and the post shows, and they do not decide which
+photos are picked — except when the popup asks for the extremes, which is the one case where the rule
+does read them. So the picker needs the scan to have run, for the counts, and the dimensions only for
+what the checkbox asks for.
 
-The numbers — 5, 5%, 50 — are a posting convention for the tracker, not a property of the pack.
-Whether they are constants in the code or values the tracker config holds is the same decision
-`ai/photoset_pack.md` §7 already names as open. The rule itself does not change either way, so the
-rule is written here as data: three numbers and a distribution method.
+When the extremes are asked for, the rule keeps the smallest and the largest photo by pixel area among
+the picks, on the same comparison the scan uses for the fields it writes, so the rule agrees with what
+the post says. An extreme that is not among the picks replaces the pick nearest to it, so the run
+copies exactly the count the user asked for: the guarantee is kept without adding a photo, because the
+count is the number the user chose.
+
+Three things make this deterministic, and they are what the tests check rather than rely on:
+
+- An extreme put in this way is never put out again for the other one. Without that, a count of two
+  would put the first extreme back out to make room for the second, and the guarantee would be kept
+  for one extreme only. A count below three is the case the guarantee cannot keep at all, because two
+  extremes need two picks; the popup's minimum is above three, so this is the guard, not the path.
+- A photo whose header could not be read has no area, so it cannot be an extreme, and a pack with
+  nothing measurable has nothing to guarantee.
+- Of the picks that can be replaced, the first one at the nearest distance in the order the source
+  gives is the one replaced, and the first photo of an equal area is the extreme. So the same input
+  gives the same output.
+
+The numbers — 5, 5%, 50, and the 100 the slider goes up to — are a posting convention for the
+tracker, not a property of the pack. Whether they are constants in the code or values the tracker
+config holds is the same decision `ai/photoset_pack.md` §7 already names as open. The rule itself does
+not change either way, so the rule is written here as data: numbers, a distribution method, and the
+extremes.
 
 ## 5. Where it lives
 
-`lib/service/photosets/photoset_picker.dart`: a pure function that takes the scanned sets and
-returns the picks. No UI, no `BuildContext` (rule 13), no writing — the controller copies what the
-rule chose and records it, and the widget shows it. The seam `ai/photoset_pack.md` §6 defines is
-unchanged: the selector takes the items and a rule and returns the photos it picks; this document is
-the rule.
+`lib/service/photosets/photoset_picker.dart`: a pure function that takes the scanned sets and the
+options the popup answered with — the count, the strategy, the extremes — and returns the picks. No
+UI, no `BuildContext` (rule 13), no writing — the controller copies what the rule chose and records
+it, and the widget shows it. The popup owns the values as widget state, as the other sections own
+their sliders, and hands them over as `PickOptions`; that is the whole interface between the two, and
+it is why the rule can be called with what a test would answer rather than with what a widget shows.
 
-The rule is tested on its own, because its interesting cases are arithmetic rather than visual: a
-pack below 100, a pack at exactly 100 and exactly 1000, a pack with more sets than the cap, a set
-smaller than its share, a set with no photos, and that the same input gives the same output twice.
+The seam `ai/photoset_pack.md` §6 defines is unchanged: the selector takes the items and a rule and
+returns the photos it picks; this document is the rule.
 
-The three numbers are constants on the class. If the tracker config decision goes the other way they
-become values the config holds; the rule itself does not change either way.
+The rule is tested on its own, because its interesting cases are arithmetic rather than visual: the
+curve at a pack below 100, at exactly 100 and exactly 1000, and a pack smaller than the number the
+row asks for; a set smaller than its share and a pack with more sets than the count; the largest
+remainder and the ties it breaks; the whole pack as one set; an extreme replacing its nearest pick,
+an extreme that is already among the picks, a photo whose header cannot be read, and a count that
+cannot hold both extremes; a set with no photos; and that the same input gives the same output twice.
+What the popup shows is tested as a widget, separately, because that is a drawing rather than
+arithmetic.
+
+The numbers are constants on the class. If the tracker config decision goes the other way they become
+values the config holds; the rule itself does not change either way.
 
 ## 6. Left open
 
@@ -110,14 +180,36 @@ become values the config holds; the rule itself does not change either way.
   that may be gone later. This is `ai/photoset_pack.md` §9 and is not decided here.
 - Whether the numbers are constants or tracker config (§4).
 
-What re-running the picker does is no longer open: with no override the rule is deterministic, so a
-re-pick recomputes the same picks and replaces the records it writes. It only differs when the scan
-changed.
+What re-running the picker does is no longer open: with the same answer the rule is deterministic, so
+a re-pick with the same values recomputes the same picks and replaces the records it writes. It only
+differs when the scan changed or the popup was answered differently — and the popup does not remember
+the last answer, so a re-pick starts from the rule's values again (§7).
 
 ## 7. The block and the photo area
 
-The Photoset feature is the extended section, not a new section. There is no slider: the number is
-decided by the rule, and the feature shows what it decided rather than letting the user change it.
+The Photoset feature is the extended section, not a new section. Pick opens a popup, and the popup's
+values are the popup's own widget state, as the other sections hold their slider values: the extremes
+checkbox, the choice of strategy, and the slider for the count. The three are what the rule is called
+with, and the rule is called with what the popup answered with — the feature does not show what the
+rule decided on its own, because the rule no longer decides the number by itself.
+
+Only a pack has the choice of strategy. For the type with one set the whole pack is that set, so the
+two answers are the same and there is nothing to choose, so the strings for the choice are null for
+that type and the popup draws no row for it (`ai/single_photoset.md` §6). The popup is one
+implementation for both types, and what a type does not have is what is not drawn: null in the strings
+resolved per type, as the header naming a list and the row counting items are here. The answer for
+that type carries the strategy the popup opens with, which is what both answers give for one set.
+
+The values open at the rule's, on every open rather than remembered from the last popup: the count the
+curve gives for the total the scan read (§1), the division per set, and the extremes kept. The count
+can only be raised, because its minimum is the value the row opens at, and only as far as the smaller
+of 100 and what the pack has (§1). At or below the minimum the two are the same number, so there is
+nothing to move and the row for the count is not drawn: the answer carries the value the popup opened
+at, and the run takes what exists. The run
+happens on the popup's answer, and a popup dismissed without one — Cancel, or any other dismissal —
+runs nothing, the same rule as the close popup (`ai/doc.md` §2). A widget test that is not about the
+popup answers it with the extremes off, because the fixtures those tests build carry no dimensions and
+the extremes are the only part of the rule that reads them (§4).
 
 For a pack it is two widgets, because it is in two grid cells. The block is the page's second
 column, at the most the width this feature gives it: its heading with the Scan and Pick buttons at
@@ -134,10 +226,15 @@ the photos with the same grid the pack draws, but not split by kind, because wit
 nothing to group (`ai/single_photoset.md` §7).
 
 - Scan and Pick are two buttons in the block's heading row. Pick is disabled until a scan has run,
-  because the rule reads the counts.
+  because what the popup opens with is what the scan read: the slider's value is the number the curve
+  gives for the total, and a block that has not scanned has no total. The block keeps no values of its
+  own; it asks the rule what the popup should open with, the way the feature asks the rule for the
+  rest.
 
-- Pick computes the picks and copies them in one step. There is no preview of the rule before the
-  files are written: the feature shows what is on disk, as the Screenshots section does.
+- Pick asks the popup, and the run happens on its answer. There is no preview of the rule before the
+  files are written: the feature shows what is on disk, as the Screenshots section does. The popup is
+  the asking rather than a preview — it decides the number, the method, and the extremes, and the run
+  is the rule applied to what it decided, in one step.
 
 - While a run is going the block draws a progress row: the bar and the count next to it, with the
   shared `ProgressRow` (`lib/feature/progress_row.dart`), the same shape as the bar the Upload
@@ -289,11 +386,16 @@ the window, so it is not taken.
   kept as the model stores it, so a count a user edited in `release.json` is shown as it is — the
   same rule as the size field showing a value it cannot format.
 
-- A set with no photos shows its count in the block and is reported. Since the rule gives at least
-one photo to every set that has photos, a set shown with none is one the app could not read, which
-is the information that says it will not be in the post, so it is shown rather than left out. With
-no grouping there is no column for such a set to take: the grid has nothing for it, and it is only
-the line in the block.
+- A set with no photos shows its count in the block and is reported, as the scan reports what it
+cannot take, and the rule gives it nothing. It is shown rather than left out, because the list is what
+the scan found. With no grouping there is no column for such a set to take: the grid has nothing for
+it, and it is only the line in the block.
+
+Since the rule no longer gives a photo to every set that has photos, a line showing 0 picked after a
+run is not one message: it is a set the scan could not read, or a set the chosen count did not reach —
+a share below one photo under strategy one, no position inside it under strategy two. The line says the
+same number for both, because the number it shows is the records that exist, and which of the two it
+is is not something the block knows.
 
 - Re—picking writes the same names, so the feature needs the cache eviction and a key that changes
   on each run, as `AGENTS.md` §5 requires. This is the case the poster does not have and the picked

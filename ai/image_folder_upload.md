@@ -105,8 +105,9 @@ a message.
 
 - **No Pick button**, because for this type the scan and the copy are the same action: what the rule copies
   is every image in the folder, so there is nothing left to choose after the scan.
-- **No slider**, for the same reason the Photoset section has none: the number is what the folder contains,
-  not a choice.
+- **No slider**, because the number is what the folder contains, not a choice. The picking rule the
+  Photoset section applies is not applied to this type, so there is no count to ask for and no popup to
+  ask it in (`ai/picking.md` §1).
 - Nothing is shown before a scan, because opening a release is a read and changes nothing; a release opened
   from a manifest shows the records its file holds.
 - The folder it reads is the source row above the form, so the section does not repeat it. The row shows the

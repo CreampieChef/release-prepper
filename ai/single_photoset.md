@@ -139,13 +139,25 @@ output, as for a pack.
 `ai/picking.md`, unchanged. With one set the rule degenerates at every point, and the degenerate case
 is the same rule:
 
-- `N = min(total, clamp(ceil(5% × total), 5, 50))`;
-- the whole of N goes to the one set, because its share is the whole of N;
-- the per-set floor cannot bind, because a set that has photos has a share of at least one;
-- the positions inside the set are the interval centres, as the rule defines them.
+- the popup is the same for this type as for a pack for the two things it can decide here — the count
+  and the extremes — but not for the strategy: with one set the two answers are the same, so there is
+  nothing to choose and the row is not drawn for this type (`ai/picking.md` §7). The answer carries the
+  strategy the popup opens with, which is what both answers give for one set;
+- the count row is the same here, with `total` meaning this set's own size: it opens at the curve's
+  value and can be raised to the smaller of 100 and what the set has, and for a set of 5 or fewer the
+  two are the same number, so there is nothing to choose and the row is not drawn (`ai/picking.md` §1);
+- the whole of the count goes to the one set, because its share is the whole of the count, and the
+  choice of strategy cannot change that: the second strategy places the count over the whole array,
+  and with one set the whole array is that set. So the two answers are the same here, and the choice
+  is not shown — a type is not shown a part of the popup it has nothing to decide in;
+- the positions inside the set are the interval centres, as the rule defines them;
+- the extremes are the same two photos the rule looks for in a pack, and with one set both are inside
+  it, so the swap that keeps the count is the same swap.
 
-So a set of 30 photos shows 5, and a set of 1200 shows 50. The picker is not changed for this type,
-and its tests already cover the single-set case as a pack of one.
+So a set of 30 photos shows 5 when the popup is answered with what it opened at, and a set of 1200
+shows 50. There is no floor per set, so a set is not guaranteed a place in the post — with one set the
+count is what the user asked for, and a count below what the set has is what it shows. The picker is
+not changed for this type, and its tests already cover the single-set case as a pack of one.
 
 The picked photos are copied into the release, mirroring the structure the user picked, and recorded as
 `kind: photo` with `item` set to the item path — the Upload section's progress bars count them

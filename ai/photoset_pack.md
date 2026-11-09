@@ -196,8 +196,13 @@ Implemented. The rule is `ai/picking.md`; the seam defined here is what the code
   the landscapes in the columns of the landscape width, never mixed, and the counts of the photos
   decide how many columns each kind gets. A single photoset is not split, because with one set there
   is nothing to group (`ai/picking.md` §7, `ai/single_photoset.md` §7).
-- The scan runs before the picker, because the picking reads the counts. The resolutions are not
-  part of the rule (`ai/picking.md` §4).
+- The scan runs before the picker, because the picking reads the counts, and because the popup's
+  slider opens at the number the curve gives for the total the scan read. The resolutions are not part
+  of the rule except for the extremes the popup can ask for, which is the one case the rule reads them
+  (`ai/picking.md` §4).
+- The picking is asked through a popup: the count, the way the count is divided, and whether the
+  smallest and the largest photo must be among the picks. The rule is called with what the popup
+  answered with, and the run happens on that answer (`ai/picking.md` §1, §7).
 
 The rule, the distribution and the section are decided in `ai/picking.md`. Copying is what the code
 does, as `ai/release_structure.md` §4 says; whether it should upload from the source instead is §9.
@@ -263,8 +268,9 @@ Left:
   structure spec says copy; the cost is disk space and a source that may be gone later.
 - Whether the item record needs the container kind. It does not, unless a re-scan has to work
   after the source is gone.
-- The picking rule is decided in `ai/picking.md`, including that the per-set minimum applies to every
-  pack. What is not: whether the numbers are constants in the code or values the tracker config holds.
+- The picking rule is decided in `ai/picking.md`, including that a set whose share is below one photo
+  is skipped rather than given one, because the count is what the popup was asked for. What is not:
+  whether the numbers are constants in the code or values the tracker config holds.
 - The tracker config, or the block hardcoded for this type.
 - Display-name collisions: report or reject. The scan reports what it cannot take, so reporting is
   the pattern; the case itself only appears with the archive reader.

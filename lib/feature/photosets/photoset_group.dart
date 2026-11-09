@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../service/images/masonry.dart';
+import '../../service/photosets/photoset_picker.dart';
 import '../image_tile.dart';
 import '../release/release.dart';
 import '../release/release_type.dart';
@@ -106,6 +107,7 @@ class PhotosetStrings {
     required this.pickHint,
     required this.pickProgress,
     this.scanProgress,
+    this.strategyChoices,
   });
 
   /// The heading of the data block: the line that names the folder the user
@@ -141,6 +143,17 @@ class PhotosetStrings {
   /// there, and the block draws nothing (`ai/picking.md` §7).
   final String Function(int done, int total) pickProgress;
   final String Function(int done, int total)? scanProgress;
+
+  /// The choices the strategy row offers, each with the label it has, in the
+  /// order the row lists them.
+  ///
+  /// Only a pack has a choice: the two strategies differ in what the count is
+  /// divided across, and for the type with one set the whole pack is that set, so
+  /// the two answers are the same and there is nothing to choose. It is null for
+  /// that type and the popup draws nothing (`ai/picking.md` §7,
+  /// `ai/single_photoset.md` §6); the answer then carries the strategy the popup
+  /// opens with, which is what both answers give for one set.
+  final Map<PickStrategy, String>? strategyChoices;
 }
 
 PhotosetStrings photosetStrings(
@@ -155,6 +168,13 @@ PhotosetStrings photosetStrings(
     pickHint: l10n.photosetPackSourceEmpty,
     pickProgress: l10n.photosetPickProgress,
     scanProgress: l10n.photosetScanProgress,
+    // Several sets, so the choice is a real one: the count can be divided across
+    // them or over the whole pack as one set, and the two give different picks.
+    // The order here is the order the row lists them.
+    strategyChoices: {
+      PickStrategy.perSet: l10n.pickStrategyPerSet,
+      PickStrategy.wholePack: l10n.pickStrategyWholePack,
+    },
   ),
   ReleaseType.singlePhotoset => PhotosetStrings(
     blockTitle: l10n.singlePhotosetSectionTitle,
@@ -166,6 +186,11 @@ PhotosetStrings photosetStrings(
     // One item, so a row counting the items says nothing and the strings that
     // assume several sets are not used here (`ai/picking.md` §7).
     scanProgress: null,
+    // One set, so the whole pack is that set and the two strategies give the same
+    // picks: there is nothing to choose, so nothing is drawn (`ai/picking.md` §7,
+    // `ai/single_photoset.md` §6). The answer carries the strategy the popup opens
+    // with, which is what both answers give for one set.
+    strategyChoices: null,
   ),
   // Only here because a switch over the release types has to be exhaustive: these
   // have the Screenshots section, the Video pack section and the Image folder
@@ -180,6 +205,7 @@ PhotosetStrings photosetStrings(
     pickHint: l10n.photosetPackSourceEmpty,
     pickProgress: l10n.photosetPickProgress,
     scanProgress: null,
+    strategyChoices: null,
   ),
 };
 

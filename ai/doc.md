@@ -305,9 +305,11 @@ What is left unfinished is not a compile error but missing behaviour:
 - For a photoset pack the feature is the Photosets block and the photo area, two widgets because
   they are in two grid cells (`ai/photoset_pack.md`, `ai/picking.md` §7). The block is the page's
   second column, at the most the width this feature gives it: its heading with the Scan and Pick
-  buttons at the right, the rows the editor gives it — the path the user picked and the counts the
-  scan took, which every other type has as rows of the form — and the line naming each set with the
-  number of photos in it. The area is what the row has left after the fields' column and the block's
+  buttons at the right — Pick opens the popup the picking is asked through: the count, the way it is
+  divided, and whether the extremes must be kept (`ai/picking.md` §1, §4, §7) — the rows the editor
+  gives it, the path the user picked and the counts the scan took, which every other type has as rows
+  of the form, and the line naming each set with the number of photos in it. The area is what the row
+  has left after the fields' column and the block's
   column, and it draws the grid this feature fits from the two widths it gives: the photos of every
   set together, grouped by kind — the portraits in the columns of the portrait width and the
   landscapes in the columns of the landscape width, never mixed, with the counts deciding how many
@@ -315,9 +317,11 @@ What is left unfinished is not a compile error but missing behaviour:
   gives and across the grid it is not. Each tile says which set its photo is from as well as its file
   name. Nothing is shown before the scan, because opening a release is a read and changes nothing, and
   nothing is drawn for a set before a pick, because the feature shows what is on disk. A set the scan
-  found is named by its line in the block even when nothing was picked for it, because that is what
-  says the set will not be in the post; with nothing grouping the photos there is no column in the
-  grid for such a set. The scan decides which entries under the picked folder are items, counts the
+  found is named by its line in the block even when nothing was picked for it, because the list is what
+  the scan found: after a run that line can say 0 for a set the scan could not read, or for one the
+  chosen count did not reach — a share below one photo, or no position inside it — and the number it
+  shows does not say which. With nothing grouping the photos there is no column in the grid for such a
+  set. The scan decides which entries under the picked folder are items, counts the
   photos in each, and reads their dimensions from the file headers rather than by decoding the image;
   the minimum and the maximum are decided by pixel area across all photos, and what the scan could not
   take is reported rather than guessed at. The values it counts go through the editor's single write
@@ -1204,8 +1208,10 @@ lib/
                                the records are cleared when the run ends, because from then on the
                                manifest is what the two widgets read
                                (`ai/picking.md` §7). Also the strings resolved per type,
-                               including the two lines a run's progress is said with, one set as
-                               the feature lays it out, the line naming it, the tile,
+                               including the two lines a run's progress is said with and
+                               the labels of the strategy choice, which are null for the
+                               type that has no choice to make, one set as the feature
+                               lays it out, the line naming it, the tile,
                                the one grid shape, and the four numbers the grid is built from:
                                the width a portrait's column is, the width a landscape's is —
                                which is the number of columns a landscape spans — the widest the
@@ -1233,10 +1239,35 @@ lib/
                                the list reads as bands, as the two tables the app
                                has do (`ai/picking.md` §7, `ai/video_pack.md` §5).
                                Pick is disabled until a
-                               scan has run, because the rule reads the counts.
-                               No slider: the number is decided by the rule, and
-                               the block shows what it decided (`ai/picking.md`
-                               §7). Its rows are the path the user picked and
+                               scan has run, because what the popup opens with is
+                               what the scan read: the value is the number the
+                               rule's curve gives for the total, and a block that
+                               has not scanned has no total. Pick opens the popup
+                               (`ai/picking.md` §7) — the extremes checkbox, the
+                               choice of strategy, and the slider for the count —
+                               and the run happens on the popup's answer, so
+                               Cancel and any other dismissal run nothing, as the
+                               close popup is not an agreement (`ai/doc.md` §2).
+                               The values are the popup's own widget state, opened
+                               at the rule's on every open rather than remembered
+                               from the last popup, and the count can only be
+                               raised because its minimum is the value it opens at,
+                               and only as far as the smaller of the cap and what
+                               the pack has. At or below the rule's minimum the two
+                               are the same number, so there is nothing to move and
+                               the count row is not drawn (`ai/picking.md` §1). The
+                               choice of strategy is drawn only for the type
+                               that has one: for a single photoset both answers
+                               give the same picks, so the strings for the choice
+                               are null there and no row is drawn
+                               (`ai/single_photoset.md` §6). The popup's strings
+                               are resolved per type, as the block's other
+                               strings are. The popup is keyed `pickOptionsDialog`,
+                               `pickExtremesRow`, `pickExtremesCheckbox`,
+                               `pickStrategy` with one radio per strategy,
+                               `pickCountRow`, `pickCountSlider`, `pickCancel` and
+                               `pickConfirmButton`, as the block's other parts are
+                               keyed. Its rows are the path the user picked and
                                the counts the scan took, which the editor builds
                                because they are form rows; every other type
                                keeps those as rows of the form. For a single
@@ -2015,10 +2046,14 @@ lib/
                                 archives have: zip64 sizes, data descriptors, encrypted entries.
                                 Reads only the bytes a header is made of, not the entry; the whole
                                 entry is read separately, for the photo the picker copies.
-      photoset_picker.dart      PhotosetPicker: the picking rule (`ai/picking.md`) — the number,
-                                the division across the sets by largest remainder, the positions
-                                inside a set. Pure: takes the scanned sets, returns the picks,
-                                writes nothing, and shows no messages.
+      photoset_picker.dart      PhotosetPicker: the picking rule (`ai/picking.md`) — the count the
+                                popup asked for, the two ways the count is divided, and the extremes
+                                it was asked to keep. Pure: takes the scanned sets and the options the
+                                popup answered with, returns the picks, writes nothing, and shows no
+                                messages. + `PickOptions`, what the popup owns as widget state and
+                                hands over, the four numbers its slider is built from, and the function
+                                that gives the top of its range for a total — the cap, taken as far as
+                                the pack has (`ai/picking.md` §1).
     videos/
       image_generator.dart      ImageGenerator: the rules that turn one video file into the images the
                                  app writes — the key-frame times, the file names, the screenlist rows,
@@ -3123,15 +3158,24 @@ A re-scan replaces the items, so the lines naming files that are no longer items
 cleared with it, as the open rows are.
 
 **Picking photos from a pack.** `ai/picking.md` is the spec. `PhotosetPicker` is the rule as a pure
-function: the number is `min(total, clamp(ceil(5% × total), 5, 50))`, the division across the sets
-is by largest remainder with each set capped at its own size, the per-set minimum applies to every
-pack, and the photos inside a set are the centres of evenly spaced intervals. Ties are broken by the
-order the source gives, so the same input gives the same output. The rule reads counts only: the
-resolutions are fields the scan fills and the post shows, not part of the rule.
+function: the count is what the popup asked for, taken as far as the pack has, and the value the
+popup's slider opens at — which is its minimum, so the user can only raise it, to a maximum of 100 —
+is `clamp(ceil(5% × total), 5, 50)`. The count is divided either across the sets by largest remainder
+with each set capped at its own size and no floor per set, which is what leaves a set whose share is
+below one photo with nothing, or placed evenly across the whole pack as one group. The photos inside a
+group are the centres of evenly spaced intervals, and that one formula serves both ways. When the
+popup asks for the extremes, the smallest and the largest photo by pixel area are among the picks, and
+each one that is not replaces the pick nearest to it, so the run copies exactly the count asked for.
+Ties are broken by the order the source gives, so the same input gives the same output. The rule reads
+counts, and the dimensions only for the extremes, on the same comparison the scan uses for the fields
+it writes.
 
 `PhotosetBlock` has its Pick button next to Scan in its heading row, disabled until a scan has run
-because the rule reads the counts, and there is no slider: the number is decided by the rule, and the
-block shows what it decided rather than letting the user change it. `PhotosetController.pick()` copies
+because what the popup opens at is what the scan read. Pick opens the popup — the extremes checkbox,
+the choice of strategy, and the slider for the count — the values are the popup's own widget state,
+opened at the rule's on every open rather than remembered from the last popup, and the run happens on
+the popup's answer: a dismissed popup is not an agreement, so Cancel runs nothing (`ai/doc.md` §2).
+`PhotosetController.pick()` copies
 the photos the rule picked into the release under the display name — the release folder mirrors the
 structure the user picked for the images that are copied into it — and records them as `kind: photo`
 with `item` set to the set's path, replacing the photo records this run writes while the poster and
@@ -3668,7 +3712,15 @@ files. The count key is the pair one line shows — the number the rule picked a
 counted — so its second placeholder is a String rather than an int: the value is the model's, and a
 String placeholder is what lets a count a user edited in `release.json` be shown as it is. There is
 no plural form anywhere, and none is needed: the pair is one format string, and the Russian value is
-the same shape as the English one. The words a run's progress is said with are keyed per type —
+the same shape as the English one. The popup Pick opens has five keys of its own —
+`pickOptionsTitle`, `pickExtremesLabel`, `pickCountLabel`, `pickStrategyPerSet`,
+`pickStrategyWholePack` — none with a placeholder. The first three name what the popup asks for, so
+they are the same for both photoset types; the two strategy labels are read through `photosetStrings()`
+and are null for the type with one set, because there is no choice to make there and the popup draws no
+row for it (`ai/picking.md` §7, `ai/single_photoset.md` §6). Its
+confirm button says `pickPhotosets`, the same key the Pick button itself is labelled with, so the popup
+does not invent a second word for the same action. The words a run's progress is said with are keyed
+per type —
 `photosetScanProgress`, `photosetPickProgress`, `imageFolderCopyProgress` — because they name what the
 run counts; each takes the two numbers and is passed to the shared `ProgressRow`, which is presentational
 and resolves nothing itself (`ai/picking.md` §7, `ai/image_folder_upload.md` §5). A type whose item is
@@ -4964,6 +5016,13 @@ zone cannot await one, so the scan is run inside `tester.runAsync` there too
 while it is going — a set read while the next one is still being read — waits on the count the
 progress row says, with the same bound, and the reader it is given is one that waits on the second
 item so that the state between two reports is what the test sees rather than what it races.
+A test that needs a run to be over waits for the end of the run, not for the first thing the run
+draws: a run draws its lines and its counts before it ends, so a wait satisfied by one of those
+leaves the run going while the test asserts what the run does at its end, and such a test passes by
+luck rather than because the run finished. The end is observable as the point the widget is at when
+it is over — the progress row is no longer drawn, or a button that only works after a run gains its
+action — and a wait on that is what the tests use. The end of a run is one synchronous block in the
+widget, so once it is observable, everything the run did at its end is there too.
 `dart_test.yaml` sets a 30s per-test timeout so a hang is reported instead of
 blocking the run for the default ten minutes, and caps the runner at
 `concurrency: 2` so a full run leaves headroom for the desktop instead of

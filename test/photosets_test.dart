@@ -131,6 +131,16 @@ void main() {
     tabId: tabId,
   );
 
+  // The options a test that is not about the popup passes to the rule: the count
+  // the curve gives for the total, the division per set, and the extremes not
+  // asked for — the answer `confirmPick` gives the popup, so a controller test
+  // and a widget test that compare the same fixture get the same picks.
+  PickOptions defaultOptions(int total) => PickOptions(
+    count: PhotosetPicker.initialCount(total),
+    strategy: PickStrategy.perSet,
+    includeExtremes: false,
+  );
+
   // The state the two widgets share is built by the editor, so a test builds it the
   // way the editor does.
   PhotosetState testState(Release release, {List<PhotosetReader>? readers}) {
@@ -194,9 +204,11 @@ void main() {
   //
   // A test that looks at what a run shows while it is going — a set that has
   // been read while the next one is still being read — waits on the count the
-  // progress row says, so it uses `waitUntil` on its own. Both only work inside
-  // `runAsync`, because the scan reads on another isolate and the event loop is
-  // only real there.
+  // progress row says, so it uses `waitUntil` on its own. A test that needs the run
+  // to be over cannot wait for the first thing the run draws, because a run draws
+  // those before it ends: it waits for the end, which is what `scanAndWait` and
+  // `confirmPick` do. Both only work inside `runAsync`, because the scan reads on
+  // another isolate and the event loop is only real there.
   Future<void> waitUntil(WidgetTester tester, Finder until) async {
     final deadline = DateTime.now().add(const Duration(seconds: 10));
 
@@ -226,6 +238,72 @@ void main() {
       await waitUntil(tester, until);
     });
   }
+
+  // A test that needs a run to be over — because what it asserts next is what the
+  // run does at its end, or because it clicks a button that only works after the
+  // run — waits for the end itself, not for the first thing the run shows. For the
+  // block the end is the point Pick gains its action, because Pick is disabled until
+  // a scan has run: the lines and the counts are drawn while the scan reads the
+  // sets, so a test that waits for a line and then taps Pick taps a button with
+  // nothing to do. The end of a run is one block in the widget, so when that action
+  // exists the values the run applied and the report it showed are already there.
+  Future<void> scanAndWait(WidgetTester tester) async {
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Scan'));
+
+      final deadline = DateTime.now().add(const Duration(seconds: 10));
+
+      while (DateTime.now().isBefore(deadline)) {
+        await tester.pump();
+
+        final pick = tester.widget<FilledButton>(
+          find.byKey(const ValueKey('photosetPickButton')),
+        );
+
+        if (pick.onPressed != null) {
+          return;
+        }
+
+        await Future.delayed(const Duration(milliseconds: 10));
+      }
+
+      throw StateError('Pick was not enabled within 10 seconds');
+    });
+  }
+
+  // Pick now asks the popup first, so a test that wants the run to happen has to
+  // answer it. These tests are not about the popup, so the helper answers with
+  // what the popup opened with — the count and the strategy — and with the
+  // extremes off, because a test that is not about the extremes builds a fixture
+  // with no dimensions, and the extremes are the only part of the rule that reads
+  // them. Answering with them on would pick photos the fixture cannot describe,
+  // so the answer the helper gives is the one `defaultOptions` describes, and the
+  // numbers a widget test compares are the run's own.
+  //
+  // `until` must be the last thing the run changes, not the first: the run
+  // reports each photo as it copies it, so a wait that is satisfied by the first
+  // number to move leaves the run going while the test asserts the rest of it.
+  // Waiting on the last number the run can reach means the run is over when the
+  // wait returns.
+  Future<void> confirmPick(WidgetTester tester, Finder until) async {
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('pickExtremesCheckbox')));
+      await tester.pump();
+
+      await tester.tap(find.byKey(const ValueKey('pickConfirmButton')));
+
+      await waitUntil(tester, until);
+    });
+  }
+
+  // The pair a set's line shows: the number the rule picked for that set and the
+  // number the scan counted it (`ai/picking.md` §7). Both the waits and the
+  // assertions use this, so a test compares against what the rule gave rather
+  // than against numbers copied into the test.
+  Finder lineFor(String set, int picked, int total) => find.descendant(
+    of: find.byKey(ValueKey(('groupHeader', set))),
+    matching: find.text('$picked / $total'),
+  );
 
   // The controller records the items, because an item is what the scan
   // produces, and returns the values for the editor's single write path.
@@ -494,7 +572,9 @@ void main() {
       findsOneWidget,
     );
 
-    await clickAndWait(tester, find.text('Scan'), find.text('set01'));
+    // The wait is for the end of the run: the values and the report are what the
+    // run does at its end, not what it draws while it reads the folder.
+    await scanAndWait(tester);
 
     expect(find.text('set01'), findsOneWidget);
     expect(find.text('0 / 1'), findsOneWidget);
@@ -549,7 +629,7 @@ void main() {
 
     expect(find.text('Photoset List'), findsNothing);
 
-    await clickAndWait(tester, find.text('Scan'), find.text('set01'));
+    await scanAndWait(tester);
 
     expect(find.text('Photoset List'), findsOneWidget);
 
@@ -622,7 +702,9 @@ void main() {
 
     await openPhotosets(tester, state);
 
-    await clickAndWait(tester, find.text('Scan'), find.text('set01'));
+    // The wait is for the end of the run, so all three lines are there before they
+    // are read: the lines appear one by one as the scan reads them.
+    await scanAndWait(tester);
 
     final theme = Theme.of(tester.element(find.byType(PhotosetBlock)));
 
@@ -695,13 +777,58 @@ void main() {
     // The scan itself is the same for both types; only the words differ.
     release.source = p.join(directory.path, 'set01');
 
-    await clickAndWait(tester, find.text('Scan'), find.text('set01'));
+    // The values are what the run applies at its end, so the wait is for the end
+    // and not for the first line the scan draws. For this type the block draws no
+    // scan row at all — a row counting items says nothing when the item is the
+    // folder (`ai/picking.md` §7) — so `set01` and the pair below are the line the
+    // block draws for the set it read, not a row for the run.
+    await scanAndWait(tester);
 
     expect(find.text('set01'), findsOneWidget);
     expect(find.text('0 / 1'), findsOneWidget);
 
     expect(applied.last['imageFormats'], 'png');
     expect(applied.last.containsKey('photosetCount'), isFalse);
+  });
+
+  // The scan row is drawn only for the words the type has: for the type whose item
+  // is the folder the user picked, a row counting items says nothing and its words
+  // are null, so nothing is drawn (`ai/picking.md` §7). A row built from a null
+  // value is a widget that throws, and a test that let the run finish before the
+  // first build would never reach it — so the run here is genuinely going, held by
+  // the reader's own delay, and the block is read while it is mid-run.
+  testWidgets('the scan row is drawn only for the words the type has', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    writePhotoAt('source', 'a.png', 100, 100);
+
+    final release = testRelease(
+      p.join(directory.path, 'source'),
+      releaseType: ReleaseType.singlePhotoset,
+    );
+    final state = testState(release, readers: [_SlowReader(slow: 'source')]);
+
+    await openPhotosets(tester, state);
+
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Scan'));
+
+      // The first report is the one that only gives the total, and it comes before
+      // any reading, so the block is built with a run going. The window is the
+      // reader's hold, not a guess at how long a run takes.
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      await tester.pump();
+
+      // The block itself, not an error widget in its place: a build that threw is
+      // the failure this test is about, and it would show here as well as in the
+      // row's absence.
+      expect(find.byKey(const ValueKey('photosetBlock')), findsOneWidget);
+      expect(find.byType(ProgressRow), findsNothing);
+    });
   });
 
   testWidgets('a source that is not there is shown as a message', (
@@ -786,6 +913,7 @@ void main() {
     ) as PhotosetSuccess;
     final result = await controller.pick(
       scan.scan,
+      defaultOptions(20),
       onProgress: discardCopyProgress,
     );
 
@@ -829,9 +957,14 @@ void main() {
       onProgress: discardScanProgress,
     ) as PhotosetSuccess;
 
-    await controller.pick(scan.scan, onProgress: discardCopyProgress);
+    await controller.pick(
+      scan.scan,
+      defaultOptions(10),
+      onProgress: discardCopyProgress,
+    );
     final second = await controller.pick(
       scan.scan,
+      defaultOptions(10),
       onProgress: discardCopyProgress,
     );
 
@@ -874,6 +1007,7 @@ void main() {
     ) as PhotosetSuccess;
     final result = await controller.pick(
       scan.scan,
+      defaultOptions(10),
       onProgress: discardCopyProgress,
     );
 
@@ -904,6 +1038,7 @@ void main() {
 
     final result = await controller.pick(
       scan.scan,
+      defaultOptions(10),
       onProgress: discardCopyProgress,
     );
 
@@ -940,6 +1075,7 @@ void main() {
 
     final result = await controller.pick(
       scan.scan,
+      defaultOptions(10),
       onProgress: (progress) {
         reports.add([progress.done, progress.total]);
 
@@ -992,6 +1128,7 @@ void main() {
 
     await controller.pick(
       scan.scan,
+      defaultOptions(10),
       onProgress: (progress) {
         reports.add([progress.done, progress.total]);
       },
@@ -1025,6 +1162,7 @@ void main() {
     ) as PhotosetSuccess;
     final result = await controller.pick(
       scan.scan,
+      defaultOptions(1),
       onProgress: discardCopyProgress,
     );
 
@@ -1060,39 +1198,61 @@ void main() {
     );
     expect(pickButton.onPressed, isNull);
 
-    await clickAndWait(tester, find.text('Scan'), find.text('set01'));
+    // Pick is the next step, so the run has to be over before it is clicked;
+    // waiting on the first line the scan draws would click a button with nothing
+    // to do. The lines are what the scan writes as it reads, so all of them are
+    // there at the end of a run.
+    await scanAndWait(tester);
 
-    // The pair the line shows is the number the rule picked and the number the
-    // scan counted, so before a run the first part is 0 while the second is the
-    // count the scan wrote (`ai/picking.md` §7). The numbers below are the ones
-    // the rule gives for this fixture, the same ones the test asks the rule for
-    // further down.
-    expect(
-      find.descendant(
-        of: find.byKey(ValueKey(('groupHeader', 'set01'))),
-        matching: find.text('0 / 10'),
-      ),
-      findsOneWidget,
+    // What the rule gives for this fixture, asked rather than assumed, so the
+    // names and the numbers the test compares are the rule's own.
+    final result = PhotosetPicker.pick([
+      for (final set in ['set01', 'set02'])
+        ScannedSet(
+          entry: SourceEntry(name: set, isDirectory: true, readPath: set),
+          photos: [
+            // The rule reads counts, not sizes, so the fixture gives none.
+            for (var index = 0; index < 10; index++)
+              ScannedPhoto(
+                name: '${index.toString().padLeft(3, '0')}.png',
+                size: 0,
+              ),
+          ],
+        ),
+    ], defaultOptions(20));
+
+    // Before a run the first part of the pair is 0 while the second is the count
+    // the scan wrote (`ai/picking.md` §7).
+    for (final pick in result.picks) {
+      expect(lineFor(pick.set.path, 0, pick.set.photoCount), findsOneWidget);
+    }
+
+    await clickAndWait(
+      tester,
+      find.text('Pick'),
+      find.byKey(const ValueKey('pickOptionsDialog')),
     );
 
-    await clickAndWait(tester, find.text('Pick'), find.text('3 / 10'));
+    // The popup confirms at the values it opened at, and the wait is on the
+    // block's line, as it was before the popup existed. It is the last line the
+    // run can reach, because the run copies in the order the source gives the
+    // sets and reports each photo as it copies it; waiting on the first number
+    // that moves would leave the run going while the rest is asserted.
+    final last = result.picks.where((pick) => pick.photos.isNotEmpty).last;
+
+    await confirmPick(
+      tester,
+      lineFor(last.set.path, last.photos.length, last.set.photoCount),
+    );
 
     // Each set is named once, in the block, because the grid does not name a
     // set above its photos — the tile says which set its photo is from.
-    expect(
-      find.descendant(
-        of: find.byKey(ValueKey(('groupHeader', 'set01'))),
-        matching: find.text('3 / 10'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byKey(ValueKey(('groupHeader', 'set02'))),
-        matching: find.text('2 / 10'),
-      ),
-      findsOneWidget,
-    );
+    for (final pick in result.picks) {
+      expect(
+        lineFor(pick.set.path, pick.photos.length, pick.set.photoCount),
+        findsOneWidget,
+      );
+    }
 
     // A run rebuilds the block, which is the widget that ran it. The gallery is
     // another widget, so it is rebuilt by the page that places both — here the test
@@ -1100,23 +1260,9 @@ void main() {
     await openPhotosets(tester, state, showGallery: true);
 
     // The picks, in the order the source gives the sets and, within a set, the
-    // order it gives the photos: the test asks the rule rather than assuming,
-    // so the names it compares are the ones the pick wrote.
+    // order it gives the photos.
     final picked = [
-      for (final pick in PhotosetPicker.pick([
-        for (final set in ['set01', 'set02'])
-          ScannedSet(
-            entry: SourceEntry(name: set, isDirectory: true, readPath: set),
-            photos: [
-              // The rule reads counts, not sizes, so the fixture gives none.
-              for (var index = 0; index < 10; index++)
-                ScannedPhoto(
-                  name: '${index.toString().padLeft(3, '0')}.png',
-                  size: 0,
-                ),
-            ],
-          ),
-      ]).picks)
+      for (final pick in result.picks)
         for (final photo in pick.photos) (pick.set.path, photo.name),
     ];
 
@@ -1134,6 +1280,348 @@ void main() {
       );
       expect(
         find.descendant(of: tile, matching: find.text(photo.$2)),
+        findsOneWidget,
+      );
+    }
+  });
+
+  // Pick answers through the popup, so a test that is about the popup itself
+  // reads what the popup opened with from the widgets rather than assuming it,
+  // and a Cancel is not an agreement: it closes the popup and runs nothing, the
+  // same rule as the close popup (`ai/picking.md` §7).
+  testWidgets("the popup opens at the rule's values and a Cancel runs nothing", (
+    tester,
+  ) async {
+    for (var set = 0; set < 2; set++) {
+      for (var index = 0; index < 10; index++) {
+        writePhotoAt(
+          'source/set0${set + 1}',
+          '${index.toString().padLeft(3, '0')}.png',
+        );
+      }
+    }
+
+    final release = testRelease(p.join(directory.path, 'source'));
+    final state = testState(release);
+
+    await openPhotosets(tester, state);
+
+    // Pick cannot run before the scan has, so the wait is for the end of the run
+    // rather than for the first line it draws.
+    await scanAndWait(tester);
+
+    await tester.tap(find.byKey(const ValueKey('photosetPickButton')));
+    await tester.pumpAndSettle();
+
+    // The values it opens at are the rule's: the count the curve gives for the
+    // scanned total, the division per set, the extremes kept. The count row is
+    // the same shape the Screenshots section has, so the test reads the row from
+    // the same widgets.
+    final checkbox = tester.widget<Checkbox>(
+      find.byKey(const ValueKey('pickExtremesCheckbox')),
+    );
+    expect(checkbox.value, isTrue);
+
+    final group = tester.widget<RadioGroup<PickStrategy>>(
+      find.byKey(const ValueKey('pickStrategy')),
+    );
+    expect(group.groupValue, PickStrategy.perSet);
+
+    final slider = tester.widget<Slider>(
+      find.byKey(const ValueKey('pickCountSlider')),
+    );
+    expect(slider.value, 5.0);
+
+    // The initial value is the row's minimum, so the user can only raise it, and
+    // only as far as this fixture has: the maximum is the cap taken as far as the
+    // pack (`ai/picking.md` §1).
+    expect(slider.min, 5.0);
+    expect(slider.max, PhotosetPicker.maximumCountFor(20));
+
+    await tester.tap(find.byKey(const ValueKey('pickCancel')));
+    await tester.pumpAndSettle();
+
+    // Nothing ran, so the lines still say that nothing has been picked, which is
+    // what they say before a run.
+    expect(find.byKey(const ValueKey('pickOptionsDialog')), findsNothing);
+
+    for (final set in ['set01', 'set02']) {
+      expect(
+        find.descendant(
+          of: find.byKey(ValueKey(('groupHeader', set))),
+          matching: find.text('0 / 10'),
+        ),
+        findsOneWidget,
+      );
+    }
+  });
+
+  // A pack at or below the rule's minimum: the number the count row would open at
+  // is the whole of what the pack has, so there is no range to move it in and the
+  // row is not drawn (`ai/picking.md` §1). The run takes what exists, which is the
+  // clamping the rule already does, so the test compares against the rule rather
+  // than against a number written in it. The part of the popup this fixture does
+  // have is drawn: a pack has a choice of strategy, and the row for it is there.
+  testWidgets("a pack at or below the rule's minimum shows no count row", (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    for (var index = 0; index < 4; index++) {
+      writePhotoAt('source/set01', '${index.toString().padLeft(3, '0')}.png');
+    }
+
+    final release = testRelease(p.join(directory.path, 'source'));
+    final state = testState(release);
+
+    await openPhotosets(tester, state);
+
+    await scanAndWait(tester);
+
+    await tester.tap(find.byKey(const ValueKey('photosetPickButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('pickStrategy')), findsOneWidget);
+    expect(find.byKey(const ValueKey('pickCountRow')), findsNothing);
+    expect(find.byKey(const ValueKey('pickCountSlider')), findsNothing);
+
+    // What the rule gives for this fixture: the count the row would have opened at,
+    // taken as far as the four photos that exist.
+    final result = PhotosetPicker.pick([
+      ScannedSet(
+        entry: SourceEntry(name: 'set01', isDirectory: true, readPath: 'set01'),
+        photos: [
+          // The rule reads counts, not sizes, so the fixture gives none.
+          for (var index = 0; index < 4; index++)
+            ScannedPhoto(
+              name: '${index.toString().padLeft(3, '0')}.png',
+              size: 0,
+            ),
+        ],
+      ),
+    ], defaultOptions(4));
+
+    await confirmPick(
+      tester,
+      lineFor('set01', result.picks.single.photos.length, 4),
+    );
+  });
+
+  // The same for the type whose item is the folder it picked: the count row is not
+  // drawn either, because there is no range for it (`ai/picking.md` §1). Its
+  // strategy row is absent for a different reason, which the test below this one
+  // covers; here the fixture is one set, and its total is the set's own size.
+  testWidgets(
+    "a single photoset at or below the rule's minimum shows no count row",
+    (tester) async {
+      tester.view.physicalSize = const Size(2000, 2000);
+      tester.view.devicePixelRatio = 1.0;
+
+      for (var index = 0; index < 5; index++) {
+        writePhotoAt('source', '${index.toString().padLeft(3, '0')}.png');
+      }
+
+      final release = testRelease(
+        p.join(directory.path, 'source'),
+        releaseType: ReleaseType.singlePhotoset,
+      );
+      final state = testState(release);
+
+      await openPhotosets(tester, state);
+
+      await scanAndWait(tester);
+
+      await tester.tap(find.byKey(const ValueKey('photosetPickButton')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('pickCountRow')), findsNothing);
+      expect(find.byKey(const ValueKey('pickCountSlider')), findsNothing);
+
+      // What the rule gives for this fixture: the count the row would have opened
+      // at, taken as far as the five photos that exist. The row is absent because
+      // the two bounds are equal there, not because the fixture is a particular
+      // size, so the number the test compares is the rule's.
+      final result = PhotosetPicker.pick([
+        ScannedSet(
+          entry: SourceEntry(
+            name: 'source',
+            isDirectory: true,
+            readPath: 'source',
+          ),
+          photos: [
+            // The rule reads counts, not sizes, so the fixture gives none.
+            for (var index = 0; index < 5; index++)
+              ScannedPhoto(
+                name: '${index.toString().padLeft(3, '0')}.png',
+                size: 0,
+              ),
+          ],
+        ),
+      ], defaultOptions(5));
+
+      await confirmPick(
+        tester,
+        lineFor('source', result.picks.single.photos.length, 5),
+      );
+    },
+  );
+
+  // The popup is one implementation for both photoset types, so the rows it has
+  // are drawn for both; the choice of strategy is not one for the type with a
+  // single set, because the whole pack is that set and both answers give the same
+  // picks, so its row is not drawn (`ai/picking.md` §7, `ai/single_photoset.md`
+  // §6). What the popup answers with there is the strategy it opens with, which is
+  // the only answer there is, so the run copies what the rule gives for the
+  // fixture — the same as the tests that ask the rule rather than assume.
+  testWidgets('the popup draws the choice only for the type that has one', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    for (var index = 0; index < 10; index++) {
+      writePhotoAt('source', '${index.toString().padLeft(3, '0')}.png');
+    }
+
+    final release = testRelease(
+      p.join(directory.path, 'source'),
+      releaseType: ReleaseType.singlePhotoset,
+    );
+    final state = testState(release);
+
+    await openPhotosets(tester, state);
+
+    await scanAndWait(tester);
+
+    await tester.tap(find.byKey(const ValueKey('photosetPickButton')));
+    await tester.pumpAndSettle();
+
+    // The rows this type has are drawn: the checkbox and the slider, at the same
+    // values the pack's popup opens at for the same number of photos.
+    final checkbox = tester.widget<Checkbox>(
+      find.byKey(const ValueKey('pickExtremesCheckbox')),
+    );
+    expect(checkbox.value, isTrue);
+
+    final slider = tester.widget<Slider>(
+      find.byKey(const ValueKey('pickCountSlider')),
+    );
+    expect(slider.value, 5.0);
+
+    // The group is not there at all, so a test that read its value would read
+    // nothing; the labels for the choices are not drawn either.
+    expect(find.byKey(const ValueKey('pickStrategy')), findsNothing);
+    expect(find.byType(RadioGroup<PickStrategy>), findsNothing);
+
+    // What the rule gives for this fixture. The strategy is not observable here,
+    // because both answers are the same for one set, so what the test can observe
+    // is that the run ran with the values the popup opened at.
+    final result = PhotosetPicker.pick([
+      ScannedSet(
+        entry: SourceEntry(
+          name: 'source',
+          isDirectory: true,
+          readPath: 'source',
+        ),
+        photos: [
+          // The rule reads counts, not sizes, so the fixture gives none.
+          for (var index = 0; index < 10; index++)
+            ScannedPhoto(
+              name: '${index.toString().padLeft(3, '0')}.png',
+              size: 0,
+            ),
+        ],
+      ),
+    ], defaultOptions(10));
+
+    await confirmPick(
+      tester,
+      lineFor('source', result.picks.single.photos.length, 10),
+    );
+  });
+
+  // The strategy the popup answers with is what the rule runs with, so the
+  // whole-pack choice reaches the files: the test asks the rule for the picks its
+  // own fixture would give under that strategy, as the tests do, and compares the
+  // names the run wrote against them.
+  testWidgets('the strategy the popup answers with is what the run copies', (
+    tester,
+  ) async {
+    for (var set = 0; set < 2; set++) {
+      for (var index = 0; index < 10; index++) {
+        writePhotoAt(
+          'source/set0${set + 1}',
+          '${index.toString().padLeft(3, '0')}.png',
+        );
+      }
+    }
+
+    final release = testRelease(p.join(directory.path, 'source'));
+    final state = testState(release);
+
+    await openPhotosets(tester, state, showGallery: true);
+
+    // The rule is asked after the run, and Pick cannot run before the scan has,
+    // so the wait is for the end of the run.
+    await scanAndWait(tester);
+
+    await clickAndWait(
+      tester,
+      find.byKey(const ValueKey('photosetPickButton')),
+      find.byKey(const ValueKey('pickOptionsDialog')),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('pickStrategy-wholePack')));
+    await tester.pumpAndSettle();
+
+    // What the rule gives for this fixture under the strategy the popup was
+    // answered with: the interval centres of the whole 20, read back per set.
+    // The test asks the rule rather than assuming, so the names it compares are
+    // the ones the run wrote.
+    final result = PhotosetPicker.pick(
+      [
+        for (final set in ['set01', 'set02'])
+          ScannedSet(
+            entry: SourceEntry(name: set, isDirectory: true, readPath: set),
+            photos: [
+              // The rule reads counts, not sizes, so the fixture gives none.
+              for (var index = 0; index < 10; index++)
+                ScannedPhoto(
+                  name: '${index.toString().padLeft(3, '0')}.png',
+                  size: 0,
+                ),
+            ],
+          ),
+      ],
+      PickOptions(
+        count: PhotosetPicker.initialCount(20),
+        strategy: PickStrategy.wholePack,
+        includeExtremes: false,
+      ),
+    );
+
+    final picked = [
+      for (final pick in result.picks)
+        for (final photo in pick.photos) (pick.set.path, photo.name),
+    ];
+
+    final last = result.picks.where((pick) => pick.photos.isNotEmpty).last;
+
+    await confirmPick(
+      tester,
+      lineFor(last.set.path, last.photos.length, last.set.photoCount),
+    );
+
+    // The gallery is another widget, so the test builds it again the way the
+    // editor does, as the other pack tests do.
+    await openPhotosets(tester, state, showGallery: true);
+
+    for (final photo in picked) {
+      expect(
+        find.byKey(
+          ValueKey(('photoTile', p.join(directory.path, photo.$1, photo.$2))),
+        ),
         findsOneWidget,
       );
     }
@@ -1167,10 +1655,29 @@ void main() {
 
       await openPhotosets(tester, state);
 
-      await clickAndWait(tester, find.text('Scan'), find.text('source'));
+      // Pick cannot run before the scan has, so the wait is for the end of the
+      // run; the block title naming the folder the user picked is what the block
+      // draws at its end too.
+      await scanAndWait(tester);
 
-      // The block draws these itself, so it is the widget a run rebuilds.
-      await clickAndWait(tester, find.text('Pick'), find.byType(Positioned));
+      // The block draws these itself, so it is the widget a run rebuilds. A
+      // pack of one is picked in full: the count the popup opened at is the
+      // minimum, and the run takes what exists (`ai/picking.md` §1).
+      await clickAndWait(
+        tester,
+        find.text('Pick'),
+        find.byKey(const ValueKey('pickOptionsDialog')),
+      );
+
+      // The last photo the run writes is the last thing it changes, so waiting on
+      // that tile means the run is over before the boxes are read; waiting on the
+      // first tile to appear would read the drawing while the run is going.
+      await confirmPick(
+        tester,
+        find.byKey(
+          ValueKey(('photoTile', p.join(directory.path, 'source', 'c.png'))),
+        ),
+      );
 
       final boxes = tester
           .widgetList<Positioned>(find.byType(Positioned))
@@ -1276,30 +1783,34 @@ void main() {
           ],
         ),
     ];
+    final result = PhotosetPicker.pick(scanned, defaultOptions(6));
+
     final picked = [
-      for (final pick in PhotosetPicker.pick(scanned).picks)
+      for (final pick in result.picks)
         for (final photo in pick.photos) (pick.set.path, photo.name),
     ];
 
-    // What the line for the first set says after a run: the number the rule
-    // gave that set, taken from the rule, and the number its fixture has.
-    final firstSetCount = picked.where((photo) => photo.$1 == sets[0]).length;
-
     await openPhotosets(tester, state, showGallery: true);
 
-    await clickAndWait(tester, find.text('Scan'), find.text('set01'));
+    // Pick cannot run before the scan has, so the wait is for the end of the run.
+    await scanAndWait(tester);
 
     // The pick runs in the block, which is the widget that ran it; the gallery
     // is another widget, so a run reaches it only when the page builds again —
     // here the test builds it again the way the editor does. The wait is on the
-    // block's line, because that is where the picked number changes.
+    // block's line, because that is where the picked number changes, and on the
+    // last set the rule gives photos to, so the run is over when it is satisfied.
     await clickAndWait(
       tester,
       find.text('Pick'),
-      find.descendant(
-        of: find.byKey(ValueKey(('groupHeader', sets[0]))),
-        matching: find.text('$firstSetCount / 2'),
-      ),
+      find.byKey(const ValueKey('pickOptionsDialog')),
+    );
+
+    final last = result.picks.where((pick) => pick.photos.isNotEmpty).last;
+
+    await confirmPick(
+      tester,
+      lineFor(last.set.path, last.photos.length, last.set.photoCount),
     );
 
     await openPhotosets(tester, state, showGallery: true);
@@ -1462,7 +1973,10 @@ void main() {
 
     await openPhotosets(tester, state, showGallery: true);
 
-    await clickAndWait(tester, find.text('Scan'), find.text('set02'));
+    // Pick cannot run before the scan has, so the wait is for the end of the run;
+    // the lines for both sets are drawn as the scan reads them, so they are all
+    // there at its end.
+    await scanAndWait(tester);
 
     // Each set is named in the block, and only there.
     for (final set in ['set01', 'set02']) {
@@ -1471,15 +1985,15 @@ void main() {
 
     // A set this small is picked in full, so the pair is the whole count twice;
     // the set with no photos is picked as nothing, so its pair says 0. The wait
-    // is on the block's line, because that is where the picked number changes.
+    // is on the line of the one set with photos, which is the last thing the run
+    // can change.
     await clickAndWait(
       tester,
       find.text('Pick'),
-      find.descendant(
-        of: find.byKey(const ValueKey(('groupHeader', 'set01'))),
-        matching: find.text('3 / 3'),
-      ),
+      find.byKey(const ValueKey('pickOptionsDialog')),
     );
+
+    await confirmPick(tester, lineFor('set01', 3, 3));
 
     // The gallery shows what the pick wrote only when the page builds again, so the
     // test builds it again the way the editor does.

@@ -25,9 +25,9 @@ import 'image_folder_controller.dart';
 ///
 /// There is no Pick button, because for this type the scan and the copy are the
 /// same action: what the rule copies is every image in the folder, so there is
-/// nothing to choose after the scan. There is no slider either, for the same
-/// reason the Photoset section has none — the number is what the folder
-/// contains, not a choice.
+/// nothing to choose after the scan, and no popup to choose it in: the picking
+/// rule the Photoset section applies is not applied to this type, so there is no
+/// count to ask for (`ai/picking.md` §1).
 ///
 /// The widget owns the layout and the widget state — the busy flag, the progress
 /// row, the records the run has written, and the generation counter; the

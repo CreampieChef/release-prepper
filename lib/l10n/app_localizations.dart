@@ -686,6 +686,36 @@ abstract class AppLocalizations {
   /// **'Photos picked: {done} / {total}'**
   String photosetPickProgress(int done, int total);
 
+  /// No description provided for @pickOptionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick photos'**
+  String get pickOptionsTitle;
+
+  /// No description provided for @pickExtremesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Make sure highest and lowest resolution photos are included'**
+  String get pickExtremesLabel;
+
+  /// No description provided for @pickCountLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Number of photos'**
+  String get pickCountLabel;
+
+  /// No description provided for @pickStrategyPerSet.
+  ///
+  /// In en, this message translates to:
+  /// **'In proportion to each set\'s size'**
+  String get pickStrategyPerSet;
+
+  /// No description provided for @pickStrategyWholePack.
+  ///
+  /// In en, this message translates to:
+  /// **'Evenly across all the photos as one set'**
+  String get pickStrategyWholePack;
+
   /// No description provided for @photosetPackNoPhotosets.
   ///
   /// In en, this message translates to:

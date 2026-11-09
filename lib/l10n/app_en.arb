@@ -135,6 +135,11 @@
             }
         }
     },
+    "pickOptionsTitle": "Pick photos",
+    "pickExtremesLabel": "Make sure highest and lowest resolution photos are included",
+    "pickCountLabel": "Number of photos",
+    "pickStrategyPerSet": "In proportion to each set's size",
+    "pickStrategyWholePack": "Evenly across all the photos as one set",
     "photosetPackNoPhotosets": "There are no photosets. Pick the folder and scan it.",
     "singlePhotosetNoPhotosets": "There are no photos. Pick the folder and scan it.",
     "photosetSkippedEntries": "Not photosets: {entries}",

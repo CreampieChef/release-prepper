@@ -145,7 +145,9 @@ class PhotosetController {
   /// Copies the photos the rule picked into the release and records them
   /// (`ai/picking.md` §7). The rule is pure and lives in the service; this is
   /// the part that writes. The scan result is passed in, not held here, as the
-  /// count is passed to the screenshots controller.
+  /// count is passed to the screenshots controller, and the options the popup
+  /// decided are passed in too: the popup owns them as widget state, and the
+  /// controller runs the rule with what it chose.
   ///
   /// A run replaces the photo records it writes, so the poster and the records
   /// of other kinds are kept, the same way a generation run keeps them. With no
@@ -157,10 +159,11 @@ class PhotosetController {
   /// the caller can show it before the run ends. The manifest is still written
   /// once, at the end, for the whole run.
   Future<PhotosetPickResult> pick(
-    ScanSuccess scan, {
+    ScanSuccess scan,
+    PickOptions options, {
     required void Function(CopyProgress progress) onProgress,
   }) async {
-    final picked = PhotosetPicker.pick(scan.sets);
+    final picked = PhotosetPicker.pick(scan.sets, options);
 
     final total = [for (final pick in picked.picks) pick.photos.length]
         .fold(0, (sum, count) => sum + count);

@@ -135,6 +135,11 @@
             }
         }
     },
+    "pickOptionsTitle": "Выбрать фото",
+    "pickExtremesLabel": "Убедиться, что включены фото с наибольшим и наименьшим разрешением",
+    "pickCountLabel": "Количество фото",
+    "pickStrategyPerSet": "Пропорционально размеру каждого набора",
+    "pickStrategyWholePack": "Равномерно по всем фото как по одному набору",
     "photosetPackNoPhotosets": "Фотосетов нет. Выберите папку и сканируйте её.",
     "singlePhotosetNoPhotosets": "Фото нет. Выберите папку и сканируйте её.",
     "photosetSkippedEntries": "Не фотосеты: {entries}",
