@@ -187,18 +187,74 @@ void main() {
     expect(other.landscapeColumns, 0);
   });
 
-  // Few photos of one kind get the one column they need, and everything else
-  // goes to the kind that has the photos to fill it.
-  test('a small group of one kind gets one column', () {
+  // A zone of the landscape kind is only given whole spans, because a photo of
+  // that kind cannot be placed in a single column (`ai/picking.md` §7).
+  test('a landscape zone is given whole spans', () {
+    // Seven columns fit, but the seventh is one nothing is ever placed in, so
+    // it is not counted and the width is shared out among the columns that are.
     final zones = photoZoneColumnCounts(
+      portraitPhotos: 0,
+      landscapePhotos: 5,
+      columnCount: 7,
+      landscapeSpan: 2,
+    );
+
+    expect(zones!.portraitColumns, 0);
+    expect(zones.landscapeColumns, 6);
+
+    // A space with four columns: the minimums take three, and the one column
+    // the proportion gives to the landscape zone is not a column it can use, so
+    // it goes to the portraits. This is what a 1920 px window gives the area.
+    final window = photoZoneColumnCounts(
+      portraitPhotos: 20,
+      landscapePhotos: 5,
+      columnCount: 4,
+      landscapeSpan: 2,
+    );
+
+    expect(window!.portraitColumns, 2);
+    expect(window.landscapeColumns, 2);
+
+    // What the proportion gives here is already whole spans, so the counts are
+    // what the proportion is.
+    final other = photoZoneColumnCounts(
+      portraitPhotos: 4,
+      landscapePhotos: 3,
+      columnCount: 10,
+      landscapeSpan: 2,
+    );
+
+    expect(other!.portraitColumns, 4);
+    expect(other.landscapeColumns, 6);
+
+    // And when the other kind is already at what its photos need, the column is
+    // not counted.
+    final third = photoZoneColumnCounts(
       portraitPhotos: 1,
       landscapePhotos: 9,
       columnCount: 12,
       landscapeSpan: 2,
     );
 
+    expect(third!.portraitColumns, 1);
+    expect(third.landscapeColumns, 10);
+
+    // A span of one column is a whole span, so the count is the same.
+    expect(wholeSpanCount(5, 1), 5);
+  });
+
+  // Few photos of one kind get the one column they need, and everything else
+  // goes to the kind that has the photos to fill it.
+  test('a small group of one kind gets one column', () {
+    final zones = photoZoneColumnCounts(
+      portraitPhotos: 1,
+      landscapePhotos: 8,
+      columnCount: 11,
+      landscapeSpan: 2,
+    );
+
     expect(zones!.portraitColumns, 1);
-    expect(zones.landscapeColumns, 11);
+    expect(zones.landscapeColumns, 10);
 
     // A landscape's one column is the span, so a zone that has a landscape is
     // never narrower than that.

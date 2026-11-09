@@ -1934,9 +1934,15 @@ lib/
                                 with no photos has none, a kind with photos has at least one
                                 column and never more than its photos need, and what the two
                                 minimums do not take is shared in proportion to the counts, with
-                                a zone already at its need giving its share to the other; it
-                                returns nothing when the space cannot hold a column of both
-                                kinds, which is the case where the grid is not split.
+                                a zone already at its need giving its share to the other. A
+                                landscape zone is given whole spans, since a photo of that kind
+                                cannot be placed in one column, so a column the rounding leaves
+                                over is not one it can use: `wholeSpanCount()` is the number it
+                                can, and the odd column goes to the other kind, or is not
+                                counted when neither can take it, so the width is shared out
+                                among the columns that are. It returns nothing when the space
+                                cannot hold a column of both kinds, which is the case where the
+                                grid is not split.
                                 pictureHeight() and tileHeight() are what a tile takes in a
                                 column of a given width, tileHeight with the gap that is its own
                                 padding. `masonryPositions()`: the placement for a grid of
@@ -4476,10 +4482,14 @@ grid is split: a kind with no photos has none, a kind with photos has at least
 one column — for a landscape that is one of its own, so the span — and never
 more than its photos need, and what the two minimums do not take is shared in
 proportion to the counts, with a zone already at its need giving its share to
-the other; and that a space which cannot hold a column of both kinds is not
-split at all, and that the share of the space is bounded only when the caller
-gives a maximum: with one the columns are drawn at the bound and the width past
-it is left, and a share below the bound is still the share.
+the other, and that a landscape zone is given whole spans, because a photo of
+that kind cannot be placed in one column: the column the rounding leaves over
+goes to the other kind where it can take it, and where neither can it is not
+counted, so the width is shared out among the columns that are. It also covers
+that a space which cannot hold a column of both kinds is not split at all, and
+that the share of the space is bounded only when the caller gives a maximum:
+with one the columns are drawn at the bound and the width past it is left, and
+a share below the bound is still the share.
 `test/image_tile_test.dart` covers the shared tile's labels: two tiles at the
 same width that differ only in the length of their text are the same height, for
 the file name line and for the line naming the group, because the height the

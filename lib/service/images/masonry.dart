@@ -98,6 +98,12 @@ class PhotoZones {
 /// to the counts, and a zone that is already at what its photos need gives its
 /// share to the other.
 ///
+/// A landscape can only be drawn across a whole span, so the columns a zone of
+/// that kind gets are whole spans. The column the rounding leaves over is not
+/// one that kind can place a photo in, so it goes to the other zone as a share
+/// it cannot take does; and when neither can take it, it is not counted, so the
+/// width is shared out among the columns that are.
+///
 /// Returns null when the space cannot hold one column of both kinds, which is
 /// when the grid is not split and the photos are laid out as one grid instead.
 PhotoZones? photoZoneColumnCounts({
@@ -117,7 +123,8 @@ PhotoZones? photoZoneColumnCounts({
   final landscapeMin = landscapePhotos == 0 ? 0 : landscapeSpan;
 
   // The columns that are used: as many as fit, never more than the two together
-  // need, so a zone is not given columns its photos cannot fill.
+  // need, so a zone is not given columns its photos cannot fill. A column that
+  // cannot be part of a span is taken from that number below.
   final used = math.min(columnCount, portraitNeed + landscapeNeed);
 
   if (used < portraitMin + landscapeMin) {
@@ -125,9 +132,15 @@ PhotoZones? photoZoneColumnCounts({
   }
 
   if (portraitPhotos == 0 || landscapePhotos == 0) {
+    // A zone for one kind gets the columns that fit, and the landscape one only
+    // whole spans, because it cannot place a photo in a column outside a pair.
+    final landscapeColumns = landscapePhotos == 0
+        ? 0
+        : wholeSpanCount(used, landscapeSpan);
+
     return PhotoZones(
       portraitColumns: portraitPhotos == 0 ? 0 : used,
-      landscapeColumns: landscapePhotos == 0 ? 0 : used,
+      landscapeColumns: landscapeColumns,
     );
   }
 
@@ -150,8 +163,31 @@ PhotoZones? photoZoneColumnCounts({
     portrait = used - landscape;
   }
 
+  // A column of the landscape zone that is not part of a pair is one it cannot
+  // use, so it is not a column the zone is given: it goes to the other kind,
+  // which can put a single photo in one. When that kind is at what its photos
+  // need, nothing can use the column, so it is not counted and the width is
+  // shared out among the columns that are (`ai/picking.md` §7).
+  final whole = wholeSpanCount(landscape, landscapeSpan);
+
+  if (whole < landscape) {
+    final left = landscape - whole;
+    landscape = whole;
+
+    if (portrait + left <= portraitNeed) {
+      portrait += left;
+    }
+  }
+
   return PhotoZones(portraitColumns: portrait, landscapeColumns: landscape);
 }
+
+/// The columns a landscape zone can actually use: whole spans. A span can only
+/// start where both of its columns are free, and a tie goes to the lower index,
+/// so a zone given an odd number of columns never reaches the last one, and the
+/// drawing has a column that nothing is ever placed in. Such a column is not
+/// counted, so the width is shared out among the columns that are.
+int wholeSpanCount(int columns, int span) => columns - columns % span;
 
 /// How many columns a landscape takes (`ai/picking.md` §7): the number that
 /// makes a column [landscapeWidth] wide when a portrait's column is

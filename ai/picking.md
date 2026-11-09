@@ -305,12 +305,19 @@ draws the photos under its line.
   that is one of its own, so the span — and never more than its photos need, which is one column per
   photo. What the two minimums do not take is shared in proportion to the counts, and a kind already
   at what its photos need gives its share to the other, so a few photos of one kind do not make
-  columns for the other kind that nothing fills. A zone capped at its photos cannot always use the
-  space it is given, so this is the one place the share is bounded: `photosetColumnMaxWidth` is the
-  widest a column is drawn at, twice the portrait width, and the width past it is left at the right
-  rather than a column being made wider. A single photoset is not capped, so its columns keep using
-  the whole space. The two counts are a pure function, `photoZoneColumnCounts`, for the same reason
-  the assignment is one.
+  columns for the other kind that nothing fills. A landscape can only be drawn across a whole span,
+  so the columns a landscape zone gets are whole spans: the column rounding leaves over is one that
+  kind cannot place a photo in, so it goes to the other, as a share it cannot take does, and when
+  neither can take it the column is not counted at all, so the width is shared out among the
+  columns that are rather than left as a strip at the right. Without this the assignment can never
+  reach such a column, because a span only starts where both of its columns are free and a tie goes
+  to the lower index, so a zone given an odd number puts every photo in its first pair and the last
+  column is empty for the whole height of the grid. A zone capped at its photos cannot always use
+  the space it is given, so this is the one place the share is bounded: `photosetColumnMaxWidth` is
+  the widest a column is drawn at, twice the portrait width, and the width past it is left at the
+  right rather than a column being made wider. A single photoset is not capped, so its columns keep
+  using the whole space. The two counts are a pure function, `photoZoneColumnCounts`, for the same
+  reason the assignment is one.
 
 - The two zones are drawn side by side, portraits first, each starting at the top of the area,
   and each kind is packed inside its own columns. When the space cannot hold one column of both
