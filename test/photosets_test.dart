@@ -643,6 +643,73 @@ void main() {
     expect(line.top, greaterThan(header.bottom));
   });
 
+  // The list names the two columns its lines draw, as the two tables name theirs
+  // (`ai/picking.md` §7): the name, and the pair of numbers. The row is drawn for
+  // the type that has a list, and each header sits where its column's values sit.
+  testWidgets('the row naming the columns is drawn above the lines', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    writePhotoAt('source/set01', 'a.png', 100, 100);
+
+    final release = testRelease(p.join(directory.path, 'source'));
+    const headerKey = ValueKey('photosetListHeader');
+
+    final state = testState(release);
+
+    await openPhotosets(tester, state);
+
+    // Before a scan there is no list, so no row names its columns.
+    expect(find.text('Set name'), findsNothing);
+    expect(find.text('Photos (picked / total)'), findsNothing);
+
+    await scanAndWait(tester);
+
+    expect(find.text('Set name'), findsOneWidget);
+    expect(find.text('Photos (picked / total)'), findsOneWidget);
+
+    // Below the header naming the list and above the first line, with nothing
+    // between the row and the line: the line's own padding is the space.
+    final listHeader = tester.getRect(find.text('Photoset List'));
+    final columnHeader = tester.getRect(find.byKey(headerKey));
+    final line = tester.getRect(find.byKey(ValueKey(('groupHeader', 'set01'))));
+
+    expect(columnHeader.top, greaterThan(listHeader.bottom));
+    expect(line.top, greaterThan(columnHeader.bottom));
+
+    // Each header follows its column: the name is at the left edge where the names
+    // are, the count at the right edge where the numbers are. The row has the
+    // lines' horizontal padding, so both edges are the same as the line's.
+    expect(
+      tester.getRect(find.text('Set name')).left,
+      equals(tester.getRect(find.text('set01')).left),
+    );
+    expect(
+      tester.getRect(find.text('Photos (picked / total)')).right,
+      equals(tester.getRect(find.text('0 / 1')).right),
+    );
+
+    // The row is not a line, so it has no band of its own: the nearest `Material`
+    // above it is the page's, not a tinted one.
+    final theme = Theme.of(tester.element(find.byType(PhotosetBlock)));
+
+    expect(
+      tester
+          .widget<Material>(
+            find
+                .ancestor(
+                  of: find.byKey(headerKey),
+                  matching: find.byType(Material),
+                )
+                .first,
+          )
+          .color,
+      isNot(theme.colorScheme.surfaceContainerHigh),
+    );
+  });
+
   // A line appears while the scan is still reading the next set, so a root with
   // many sets shows what it has read rather than nothing until the run ends
   // (`ai/photoset_pack.md` §4). The reader here reads one set and then waits, so
@@ -757,10 +824,13 @@ void main() {
     );
 
     // One title, and it is the one this type reads right for one set. The
-    // header naming a list is not drawn, because this type has one set
-    // (`ai/picking.md` §7).
+    // header naming a list is not drawn, because this type has one set, and the
+    // row naming the columns is not drawn either, because a type with one set has
+    // no list to have columns in (`ai/picking.md` §7).
     expect(find.text('Photoset'), findsOneWidget);
     expect(find.text('Photoset List'), findsNothing);
+    expect(find.text('Set name'), findsNothing);
+    expect(find.text('Photos (picked / total)'), findsNothing);
     expect(
       find.text('There are no photos. Pick the folder and scan it.'),
       findsOneWidget,

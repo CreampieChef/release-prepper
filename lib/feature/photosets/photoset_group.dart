@@ -11,9 +11,10 @@ import 'photosets_controller.dart';
 
 /// The parts the two widgets that show a photoset share (`ai/picking.md` §7): the
 /// state the run and the pictures read, the strings resolved per type, one set as
-/// it is laid out, the line naming it, and the tile showing one photo the rule
-/// picked. `PhotosetBlock` and `PhotosetGallery` are in two files, so these are
-/// package-private: a private helper in one file cannot be read from the other.
+/// it is laid out, the row naming the columns of the list, the line naming one
+/// set, and the tile showing one photo the rule picked. `PhotosetBlock` and
+/// `PhotosetGallery` are in two files, so these are package-private: a private
+/// helper in one file cannot be read from the other.
 
 // The name line under a tile, with the gap above it. The packing counts it,
 // because a tile is the image and the name together, and it is a fixed height
@@ -29,6 +30,13 @@ const photosetTileGap = 8.0;
 // to say which set it is from (`ai/picking.md` §7). A single photoset has one
 // set, which its block names above the photos, so its tiles keep one line.
 const photosetSetLineHeight = 24.0;
+
+// The horizontal inset inside a row of the list. It is what makes a tinted line
+// read as a band rather than as a line of text with a colour behind it, and it
+// is this list's own: the two tables have no horizontal padding (`ai/picking.md`
+// §7). The header row naming the columns is drawn with the same inset, so its
+// text sits above its column rather than to the left of it.
+const photosetLinePadding = 4.0;
 
 // The width a portrait photo's column is, and the width a landscape's is
 // (`ai/picking.md` §7): as many columns of the portrait width as fit in the
@@ -102,6 +110,8 @@ class PhotosetStrings {
   const PhotosetStrings({
     required this.blockTitle,
     required this.listTitle,
+    required this.nameHeader,
+    required this.countHeader,
     required this.photosTitle,
     required this.emptyText,
     required this.pickHint,
@@ -119,6 +129,14 @@ class PhotosetStrings {
   /// so it is null for that type and the block draws nothing (`ai/picking.md`
   /// §7).
   final String? listTitle;
+
+  /// The two headers naming the columns the lines of the list draw. They are null
+  /// for the same type `listTitle` is, for the same reason: the type with one set
+  /// has no list, so it has no columns either, and the block draws nothing
+  /// (`ai/picking.md` §7). The words for the name are the ones the same feature's
+  /// field label has, because it is the same value shown in a column.
+  final String? nameHeader;
+  final String? countHeader;
 
   /// The title of the area that shows the picked photos. For a pack it is the key
   /// the Screenshots section titles itself with, because what a pack shows is the
@@ -163,6 +181,9 @@ PhotosetStrings photosetStrings(
   ReleaseType.photosetPack => PhotosetStrings(
     blockTitle: l10n.photosetPackSectionTitle,
     listTitle: l10n.photosetListSectionTitle,
+    // The type with a list has columns, so it has the headers naming them.
+    nameHeader: l10n.photosetListNameHeader,
+    countHeader: l10n.photosetListCountHeader,
     photosTitle: l10n.screenshotsSectionTitle,
     emptyText: l10n.photosetPackNoPhotosets,
     pickHint: l10n.photosetPackSourceEmpty,
@@ -179,6 +200,9 @@ PhotosetStrings photosetStrings(
   ReleaseType.singlePhotoset => PhotosetStrings(
     blockTitle: l10n.singlePhotosetSectionTitle,
     listTitle: null,
+    // One set, so no list and no columns to name (`ai/picking.md` §7).
+    nameHeader: null,
+    countHeader: null,
     photosTitle: l10n.singlePhotosetSectionTitle,
     emptyText: l10n.singlePhotosetNoPhotosets,
     pickHint: l10n.singlePhotosetSourceEmpty,
@@ -200,6 +224,8 @@ PhotosetStrings photosetStrings(
   ReleaseType.imageFolderUpload => PhotosetStrings(
     blockTitle: l10n.photosetPackSectionTitle,
     listTitle: null,
+    nameHeader: null,
+    countHeader: null,
     photosTitle: l10n.photosetPackSectionTitle,
     emptyText: l10n.photosetPackNoPhotosets,
     pickHint: l10n.photosetPackSourceEmpty,
@@ -294,7 +320,8 @@ String photosetCountText(AppLocalizations l10n, PhotosetGroup group) {
 /// with the eye (`ai/picking.md` §7), as the two tables the app has are
 /// (`ai/video_pack.md` §5). The parity is the position in the order the items are
 /// stored, so a re-scan of the same folder does not change a line's colour. The
-/// header naming the list is not a line, so it is not tinted.
+/// header naming the list and the row naming the columns are not lines, so they
+/// are not tinted.
 ///
 /// The tint is on a `Material` for the same reason the tables' is: a line is the
 /// same shape whether or not it is tinted, and a plain container paints its colour
@@ -316,8 +343,13 @@ Widget photosetLine(
         : Colors.transparent,
     child: Padding(
       // The padding is what makes a tinted line read as a band rather than as a
-      // line of text with a colour behind it; the same value the two tables use.
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      // line of text with a colour behind it; the vertical value is the one the
+      // two tables use, the horizontal one is this list's own (`ai/picking.md`
+      // §7).
+      padding: const EdgeInsets.symmetric(
+        horizontal: photosetLinePadding,
+        vertical: 4,
+      ),
       child: Row(
         // The key is the item's path, not the name it is shown under: two items whose
         // display names collide are still two sets (§5.3).
@@ -335,6 +367,29 @@ Widget photosetLine(
           ),
         ],
       ),
+    ),
+  );
+}
+
+/// The row naming the two columns the lines of the list draw (`ai/picking.md`
+/// §7): the name, and the pair of numbers. It is drawn only for the type that has
+/// a list, as `listTitle` is, and it is not a line, so it is not tinted.
+///
+/// Each header sits where its column's values sit: the name at the left edge, the
+/// count at the right edge. The row is the shape a line is, so the two agree on
+/// where the columns are, and it has the lines' horizontal padding so the header
+/// text is above the values rather than beside them.
+Widget photosetListHeader(BuildContext context, PhotosetStrings strings) {
+  final heading = Theme.of(context).textTheme.labelMedium;
+
+  return Padding(
+    key: const ValueKey('photosetListHeader'),
+    padding: const EdgeInsets.symmetric(horizontal: photosetLinePadding),
+    child: Row(
+      children: [
+        Expanded(child: Text(strings.nameHeader!, style: heading)),
+        Text(strings.countHeader!, style: heading),
+      ],
     ),
   );
 }

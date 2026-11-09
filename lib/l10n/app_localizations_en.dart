@@ -301,6 +301,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get photosetListSectionTitle => 'Photoset List';
 
   @override
+  String get photosetListNameHeader => 'Set name';
+
+  @override
+  String get photosetListCountHeader => 'Photos (picked / total)';
+
+  @override
   String get singlePhotosetSectionTitle => 'Photoset';
 
   @override

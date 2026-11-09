@@ -213,17 +213,17 @@ the extremes are the only part of the rule that reads them (§4).
 
 For a pack it is two widgets, because it is in two grid cells. The block is the page's second
 column, at the most the width this feature gives it: its heading with the Scan and Pick buttons at
-its right, the rows the editor gives it, the header naming the list of sets, and the line naming
-each set the scan found. What the row has left after the fields' column and the block's column is
-the photo area. One widget cannot be two cells, so the two are two widgets, and what they have to
-share — the controller, and the generation the pictures are keyed with — is held by the editor, the
-widget that places them (`AGENTS.md` §5). The sections that need a column's width — the Upload
-section, the Message section, the draft — stay stacked below the fields in the fields' column,
-because the block's column is too narrow for their rows, and the Torrent section is drawn at the top
-of that stack, above the Upload section (`ai/torrents.md`). A single photoset has no space beside
-its block for its pictures, so there is no area beside it: its block is the whole feature and draws
-the photos with the same grid the pack draws, but not split by kind, because with one set there is
-nothing to group (`ai/single_photoset.md` §7).
+its right, the rows the editor gives it, the header naming the list of sets, the row naming the two
+columns of that list, and the line naming each set the scan found. What the row has left after the
+fields' column and the block's column is the photo area. One widget cannot be two cells, so the two
+are two widgets, and what they have to share — the controller, and the generation the pictures are
+keyed with — is held by the editor, the widget that places them (`AGENTS.md` §5). The sections that
+need a column's width — the Upload section, the Message section, the draft — stay stacked below the
+fields in the fields' column, because the block's column is too narrow for their rows, and the
+Torrent section is drawn at the top of that stack, above the Upload section (`ai/torrents.md`). A
+single photoset has no space beside its block for its pictures, so there is no area beside it: its
+block is the whole feature and draws the photos with the same grid the pack draws, but not split by
+kind, because with one set there is nothing to group (`ai/single_photoset.md` §7).
 
 - Scan and Pick are two buttons in the block's heading row. Pick is disabled until a scan has run,
   because what the popup opens with is what the scan read: the slider's value is the number the curve
@@ -375,17 +375,39 @@ the window, so it is not taken.
   drawn above an empty one. It has no action: the buttons belong to the whole block, and they are in
   its heading row.
 
+- The list also names the two columns its lines draw, as the two tables name theirs
+  (`ai/video_pack.md` §5): a row above the first line, with the name and the pair of numbers, in the
+  style a table header is drawn in. Each header sits where its column's values sit — the name at the
+  left edge, the count at the right edge, where the numbers are — and the row has the lines'
+  horizontal padding, so its text is above the values rather than beside them. The row is built the
+  way a line is, so the two agree on where the columns are: the name cell takes the space the value
+  cell does not need, and the widest thing in the count column is the header itself, because a count
+  is a few digits. It is drawn only for the type that has a list, as the header naming the list is,
+  and the words for the name are the ones the same feature's field label already has, because a name
+  shown in a column is the same value the form's field names.
+
+- The row fits on one line in both languages the app has, and that is measured rather than assumed:
+  at the style a table header is drawn in, the two strings measure 182 px in English and 228 px in
+  Russian, the longer of the two, against the 392 px inside the padding at the width this feature
+  caps the block at. So it is one line at every width the page builds a column at, and it would wrap
+  only on a block narrower than 236 px, which the page never builds. Nothing is cut: a name in the
+  list wraps rather than being cut, as it always does.
+
 - Every other line of the list is tinted, because a list read as bands of text is followed with the
-  eye — the same rule the Video pack section follows (`ai/video_pack.md` §5), with the same padding
-  that makes a tinted line read as a band rather than as a line of text with a colour behind it. The
-  parity is the position in the order the items are stored, so a re-scan of the same folder does not
-  change a line's colour. The header naming the list is not a line, so it is not tinted. The band is
-  the line's, not the set's: the photos of a set are what the grid shows, and a band round them would
-  be a band around a set rather than a line of the list. The tint is on the line's own `Material`, as
-  the table rows' are, so a line is the same shape whether or not it is tinted and keeps a hover
-  highlight if it ever becomes clickable — a plain container paints its colour over the highlight,
-  which is painted on the canvas of the nearest `Material` ancestor. Nothing in this list is clickable
-  today, so the reason is the shape the tables have, not a highlight the list shows.
+  eye — the same rule the Video pack section follows (`ai/video_pack.md` §5), with the same vertical
+  padding that makes a tinted line read as a band rather than as a line of text with a colour behind
+  it. The horizontal padding is this list's own, 4 px, so a name or a count is not drawn against the
+  edge of the band it is on; the tables have none, so this is the one place the two shapes differ,
+  and it is a difference inside a line, never in how wide a band is. The parity is the position in
+  the order the items are stored, so a re-scan of the same folder does not change a line's colour.
+  The header naming the list and the row naming the columns are not lines, so neither is tinted. The
+  band is the line's, not the set's: the photos of a set are what the grid shows, and a band round
+  them would be a band around a set rather than a line of the list. The tint is on the line's own
+  `Material`, as the table rows' are, so a line is the same shape whether or not it is tinted and
+  keeps a hover highlight if it ever becomes clickable — a plain container paints its colour over
+  the highlight, which is painted on the canvas of the nearest `Material` ancestor. Nothing in this
+  list is clickable today, so the reason is the shape the tables have, not a highlight the list
+  shows.
 
 - The line naming a set shows two numbers, `picked / total`: what the rule picked for that set,
   and what the scan counted for it. Before a pick the first number is 0, because nothing has been

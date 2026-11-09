@@ -1211,7 +1211,10 @@ lib/
                                including the two lines a run's progress is said with and
                                the labels of the strategy choice, which are null for the
                                type that has no choice to make, one set as the feature
-                               lays it out, the line naming it, the tile,
+                               lays it out, the line naming it, the row naming the two columns
+                               of the list, which is null for the type that has no list as the
+                               header naming it is, the padding inside a row of the list, the
+                               tile,
                                the one grid shape, and the four numbers the grid is built from:
                                the width a portrait's column is, the width a landscape's is —
                                which is the number of columns a landscape spans — the widest the
@@ -1233,11 +1236,12 @@ lib/
                                gives it — its heading with the Scan and Pick
                                buttons at the right, the header naming the list
                                of sets, which only a pack has and which is drawn
-                               only when the list is drawn (`ai/picking.md` §7),
-                               the rows the editor gives it, and the line naming
-                               each set the scan found, every other line tinted so
-                               the list reads as bands, as the two tables the app
-                               has do (`ai/picking.md` §7, `ai/video_pack.md` §5).
+                               only when the list is drawn (`ai/picking.md` §7), the row naming
+                               the two columns of that list, which only a pack has for the same
+                               reason, the rows the editor gives it, and the line naming each
+                               set the scan found, every other line tinted so the list reads as
+                               bands, as the two tables the app has do (`ai/picking.md` §7,
+                               `ai/video_pack.md` §5).
                                Pick is disabled until a
                                scan has run, because what the popup opens with is
                                what the scan read: the value is the number the
@@ -3707,7 +3711,11 @@ and are resolved by `photosetStrings()` in `photoset_group.dart`, the same shape
 in the editor: one switch over the type, no table. It resolves three titles, because a pack shows
 three things: the heading of the block, the header naming the list, and the title of the area that
 shows the picked photos. The header is one key, `photosetListSectionTitle`, not a pair, because only
-a pack has a list: the type with one set has null there and draws nothing (`ai/picking.md` §7). For
+a pack has a list: the type with one set has null there and draws nothing, and the two keys naming
+its columns (`photosetListNameHeader`, `photosetListCountHeader`) are null for that type for the
+same reason, since a type with one set has no list to have columns in. The words for the name are
+the same as `setNameLabel`'s, because a name shown in a column is the same value the form's field
+names (`ai/picking.md` §7). For
 a pack the third title is `screenshotsSectionTitle`, the key the Screenshots section titles itself
 with, so the two areas that show the same files the same way say the same word; for a single
 photoset there is no area apart from the block, so both are `singlePhotosetSectionTitle`. The keys
@@ -4497,6 +4505,14 @@ packing reserves counts one line for each label (`ai/picking.md` §7). Both tile
 come from one run, so the test does not depend on what a line of the label style
 measures, and it also checks that the whole name is still what the widget holds:
 only what is painted is cut.
+`test/photosets_test.dart` covers the row that names the two columns of the
+photoset list: it is drawn for the type that has a list and not for the type
+with one set, not before a scan has produced a list, and between the header
+naming the list and the first line. Each header is at the edge its column's
+values are at — the name at the left, the count at the right — and the test
+reads the two rectangles as the same edges, which is what the shared horizontal
+padding makes. The row is not a line, so it has no band: the nearest `Material`
+above it is not a tinted one, and the test reads that colour too.
 `test/section_title_test.dart` covers the shared title row: the title is at the
 left and the action at the right edge, the title is centred on the row because
 the row is as tall as the action, that the action is at least `actionMinWidth`

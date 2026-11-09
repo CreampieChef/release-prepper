@@ -12,8 +12,9 @@ import 'photosets_controller.dart';
 /// The Photoset data block (`ai/picking.md` §7, `ai/photoset_pack.md` §4, §6,
 /// `ai/single_photoset.md` §7): its heading with the Scan and Pick buttons at
 /// the right, the rows the editor gives it, the header naming the list of sets,
-/// and the line naming each set the scan found. For a pack the header is drawn,
-/// for a single photoset it is not (`ai/picking.md` §7).
+/// the row naming the two columns of that list, and the line naming each set the
+/// scan found. For a pack the two headers are drawn, for a single photoset neither
+/// is (`ai/picking.md` §7).
 ///
 /// For a pack the block is the page's second column, at the most the width this
 /// feature gives it. Its rows are the path the user picked and the counts the
@@ -391,6 +392,13 @@ class _PhotosetBlockState extends State<PhotosetBlock> {
             const SizedBox(height: _rowGap),
             SectionTitle(title: strings.listTitle!),
             const SizedBox(height: _titleGap),
+          ],
+          // The row naming the two columns the lines draw, for the type that has a
+          // list. Nothing is put between it and the first line: the line's own
+          // padding is the space, as a table's header row is followed by its rows
+          // (`ai/picking.md` §7).
+          if (strings.nameHeader != null && strings.countHeader != null) ...[
+            photosetListHeader(context, strings),
           ],
           for (final (index, group) in groups.indexed) ...[
             photosetLine(context, l10n, state, group, index),

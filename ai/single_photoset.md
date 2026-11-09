@@ -166,14 +166,15 @@ unchanged.
 ## 7. The block
 
 For a single photoset the block is the whole feature, because there is no space beside it for its
-pictures: Scan and Pick in its heading row, the set with its count, and the picked photos with the
-same grid drawing the pack uses, at the whole width, at the same two widths the feature gives it
-(`ai/picking.md` §7). There is no header naming a list above the line, because one item is not a list
-(`ai/picking.md` §7). It is not split by kind, because with one item the grid holds one set and there
-is nothing to group, so its photos are in the order the source gives them, and a tile there labels
-itself with its file name only: the block names the set above the photos, so there is nothing for a
-tile to say about which set it is from. The band rule for the lines (`ai/picking.md` §7) shows nothing
-here: there is one line, and the first is not tinted.
+  pictures: Scan and Pick in its heading row, the set with its count, and the picked photos with the
+  same grid drawing the pack uses, at the whole width, at the same two widths the feature gives it
+  (`ai/picking.md` §7). There is no header naming a list above the line, and no row naming its
+  columns, because one item is not a list (`ai/picking.md` §7). It is not split by kind, because
+  with one item the grid holds one set and there is nothing to group, so its photos are in the order
+  the source gives them, and a tile there labels itself with its file name only: the block names the
+  set above the photos, so there is nothing for a tile to say about which set it is from. The band
+  rule for the lines (`ai/picking.md` §7) shows nothing here: there is one line, and the first is
+  not tinted.
 
 Re-picking writes the same names, so the block needs the cache eviction and a key that changes on each
 run, as `AGENTS.md` §5 requires — the rule the feature already follows. Here that key can be the

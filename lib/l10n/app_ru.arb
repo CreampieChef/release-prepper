@@ -99,6 +99,8 @@
     "columnTitleImages": "Изображения",
     "photosetPackSectionTitle": "Фотосеты",
     "photosetListSectionTitle": "Список фотосетов",
+    "photosetListNameHeader": "Название сета",
+    "photosetListCountHeader": "Фото (выбрано / всего)",
     "singlePhotosetSectionTitle": "Фотосет",
     "scanPhotosets": "Сканировать",
     "pickPhotosets": "Выбрать",

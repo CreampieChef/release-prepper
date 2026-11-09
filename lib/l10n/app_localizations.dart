@@ -650,6 +650,18 @@ abstract class AppLocalizations {
   /// **'Photoset List'**
   String get photosetListSectionTitle;
 
+  /// No description provided for @photosetListNameHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Set name'**
+  String get photosetListNameHeader;
+
+  /// No description provided for @photosetListCountHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos (picked / total)'**
+  String get photosetListCountHeader;
+
   /// No description provided for @singlePhotosetSectionTitle.
   ///
   /// In en, this message translates to:

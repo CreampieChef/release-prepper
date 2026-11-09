@@ -301,6 +301,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get photosetListSectionTitle => 'Список фотосетов';
 
   @override
+  String get photosetListNameHeader => 'Название сета';
+
+  @override
+  String get photosetListCountHeader => 'Фото (выбрано / всего)';
+
+  @override
   String get singlePhotosetSectionTitle => 'Фотосет';
 
   @override

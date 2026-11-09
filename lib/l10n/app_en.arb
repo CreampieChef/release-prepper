@@ -99,6 +99,8 @@
     "columnTitleImages": "Images",
     "photosetPackSectionTitle": "Photosets",
     "photosetListSectionTitle": "Photoset List",
+    "photosetListNameHeader": "Set name",
+    "photosetListCountHeader": "Photos (picked / total)",
     "singlePhotosetSectionTitle": "Photoset",
     "scanPhotosets": "Scan",
     "pickPhotosets": "Pick",
