@@ -113,6 +113,28 @@
             }
         }
     },
+    "photosetScanProgress": "Photosets scanned: {done} / {total}",
+    "@photosetScanProgress": {
+        "placeholders": {
+            "done": {
+                "type": "int"
+            },
+            "total": {
+                "type": "int"
+            }
+        }
+    },
+    "photosetPickProgress": "Photos picked: {done} / {total}",
+    "@photosetPickProgress": {
+        "placeholders": {
+            "done": {
+                "type": "int"
+            },
+            "total": {
+                "type": "int"
+            }
+        }
+    },
     "photosetPackNoPhotosets": "There are no photosets. Pick the folder and scan it.",
     "singlePhotosetNoPhotosets": "There are no photos. Pick the folder and scan it.",
     "photosetSkippedEntries": "Not photosets: {entries}",
@@ -174,6 +196,17 @@
         "placeholders": {
             "names": {
                 "type": "String"
+            }
+        }
+    },
+    "imageFolderCopyProgress": "Images copied: {done} / {total}",
+    "@imageFolderCopyProgress": {
+        "placeholders": {
+            "done": {
+                "type": "int"
+            },
+            "total": {
+                "type": "int"
             }
         }
     },

@@ -130,6 +130,22 @@ The rules it is written to:
   decides what a photo is, and it is reported. A set with nothing measurable has no minimum or
   maximum, so no value is written for it.
 
+- **It reports as it reads.** The items the entries give are decided before any reading, so the count
+  the scan reports is what it can know first; then each item is reported as it is read, through the
+  optional callback the caller passes. That is what lets a feature show a set before the run ends, and
+  what a widget draws a progress row from (`ai/picking.md` §7). The callback is optional in the same
+  way `ToolRunner`'s `onOutput` is: a caller that reports nothing takes none. The first report names
+  no item, because it only gives the total.
+
+- **The reading happens on another isolate.** Each reader is called through `Isolate.run`, so reading a
+  large archive does not hold up the isolate the UI runs on: the work is CPU work that cannot be
+  interrupted, and on the UI isolate a big root would freeze the page until the last archive was read.
+  Doing the isolation in the scan rather than in each reader is what makes the rule hold for a reader
+  added later, and it is why a reader must hold nothing that has to be the same from one call to the
+  next — it is the rule for one container, not an object with state. A long-lived worker isolate was
+  the alternative; the measurement that says a per-call one is cheap enough is in `ai/environment.md`,
+  and the cost is nothing against reading an archive.
+
 Reading dimensions without a package: a small header reader for JPEG, PNG and WebP. It reads only
 the header — JPEG's start-of-frame marker, PNG's IHDR, WebP's three chunk types — and does not
 decode the image. The alternative is one `ffprobe` call per photo, which is a few lines but
@@ -218,11 +234,14 @@ Done:
    header bytes come through a function rather than a path, so a file and an archive entry read
    through the same format dispatch.
 6. `lib/service/photosets/` — the scan behind the reader interface, and one file per reader:
-   `directory_reader.dart` and `zip_reader.dart`.
+   `directory_reader.dart` and `zip_reader.dart`. The scan reports what it reads as it reads it, and
+   it calls each reader on another isolate (`ai/photoset_pack.md` §4).
 7. `lib/feature/photosets/` — the controller, the block that lists the photosets with their counts,
    the header naming that list, the area that draws the picked photos as the grid the feature
    fits from the two widths it gives, split by kind for a pack, and the state and the drawing
-   helpers the two share.
+   helpers the two share. The block shows a set as the scan reads it and a photo as the pick writes
+   it, and draws the progress row while a run is going with the shared `ProgressRow`
+   (`lib/feature/progress_row.dart`, `ai/picking.md` §7).
 8. l10n keys in both arb files, and the tests for the pack form, the header reader, the scan, the
    block, the area and the shared tile.
 9. `zip_reader.dart` — the ZIP reader through the `archive` package, and `pubspec.yaml` with it;

@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 
 import '../../service/images/image_dimensions.dart';
 import '../../service/photosets/photoset_scanner.dart';
+import '../photosets/photosets_controller.dart';
 import '../release/release.dart';
 import '../release/release_fields.dart';
 import '../release/release_store.dart';
@@ -13,7 +14,10 @@ import '../tab/tab_manager.dart';
 
 /// Image folder state and side effects (`ai/image_folder_upload.md`). It owns
 /// no `Listenable` (rule 3) and shows no messages (rule 13): the widget calls
-/// `scan()`, shows what came back, and maps a result to localized text.
+/// `scan()`, shows what came back, and maps a result to localized text. It
+/// reports what the run has copied through a plain callback the widget passes in,
+/// as the Upload and Screenshots controllers do, so an image is shown as it is
+/// written rather than when the run ends.
 ///
 /// One action rather than the Photoset section's two, because for this type the
 /// scan and the copy are the same thing: what the rule copies is every image in
@@ -23,6 +27,9 @@ import '../tab/tab_manager.dart';
 /// Upload section resolves it there — a record pointing at the picked folder
 /// could not be uploaded (`ai/upload_images.md`) — and the release folder
 /// mirrors the structure the user picked (`ai/release_structure.md` §4).
+///
+/// The scan's work runs on another isolate, as it does for the photoset types
+/// (`ai/photoset_pack.md` §4).
 class ImageFolderController {
   ImageFolderController({
     required this.release,
@@ -50,13 +57,36 @@ class ImageFolderController {
   /// item, because the scan is what says what the folder contains, and replaces
   /// the photo records this run writes, so the poster and the records of other
   /// kinds are kept — the same rules as the photoset scan and pick.
-  Future<ImageFolderResult> scan() async {
+  ///
+  /// [onProgress] reports what the run has copied, counted against the images the
+  /// scan counted: for this type the number is what the folder contains, not a
+  /// choice (`ai/image_folder_upload.md` §2). The item is recorded as the scan
+  /// reads it, the same rule as the photoset types (`ai/photoset_pack.md` §4),
+  /// so the row and the images appear while the run is going rather than at the
+  /// end of it.
+  Future<ImageFolderResult> scan({
+    required void Function(CopyProgress progress) onProgress,
+  }) async {
     if (release.source.trim().isEmpty) {
       return const ImageFolderFailure(ImageFolderFailureKind.sourceEmpty);
     }
 
     final fieldList = fieldListFor(release.releaseType);
-    final result = await scanner.scan(release.source, fieldList.itemBoundary);
+
+    final result = await scanner.scan(
+      release.source,
+      fieldList.itemBoundary,
+      onProgress: (progress) {
+        // The point at which the scan has decided what the folder contains is
+        // the report that only gives the total: that is where the item is
+        // replaced, so a scan that cannot read the folder replaces nothing.
+        if (progress.set == null) {
+          release.items.clear();
+        } else {
+          _recordItem(fieldList, progress.set!);
+        }
+      },
+    );
 
     if (result is ScanFailure) {
       return ImageFolderFailure(switch (result.kind) {
@@ -68,20 +98,10 @@ class ImageFolderController {
 
     final success = result as ScanSuccess;
 
-    // The item is the picked folder, named by it, as a single photoset names
-    // its item (`ai/single_photoset.md` §5). There is exactly one, because the
-    // folder is the item.
-    release.items.clear();
+    final total = success.totalPhotoCount;
 
-    for (final set in success.sets) {
-      release.items.add(
-        ReleaseItem(
-          path: set.path,
-          type: fieldList.itemType,
-          fields: FieldValues(),
-        ),
-      );
-    }
+    // The total is what the first report says, before anything has been copied.
+    onProgress(CopyProgress(done: 0, total: total));
 
     final kept = [
       for (final record in (await store.load(release.directoryPath)).images)
@@ -111,13 +131,17 @@ class ImageFolderController {
           await target.parent.create(recursive: true);
           await target.writeAsBytes(bytes, flush: true);
 
-          written.add(
-            ImageRecord(
-              item: set.path,
-              kind: ImageKind.photo,
-              file: relative,
-              urls: const {},
-            ),
+          final record = ImageRecord(
+            item: set.path,
+            kind: ImageKind.photo,
+            file: relative,
+            urls: const {},
+          );
+
+          written.add(record);
+
+          onProgress(
+            CopyProgress(done: written.length, total: total, record: record),
           );
         } catch (_) {
           // An image that could not be written is reported, not guessed at.
@@ -174,6 +198,25 @@ class ImageFolderController {
       notCopied: notCopied,
       written: written,
     );
+  }
+
+  /// One item, as the scan read it. For this type there is exactly one, the
+  /// picked folder, named by it, as a single photoset names its item
+  /// (`ai/single_photoset.md` §5), because the folder is the item. The item
+  /// fields this type has are none, so the loop that writes them for the
+  /// photoset types does nothing here, and the same rule covers both.
+  void _recordItem(FieldList fieldList, ScannedSet set) {
+    final item = ReleaseItem(
+      path: set.path,
+      type: fieldList.itemType,
+      fields: FieldValues(),
+    );
+
+    for (final field in fieldList.itemFields) {
+      item.fields.setValue(field.name, '${set.photoCount}');
+    }
+
+    release.items.add(item);
   }
 
   /// The files directly inside the picked folder that are not images, in
@@ -275,8 +318,9 @@ final class ImageFolderSuccess extends ImageFolderResult {
   final List<String> unreadImages;
   final List<String> notCopied;
 
-  /// The records this run wrote, in filename order. The widget evicts the cache
-  /// for these before it builds again, as the other sections do.
+  /// The records this run wrote, in filename order — the same records it reported
+  /// one by one while it was writing them, gathered for the caller that wants the
+  /// run as a whole rather than its reports.
   final List<ImageRecord> written;
 }
 

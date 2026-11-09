@@ -674,6 +674,18 @@ abstract class AppLocalizations {
   /// **'{picked} / {total}'**
   String photosetPickedOfTotal(int picked, String total);
 
+  /// No description provided for @photosetScanProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Photosets scanned: {done} / {total}'**
+  String photosetScanProgress(int done, int total);
+
+  /// No description provided for @photosetPickProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos picked: {done} / {total}'**
+  String photosetPickProgress(int done, int total);
+
   /// No description provided for @photosetPackNoPhotosets.
   ///
   /// In en, this message translates to:
@@ -763,6 +775,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not images: {names}'**
   String imageFolderNotImages(String names);
+
+  /// No description provided for @imageFolderCopyProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Images copied: {done} / {total}'**
+  String imageFolderCopyProgress(int done, int total);
 
   /// No description provided for @imageFolderSourceEmpty.
   ///

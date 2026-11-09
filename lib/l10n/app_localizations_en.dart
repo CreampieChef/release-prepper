@@ -315,6 +315,16 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String photosetScanProgress(int done, int total) {
+    return 'Photosets scanned: $done / $total';
+  }
+
+  @override
+  String photosetPickProgress(int done, int total) {
+    return 'Photos picked: $done / $total';
+  }
+
+  @override
   String get photosetPackNoPhotosets =>
       'There are no photosets. Pick the folder and scan it.';
 
@@ -376,6 +386,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String imageFolderNotImages(String names) {
     return 'Not images: $names';
+  }
+
+  @override
+  String imageFolderCopyProgress(int done, int total) {
+    return 'Images copied: $done / $total';
   }
 
   @override

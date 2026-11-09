@@ -297,8 +297,11 @@ What is left unfinished is not a compile error but missing behaviour:
   Torrent section runs on. Writing or removing a poster is such a change, because the poster is a
   record in that file, so the poster path calls the same notice: without it a poster added after a
   generation is not an image the Upload section counts, and one removed is still counted. A section
-  that is itself what changes such a state calls the same notice at the end of its run, so there is
-  one path for the notice and one place where the rebuilds happen.
+  that is itself what changes such a state calls the same notice when its run writes something, so
+  there is one path for the notice and one place where the rebuilds happen: at the end of the run for
+  the sections that show their own images, and on each photo it copies for the Photosets block,
+  because a pack's pictures are drawn by another widget in another grid cell and build only when the
+  editor does (`ai/picking.md` §7).
 - For a photoset pack the feature is the Photosets block and the photo area, two widgets because
   they are in two grid cells (`ai/photoset_pack.md`, `ai/picking.md` §7). The block is the page's
   second column, at the most the width this feature gives it: its heading with the Scan and Pick
@@ -319,6 +322,8 @@ What is left unfinished is not a compile error but missing behaviour:
   the minimum and the maximum are decided by pixel area across all photos, and what the scan could not
   take is reported rather than guessed at. The values it counts go through the editor's single write
   path; the items it records are the scan's own output, because an item is what the scan produces.
+  A set's line is drawn as the scan reads that set, and the block draws the shared progress row with
+  the count a run has reached while it is going (`ai/picking.md` §7).
 - A single photoset (`ai/single_photoset.md`) is that same block with one item: the picked folder
   is the set itself, so the scan reads the photos directly inside it and records one item named by
   the folder. It is the same feature with no area beside it, because a single set has no columns to
@@ -338,7 +343,9 @@ What is left unfinished is not a compile error but missing behaviour:
   the copy are the same action and the number is what the folder contains, not a choice. The field list has no
   field the user writes, so the form is the poster box and the four values the scan counted, in the right
   column only; the three photo names are worded as image names for this type, and the source row says
-  *Folder with the images*. A file that is not an image is not counted and is reported by the feature rather
+  *Folder with the images*. The images shown are the ones the run has copied so far, so a tile appears
+  when its file is written, and while a run is going the section draws the shared progress row with the
+  count it has reached (`ai/image_folder_upload.md` §5). A file that is not an image is not counted and is reported by the feature rather
   than by the scan, because the reader reports nothing it skipped and changing it would change what the
   photoset types report. The message is the image block alone.
 - For a video pack the Video pack section (`ai/video_pack.md`) is one form column wide, which is
@@ -974,6 +981,17 @@ lib/
                               action, not each button inside it. Presentational only: no state, so no
                               controller; the gap below the row is the caller's, because the widget is
                               the row and not the section.
+    progress_row.dart         ProgressRow, the row a section draws while one of its runs
+                              is going: the bar and the count next to it. Shared by the
+                              Photoset block and the Image folder section, because both
+                              show a run the same way, with the same bar the Upload
+                              section draws for each hoster. Drawn only while a run is
+                              going, as the Torrent section's progress is: before a run
+                              there is nothing to show, and after one the results the run
+                              produced are what the section shows. The words for the
+                              count are per release type, so the caller resolves them and
+                              passes what they say. Presentational only: no state, so no
+                              controller.
     pornolab_results.dart     pornolabResultText, the words for a result the site gave. It is the
                               one mapping the settings row and the Upload draft section share, so
                               the same result cannot be said two ways; this is the exception to
@@ -1170,15 +1188,24 @@ lib/
                                  display name is derived from the item path here, because the
                                  stored path is the record ID and is also the folder the copied
                                  photos go in. `aspectRatio()` is the ratio a tile is laid out at,
-                                 from the header of the file shown
+                                 from the header of the file shown. The scan and the pick report what
+                                 they have done through a callback the widget passes, so the controller
+                                 records an item as the scan reads it and reports a photo as it copies
+                                 it (`ScanProgress` from the service, `CopyProgress` here, shared with
+                                 the Image folder controller); the count is what the run wrote, so a
+                                 photo it could not write does not move it (`ai/picking.md` §7)
       photoset_group.dart      PhotosetState: the controller and the generation the two widgets
                                that show a photoset read. For a pack the run and the pictures are
                                two grid cells, so neither widget can own them and the generation
                                cannot be one widget's counter (`AGENTS.md` §5); the editor, which
-                               places both, holds it. What a run wrote is recorded here, so the
-                               cache is emptied for those paths and the generation moves only
-                               when the run wrote something. Also the strings resolved per type,
-                               one set as the feature lays it out, the line naming it, the tile,
+                               places both, holds it. What a run wrote is recorded here as the run
+                               reports it, so the cache is emptied for the path it wrote and the
+                               generation moves at that moment rather than at the end of the run;
+                               the records are cleared when the run ends, because from then on the
+                               manifest is what the two widgets read
+                               (`ai/picking.md` §7). Also the strings resolved per type,
+                               including the two lines a run's progress is said with, one set as
+                               the feature lays it out, the line naming it, the tile,
                                the one grid shape, and the four numbers the grid is built from:
                                the width a portrait's column is, the width a landscape's is —
                                which is the number of columns a landscape spans — the widest the
@@ -1190,7 +1217,11 @@ lib/
                                starts at, so each kind is packed inside its own columns and the
                                drawing places the zones side by side (`ai/picking.md` §7). The
                                numbers are here because a private helper in one file cannot be
-                               read from the other.
+                               read from the other. Reading the sets as the feature lays them out
+                               is `photosetGroups`, which reads the manifest once for the whole
+                               list rather than once per set, because a run rebuilds the list for
+                               every set it has already read, and it merges the records the run in
+                               progress has reported with the manifest's (`ai/picking.md` §7).
       photoset_block.dart      PhotosetBlock: the data block as the page's
                                second column, at the most the width this feature
                                gives it — its heading with the Scan and Pick
@@ -1198,7 +1229,10 @@ lib/
                                of sets, which only a pack has and which is drawn
                                only when the list is drawn (`ai/picking.md` §7),
                                the rows the editor gives it, and the line naming
-                               each set the scan found. Pick is disabled until a
+                               each set the scan found, every other line tinted so
+                               the list reads as bands, as the two tables the app
+                               has do (`ai/picking.md` §7, `ai/video_pack.md` §5).
+                               Pick is disabled until a
                                scan has run, because the rule reads the counts.
                                No slider: the number is decided by the rule, and
                                the block shows what it decided (`ai/picking.md`
@@ -1214,13 +1248,28 @@ lib/
                                The lines are keyed `groupHeader` by the item's
                                path rather than the name it is shown under — two
                                items that would share a display name are still
-                               two sets.
+                               two sets. While a run is going the block draws the
+                               shared progress row with the count the run has
+                               reached, and a set's line is drawn as the scan
+                               reads that set, so a root with many sets shows what
+                               it has found before the run ends
+                               (`ai/picking.md` §7). The progress is widget state,
+                               and the row is drawn only while a run is going. A
+                               pick records what it writes in the state the two
+                               widgets share and tells the editor for each photo,
+                               because the pictures are drawn by another widget and
+                               build only when the editor does. The two rows are
+                               keyed one per run — `photosetScanProgress` and
+                               `photosetPickProgress` — as the block's other parts
+                               are keyed, so the row for one run is not the row for
+                               the other.
       photoset_gallery.dart    PhotosetGallery: the area a pack shows its picked photos in — the
                                title row, and the grid this feature fits from the two widths it
                                gives, split by kind for a pack, at the space the page has left
-                               after the two columns. No state: a run happens in the block, and
-                               the page builds again afterwards, so the pictures here are
-                               resolved against the cache the run emptied. A tile labels itself
+                               after the two columns. No state: a run happens in the block, which
+                               tells the editor as each photo is written, so the pictures here
+                               appear during the run and are resolved against the cache that run
+                               emptied (`AGENTS.md` §5). A tile labels itself
                                with its file name and with the set it is from, because nothing
                                groups the photos. The area is keyed `photosetGallery`, the lines
                                in the block `groupHeader`, and the tiles `photoTile` by the path
@@ -1274,7 +1323,12 @@ lib/
                                     Reports the files it did not count, because the reader reports nothing it
                                     skipped (`ai/image_folder_upload.md` §3). Typed result, no listener, no
                                     context. No provider entry: the widget builds its own controller from the
-                                    scope, as the other sections do.
+                                    scope, as the other sections do. The item is recorded as the scan
+                                    reads it, and each image is reported as it is copied through the
+                                    callback the widget passes, so the section shows an image when its
+                                    file is written rather than when the run ends; the count is what the
+                                    run copied, so an image it could not copy does not move it
+                                    (`ai/image_folder_upload.md` §5).
       image_folder_section.dart     ImageFolderSection: the title row with the Scan button at the right, the
                                     images as a masonry, the count line, and what the run could not take
                                     reported as a message. No Pick button
@@ -1282,7 +1336,13 @@ lib/
                                     action and the number is what the folder contains. The tiles are the shared
                                     `ImageTile`, at the box height the packing worked out for each image, with a
                                     key that changes on each run because a re-scan writes the same names
-                                    (`AGENTS.md` §5).
+                                    (`AGENTS.md` §5). While the run is going the section draws the shared
+                                    progress row with the count it has reached, and the images shown are
+                                    the records it has copied so far, so a tile appears when its file is
+                                    written (`ai/image_folder_upload.md` §5); the row is not drawn after
+                                    the run, and then the manifest is what the section reads. The row
+                                    is keyed `imageFolderCopyProgress`, as the section's other parts
+                                    are keyed.
     upload/
       hosters.dart              the hoster registry: the names `--server` takes, in the
                                 order the section lists them, each with its icon asset and
@@ -1936,8 +1996,16 @@ lib/
                                 among them. The readers are behind an interface, so a format can
                                 be added without changing the scan (`ai/photoset_pack.md` §5); the
                                 interface also gives the whole photo, for the photo the picker
-                                copies. + the typed scan result. Called only when the user
-                                asks.
+                                copies. Each reader is called on another isolate, so reading a
+                                large archive does not hold up the isolate the UI runs on, and a
+                                reader therefore holds nothing from one call to the next
+                                (`ai/photoset_pack.md` §4). The items the entries give are decided
+                                before any reading, so the count it reports is known before the
+                                first item is read: it reports that count, and then each item as it
+                                reads it, through the optional callback the caller passes — the same
+                                shape as `ToolRunner`'s `onOutput`, so a caller that reports nothing
+                                takes no callback (`ai/picking.md` §7). + the typed scan result, and
+                                the progress report. Called only when the user asks.
       directory_reader.dart     DirectoryPhotosetReader: a photoset that is a directory — the files
                                 directly inside it, in name order.
       zip_reader.dart           ZipPhotosetReader: a photoset that is a ZIP archive — its entries,
@@ -2849,12 +2917,13 @@ image keeps the stream it resolved the first time. The poster file is always
 names on a regeneration, so all three are the case the rule is about. The editor keys
 the poster image with a generation that changes on every write; the three sections that
 show generated images key every tile through `lib/feature/image_tile.dart`, with a
-generation counter that changes when files are written — once per run for the photosets and
-the image folder section, and once per file for the two sections that show a run as it
-writes, so a tile is rebuilt and resolves against the now-empty cache at the moment its
-file is written. The two halves are `imageFromFile` and
-`evictCachedImages` in that file, and the counter stays each widget's own state, so it
-is passed in rather than held there. The Stash popup is the same case with a file it
+generation counter that changes when files are written. It moves once per file, because
+every feature that shows a run shows it as it writes, so a tile is rebuilt and resolves
+against the now-empty cache at the moment its file is written. The two halves are
+`imageFromFile` and `evictCachedImages` in that file, and the counter is a widget's own
+state where one widget shows the run, so it is passed in rather than held in the shared
+file; for the photosets it is the state the editor holds for the two widgets that share a
+run (`AGENTS.md` §5). The Stash popup is the same case with a file it
 downloads: its poster preview is written under a name the scene id gives, so a different
 scene is a different path, and the popup evicts the entry and keys the image with its own
 counter for the case where the same scene is fetched twice.
@@ -2991,16 +3060,20 @@ the section shows nothing until the first generation.
 one for a single set. `PhotosetBlock` is the data block: its heading with the Scan and Pick
 buttons at the right, the rows the editor gives it for a pack — the path the user picked and the
 counts the scan took from it — and the line naming each set with the number of photos in it.
-Nothing is shown before the scan, because opening a release is a read and changes nothing. For a
+Nothing is shown before the scan, because opening a release is a read and changes nothing. While a
+run is going the block draws the progress row with the count it has reached, and a set's line is
+drawn as the scan reads that set, so a root with many sets shows what it has found as it finds it;
+the pick shows the photos as it copies them (`ai/picking.md` §7). For a
 pack the picked photos are drawn by another widget, `PhotosetGallery`, because the block is the
 page's first column and the photos are the columns after it, and one widget cannot be two grid
 cells; for a single photoset the block is the whole feature and draws the photos itself
 (`ai/picking.md` §7). The strings are resolved per type, because "photosets" and "the folder with
 the photosets" read wrong for one set. `PhotosetController.scan()` calls `PhotosetScanner` with
 the item boundary its field list has — the entries under the source for a pack, the source itself
-for a single set — records the items it found with `type: photoset` and the per-item count, and
-returns the values it counted for the editor's single write path — the feature has no write path
-of its own — kept to the names the type's field list has. The scanner decides which entries are
+for a single set — records each item as the scan reports it with `type: photoset` and the per-item
+count, and returns the values it counted for the editor's single write path — the feature has no write path
+of its own — kept to the names the type's field list has. What a run has done is reported through a
+plain callback the widget passes in, as the Upload and Screenshots controllers do (rule 3). The scanner decides which entries are
 items and which are photos through a reader interface, so a format can be added without changing
 the scan, and reports what it could not take rather than guessing at it: entries at the top level
 that are not photosets, photos whose header could not be read, and display names two items would
@@ -3595,7 +3668,13 @@ files. The count key is the pair one line shows — the number the rule picked a
 counted — so its second placeholder is a String rather than an int: the value is the model's, and a
 String placeholder is what lets a count a user edited in `release.json` be shown as it is. There is
 no plural form anywhere, and none is needed: the pair is one format string, and the Russian value is
-the same shape as the English one.
+the same shape as the English one. The words a run's progress is said with are keyed per type —
+`photosetScanProgress`, `photosetPickProgress`, `imageFolderCopyProgress` — because they name what the
+run counts; each takes the two numbers and is passed to the shared `ProgressRow`, which is presentational
+and resolves nothing itself (`ai/picking.md` §7, `ai/image_folder_upload.md` §5). A type whose item is
+the folder it picked has one item, so a row counting items says nothing and its scan words are null,
+and the block draws nothing there. All three take two int placeholders and are documented with `@key` in
+both files.
 The Video pack family (`videoFolderLabel`, `videoPackSectionTitle`, `scanVideos`, `noVideos`,
 `videoSkippedFiles`, `videoUnprobedFiles`, `videoEmptyFolders`, `videoUnreadableFolders`,
 `videoSourceEmpty`, `videoSourceNotFound`, `videoSourceNotReadable`) is in both files and is used by
@@ -4878,7 +4957,13 @@ an empty bundle directory. Real file IO inside a widget test has to go through
 `tester.runAsync` — the test body runs in a fake-async zone, so awaiting a plain
 `dart:io` call there hangs. A widget test also has to put the file on disk
 before `pumpWidget`: `tester.pump()` does not rebuild a widget whose subtree is
-unchanged, so a box built for a missing file would still show nothing.
+unchanged, so a box built for a missing file would still show nothing. A widget test that runs a scan
+has the same requirement in another form: the reader is called on another isolate, and a fake-async
+zone cannot await one, so the scan is run inside `tester.runAsync` there too
+(`test/photosets_test.dart`, `test/image_folder_test.dart`). A test that looks at what a run shows
+while it is going — a set read while the next one is still being read — waits on the count the
+progress row says, with the same bound, and the reader it is given is one that waits on the second
+item so that the state between two reports is what the test sees rather than what it races.
 `dart_test.yaml` sets a 30s per-test timeout so a hang is reported instead of
 blocking the run for the default ten minutes, and caps the runner at
 `concurrency: 2` so a full run leaves headroom for the desktop instead of

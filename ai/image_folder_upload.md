@@ -110,21 +110,34 @@ a message.
 - Nothing is shown before a scan, because opening a release is a read and changes nothing; a release opened
   from a manifest shows the records its file holds.
 - The folder it reads is the source row above the form, so the section does not repeat it. The row shows the
-  item path, which is the folder's name, and the images under it.
+  item path, which is the folder's name, and the images under it. The item is recorded as the scan reads it,
+  the same rule as the photoset types (`ai/photoset_pack.md` §4).
 - The tiles are the shared `ImageTile` and the positions come from the pure `masonryPositions`
   (`ai/picking.md` §7). Nothing is cropped: each image keeps its own ratio, and an image clearly wider than
   it is tall spans two columns. An image whose header cannot be read takes a square tile.
 - Re-scanning writes the same names, so the section evicts the cache for the paths it wrote and gives each
-  tile a key that changes on each run, as `AGENTS.md` §5 requires — the case the poster does not have.
+  tile a key that changes on each run, as `AGENTS.md` §5 requires — the case the poster does not have. The
+  key moves on each file the run copies rather than once per run, because a file is shown as it is copied
+  and the tile for it has to re-resolve at that moment.
+- While a run is going the section draws the shared progress row (`ai/picking.md` §7), between its title row
+  and the images, with the count it has reached against the images the scan counted. Only the copy row is
+  drawn here, because for this type the item is the folder the user picked: a row counting items would
+  always say 1 / 1. A photo that could not be copied does not move the count, as the Upload section's bars
+  do (`ai/upload_images.md`).
+- The images shown are the records the run has copied so far plus the manifest's, so a tile appears when its
+  file is written rather than when the run ends, and the count line is the count of what is shown. The row
+  is drawn only while a run is going: before one there is nothing to show, and after one the manifest is
+  what the section reads.
 - The strings that say the same thing are the ones the Photoset section already has: the Scan button, the
   unread-images and not-copied report lines, and the two source failures. New keys are added only where the
   wording differs: the section title, the count line, the not-images line, and the message for a folder that
   has not been picked.
 
-The widget owns the layout and the widget state — the busy flag and the generation counter — and builds its
-own controller in `initState` from the provider scope, as the other sections do. The controller owns the side
-effects: the scan, the copies, the records, the manifest write, the stamp, and the values it returns to the
-editor's write path. Typed result, no listener, no context (rules 3 and 13). No new entry in
+The widget owns the layout and the widget state — the busy flag, the progress row's count, the records the
+run has written, and the generation counter — and builds its own controller in `initState` from the provider
+scope, as the other sections do. The controller owns the side effects: the scan, the copies, the records, the
+manifest write, the stamp, and the values it returns to the editor's write path, and it reports what it
+copies through a plain callback the widget passes in, as the Upload and Screenshots controllers do (rule 3). Typed result, no listener, no context (rules 3 and 13). No new entry in
 `app_providers.dart`, because the feature adds no dependency of its own; it uses the ones already in the
 scope.
 
@@ -161,18 +174,23 @@ does not get a word of its own.
 3. `release_editor.dart` — the column layout, the source row label and the section arm. All three are
    exhaustive switches over `ReleaseType`, so the compiler named the places the new type had to be handled.
 4. `lib/feature/image_folder/` — the controller (scan, copy, records, stamp, values) and the section (Scan
-   button, masonry, count line, report lines).
+   button, masonry, count line, report lines). The controller reports what it copies through a callback the
+   widget passes, and the section draws the shared progress row while a run is going and shows the images as
+   they are copied (§5).
 5. l10n keys in both arb files: the type label, the source row label, the three field labels, the section
-   title, the count line, the not-images line and the source-empty message. The keys that say the same thing
-   as the photoset section's are reused rather than duplicated.
+   title, the count line, the not-images line, the source-empty message, and the copy progress line, which
+   is the words with the two numbers and is resolved by the section that draws the row (`ai/doc.md` §6). The
+   keys that say the same thing as the photoset section's are reused rather than duplicated.
 6. `assets/templates/pornolab/imageFolderUpload.txt`.
 7. Tests: the scan (the item, the copies in filename order, the values, the non-image report, a re-scan
-   keeping the poster), the section (the images it copied, what it could not take, the message for no folder),
-   the editor (its own fields and labels, its own section, its source row label), and the message (no title
-   file read or written for this type, and no title row in the Message section).
+   keeping the poster), the section (the images it copied, what it could not take, the message for no folder,
+   the images appearing as the run copies them), the editor (its own fields and labels, its own section, its
+   source row label), and the message (no title file read or written for this type, and no title row in the
+   Message section).
 
-`PhotosetScanner`, the readers, the header reader, the extension list, `masonryPositions`, `ImageTile`, the
-Upload section and the message renderer are unchanged.
+`masonryPositions`, `ImageTile`, the Upload section and the message renderer are unchanged.
+`PhotosetScanner` and the readers are unchanged apart from the progress report and the isolate the reading
+happens on, which is the same for the photoset types (`ai/photoset_pack.md` §4).
 
 ## 8. Open questions
 

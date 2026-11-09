@@ -102,7 +102,10 @@ The same applies to the strings the Photosets block shows. "Photo packs", "There
 well, by `photosetStrings()` in `photoset_group.dart` — one switch over the type, no table, the same
 shape as `_sourceLabel` in the editor. The three keys that were named for the pack were given pack names, because they are no
 longer the only ones. The Scan and Pick buttons, the count line and the report lines keep their existing
-wording, because they say the same thing for one set as for many.
+wording, because they say the same thing for one set as for many. The words a run's progress is said with
+are part of the same switch: the pick counts photos, which is the same measure for one set as for many,
+so it is one set of words; the scan counts the sets it found, and that reads wrong for one item, so it is
+null for this type and the block draws nothing (`ai/picking.md` §7).
 
 The source row needs its own key: *Folder with the photos*, distinct from *Folder with the
 photosets* — the row label is per type today (`ai/doc.md` §2), and this is one more arm of it.
@@ -157,12 +160,21 @@ same grid drawing the pack uses, at the whole width, at the same two widths the 
 (`ai/picking.md` §7). It is not split by kind, because with one item the grid holds one set and there
 is nothing to group, so its photos are in the order the source gives them, and a tile there labels
 itself with its file name only: the block names the set above the photos, so there is nothing for a
-tile to say about which set it is from.
+tile to say about which set it is from. The band rule for the lines (`ai/picking.md` §7) shows nothing
+here: there is one line, and the first is not tinted.
 
 Re-picking writes the same names, so the block needs the cache eviction and a key that changes on each
 run, as `AGENTS.md` §5 requires — the rule the feature already follows. Here that key can be the
 block's own counter, because the block is the widget that shows the pictures; for a pack it cannot be,
-because the pictures are in another widget (`ai/picking.md` §7).
+because the pictures are in another widget (`ai/picking.md` §7). The block is one implementation, so both
+types use the state the editor holds, and the key moves on each photo the run writes rather than once per
+run, as `ai/picking.md` §7 says.
+
+A row for a run going now is drawn here only for the pick, for the reason §4 gives: the scan counts the
+items, and here the item is the folder the user picked, so a row counting items says nothing. The pick
+row is the shared one, and the photos shown are the ones the run has copied so far, so a tile appears when
+its file is written rather than when the run ends, and the count on the line is the count of what is
+shown (`ai/picking.md` §7).
 
 ## 8. The message
 

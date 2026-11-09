@@ -315,6 +315,16 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String photosetScanProgress(int done, int total) {
+    return 'Просканировано фотосетов: $done / $total';
+  }
+
+  @override
+  String photosetPickProgress(int done, int total) {
+    return 'Выбрано фото: $done / $total';
+  }
+
+  @override
   String get photosetPackNoPhotosets =>
       'Фотосетов нет. Выберите папку и сканируйте её.';
 
@@ -375,6 +385,11 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String imageFolderNotImages(String names) {
     return 'Не изображения: $names';
+  }
+
+  @override
+  String imageFolderCopyProgress(int done, int total) {
+    return 'Скопировано изображений: $done / $total';
   }
 
   @override

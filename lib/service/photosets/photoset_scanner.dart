@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import 'dart:isolate';
+
 import '../images/image_dimensions.dart';
 
 /// What the scan treats as an item (`ai/release_structure.md` §9,
@@ -86,6 +88,10 @@ class ScannedSet {
 /// implementations behind this interface (`directory_reader.dart`,
 /// `zip_reader.dart`), so adding a format does not change the scan
 /// (`ai/photoset_pack.md` §5).
+///
+/// The scan calls these on another isolate, so a reader must hold nothing that
+/// has to be the same from one call to the next: it is the rule for one
+/// container, not an object with state.
 abstract class PhotosetReader {
   /// Whether this entry is a container this reader reads.
   bool canRead(SourceEntry entry);
@@ -110,7 +116,22 @@ class PhotosetScanner {
 
   final List<PhotosetReader> readers;
 
-  Future<ScanResult> scan(String sourcePath, ItemBoundary boundary) async {
+  /// Reads the source and reports what it finds. [onProgress] is called before
+  /// any item is read, with the number of items the entries give, and then for
+  /// each item as it is read, with that item — so the caller can show a set
+  /// before the whole folder has been read (`ai/photoset_pack.md` §4). It is
+  /// optional in the same way `ToolRunner`'s `onOutput` is: a feature that
+  /// reports nothing while it works does not have to take a callback it will not
+  /// use.
+  ///
+  /// The items are put in their order and the entries that are not items are
+  /// set aside before any reading, because the count the progress reports is
+  /// what the scan can know before it starts.
+  Future<ScanResult> scan(
+    String sourcePath,
+    ItemBoundary boundary, {
+    void Function(ScanProgress progress)? onProgress,
+  }) async {
     final type = await FileSystemEntity.type(sourcePath);
 
     if (type == FileSystemEntityType.notFound) {
@@ -151,21 +172,40 @@ class PhotosetScanner {
     // the entries are put in that order before anything is read.
     entries.sort((a, b) => a.name.compareTo(b.name));
 
-    final sets = <ScannedSet>[];
+    final items = <SourceEntry>[];
     final skipped = <String>[];
 
     for (final entry in entries) {
-      final reader = _readerFor(entry);
-
-      if (reader == null) {
+      if (_readerFor(entry) == null) {
         // A loose image at the top level is not an item. It is reported, not
         // guessed at.
         skipped.add(entry.name);
         continue;
       }
 
-      sets.add(
-        ScannedSet(entry: entry, photos: await reader.read(entry.readPath)),
+      items.add(entry);
+    }
+
+    onProgress?.call(ScanProgress(scanned: 0, total: items.length));
+
+    final sets = <ScannedSet>[];
+
+    for (final entry in items) {
+      final reader = _readerFor(entry)!;
+
+      // The reader's work is done on another isolate, because reading an archive
+      // is CPU work that cannot be interrupted and would otherwise hold up the
+      // UI isolate for the whole archive (`ai/photoset_pack.md` §4). Doing it
+      // here rather than in each reader is what makes the rule hold for a
+      // reader added later.
+      final photos = await Isolate.run(() async => reader.read(entry.readPath));
+
+      final set = ScannedSet(entry: entry, photos: photos);
+
+      sets.add(set);
+
+      onProgress?.call(
+        ScanProgress(scanned: sets.length, total: items.length, set: set),
       );
     }
 
@@ -174,7 +214,7 @@ class PhotosetScanner {
 
   /// The whole photo, for the photo the picker copies into the release. The
   /// reader that read the set is the one that reads its bytes, so the dispatch
-  /// here is the same as the scan's.
+  /// here is the same as the scan's, and so is the isolate.
   Future<List<int>> photoBytes(ScannedSet set, ScannedPhoto photo) async {
     final reader = _readerFor(set.entry);
 
@@ -182,7 +222,9 @@ class PhotosetScanner {
       return const [];
     }
 
-    return reader.photoBytes(set.entry.readPath, photo.name);
+    return Isolate.run(
+      () async => reader.photoBytes(set.entry.readPath, photo.name),
+    );
   }
 
   PhotosetReader? _readerFor(SourceEntry entry) {
@@ -304,4 +346,17 @@ final class ScanFailure extends ScanResult {
   const ScanFailure(this.kind);
 
   final ScanFailureKind kind;
+}
+
+/// What the scan reports while it works. The count is over the items — what the
+/// scan decided the entries are — because that is the number it can know before
+/// it reads any of them (`ai/photoset_pack.md` §4). [set] is the item this
+/// report is about; the first report has none, because it only gives the total.
+class ScanProgress {
+  const ScanProgress({required this.scanned, required this.total, this.set});
+
+  final int scanned;
+  final int total;
+
+  final ScannedSet? set;
 }

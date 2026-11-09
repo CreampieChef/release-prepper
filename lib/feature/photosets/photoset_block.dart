@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../service/photosets/photoset_scanner.dart';
+import '../progress_row.dart';
 import '../release/release_type.dart';
 import '../section_title.dart';
+import '../../service/photosets/photoset_scanner.dart';
 import 'photoset_group.dart';
 import 'photosets_controller.dart';
 
@@ -32,12 +33,21 @@ import 'photosets_controller.dart';
 /// what it decided rather than letting the user change it. Pick is disabled
 /// until a scan has run, because the rule reads the counts.
 ///
-/// The widget owns the widget state — the busy flag and the last scan it was
-/// given — but not the state the pictures read: the controller and the
-/// generation live in `PhotosetState`, because the gallery reads them too. It
-/// writes no fields itself: the values the scan counts are handed to the
-/// editor's single write path through `onApplyValues`, so the tab becomes dirty
-/// and Ctrl+S saves them.
+/// A run shows what it has done as it goes, through the callback the controller
+/// reports on (`ai/photoset_pack.md` §4): a set is named in the list as the scan
+/// reads it, and a photo appears as the run copies it. The row that shows the
+/// count of a run is drawn only while that run is going, because before a run
+/// there is nothing to show and after it the lines the run produced are what the
+/// block shows (`ai/torrents.md`).
+///
+/// The widget owns the widget state — the busy flag, the counts the runs report,
+/// and the last scan it was given — but not the state the pictures read: the
+/// controller, the generation and what a run has written live in
+/// `PhotosetState`, because the gallery reads them too. It writes no fields
+/// itself: the values the scan counts are handed to the editor's single write
+/// path through `onApplyValues`, so the tab becomes dirty and Ctrl+S saves them,
+/// and they are written at the end of a run because they are what the whole scan
+/// counted — a run that has read half the folder cannot state them.
 class PhotosetBlock extends StatefulWidget {
   const PhotosetBlock({
     required this.state,
@@ -56,7 +66,10 @@ class PhotosetBlock extends StatefulWidget {
 
   /// Tells the editor a run wrote files, so it builds again and the gallery shows
   /// the pictures with the generation this block advanced — the same reason the
-  /// sections are given `onImagesChanged` (`ai/upload_images.md`).
+  /// sections are given `onImagesChanged` (`ai/upload_images.md`). A run reports
+  /// each photo as it writes it, so this is called as each one is written, not
+  /// only at the end of the run: the block is the widget that runs, and the area
+  /// that draws the pictures is another one.
   final void Function() onRunWritten;
 
   /// The rows the block draws between its heading and its lines. Only the pack has
@@ -72,6 +85,10 @@ class _PhotosetBlockState extends State<PhotosetBlock> {
   /// Which action is running. Widget state, for the progress indicator on the
   /// button that is.
   _Action _action = _Action.none;
+
+  /// What the two runs have reported, for the rows that show them. Widget state.
+  ScanProgress? _scanProgress;
+  CopyProgress? _pickProgress;
 
   /// The last scan the block was given. The pick needs the photo names, and those
   /// are what the scan read, so a block that has not scanned cannot pick.
@@ -92,9 +109,22 @@ class _PhotosetBlockState extends State<PhotosetBlock> {
   }
 
   Future<void> _scan(AppLocalizations l10n) async {
-    setState(() => _action = _Action.scan);
+    setState(() {
+      _action = _Action.scan;
+      _scanProgress = null;
+      _pickProgress = null;
+    });
 
-    final result = await widget.state.controller.scan();
+    final result = await widget.state.controller.scan(
+      onProgress: (progress) {
+        if (!mounted) return;
+
+        // The controller records each item as the scan reads it, so the lines
+        // this widget builds name the sets it has read: a set appears as it is
+        // scanned rather than when the run ends (`ai/photoset_pack.md` §4).
+        setState(() => _scanProgress = progress);
+      },
+    );
 
     if (!mounted) return;
 
@@ -152,20 +182,32 @@ class _PhotosetBlockState extends State<PhotosetBlock> {
 
     setState(() => _action = _Action.pick);
 
-    final result = await widget.state.controller.pick(scan);
+    final result = await widget.state.controller.pick(
+      scan,
+      onProgress: (progress) {
+        if (!mounted) return;
 
-    // Whatever the run wrote is shown, even when it did not finish: a photo
-    // that could not be copied must not hide the ones that were. The paths it
-    // wrote are what the gallery shows, so the cache is emptied for them and the
-    // generation the pictures are keyed with moves (`AGENTS.md` §5).
-    widget.state.recordRun([
-      for (final record in result.written)
-        widget.state.controller.absolutePath(record),
-    ]);
+        setState(() {
+          _pickProgress = progress;
 
-    widget.onRunWritten();
+          // Whatever the run has written is shown as it is written, because a
+          // photo that could not be copied must not hide the ones that were. The
+          // block records what the run wrote — the cache is emptied for the path
+          // it wrote and the generation the pictures are keyed with moves
+          // (`AGENTS.md` §5) — and tells the editor, because the area that draws
+          // them is another widget and builds only when the editor does.
+          if (progress.record != null) {
+            widget.state.recordCopy(progress.record!);
+            widget.onRunWritten();
+          }
+        });
+      },
+    );
 
     if (!mounted) return;
+
+    // The run is over, so what the two widgets read is the manifest again.
+    widget.state.endRun();
 
     if (result.notCopied.isNotEmpty) {
       _showMessage(l10n.photosetNotCopied(result.notCopied.join(', ')));
@@ -178,6 +220,9 @@ class _PhotosetBlockState extends State<PhotosetBlock> {
     }
 
     if (!mounted) return;
+
+    widget.onRunWritten();
+
     setState(() => _action = _Action.none);
   }
 
@@ -212,14 +257,38 @@ class _PhotosetBlockState extends State<PhotosetBlock> {
     final theme = Theme.of(context);
     final state = widget.state;
     final strings = photosetStrings(state.controller.release.releaseType, l10n);
-    final groups = [
-      for (final item in state.controller.photosets())
-        photosetGroup(state, item),
-    ];
+    final groups = photosetGroups(state, state.controller.photosets());
     // Only the pack puts its pictures in another widget, because only the pack has
     // columns to put them in (`ai/picking.md` §7).
     final isPack =
         state.controller.release.releaseType == ReleaseType.photosetPack;
+
+    // The rows for the runs going now. A type whose item is the folder it picked
+    // has one item, so a row counting items says nothing there and the strings
+    // resolve to null for it: only the pick's row is drawn for that type
+    // (`ai/picking.md` §7).
+    final progressRows = <Widget>[
+      if (_action == _Action.scan && _scanProgress != null)
+        ProgressRow(
+          key: const ValueKey('photosetScanProgress'),
+          done: _scanProgress!.scanned,
+          total: _scanProgress!.total,
+          count: strings.scanProgress!(
+            _scanProgress!.scanned,
+            _scanProgress!.total,
+          ),
+        ),
+      if (_action == _Action.pick && _pickProgress != null)
+        ProgressRow(
+          key: const ValueKey('photosetPickProgress'),
+          done: _pickProgress!.done,
+          total: _pickProgress!.total,
+          count: strings.pickProgress(
+            _pickProgress!.done,
+            _pickProgress!.total,
+          ),
+        ),
+    ];
 
     return Column(
       key: const ValueKey('photosetBlock'),
@@ -253,6 +322,10 @@ class _PhotosetBlockState extends State<PhotosetBlock> {
           ),
         ),
         const SizedBox(height: _titleGap),
+        for (final row in progressRows) ...[
+          row,
+          const SizedBox(height: _rowGap),
+        ],
         for (final row in widget.rows) ...[
           const SizedBox(height: _rowGap),
           row,
@@ -261,17 +334,17 @@ class _PhotosetBlockState extends State<PhotosetBlock> {
           Text(strings.emptyText, style: theme.textTheme.bodyMedium),
         ] else ...[
           // The header naming the list, drawn only when the list is drawn: a
-          // header for a list is not drawn above the placeholder that says the
-          // list is empty. Only a pack has one, because only a pack has a list
-          // (`ai/picking.md` §7). The gap above it is the one between the
-          // block's parts, the one below it is the one after a title row.
+          // header for a list is not drawn above an empty one. Only a pack has one,
+          // because only a pack has a list (`ai/picking.md` §7). The gap above it is
+          // the one between the block's parts, the one below it is the one after a
+          // title row.
           if (strings.listTitle != null) ...[
             const SizedBox(height: _rowGap),
             SectionTitle(title: strings.listTitle!),
             const SizedBox(height: _titleGap),
           ],
-          for (final group in groups) ...[
-            photosetLine(context, l10n, state, group),
+          for (final (index, group) in groups.indexed) ...[
+            photosetLine(context, l10n, state, group, index),
             // For a pack the photos of this set are in the photo area, so the
             // block shows the line only.
             if (!isPack) ...[

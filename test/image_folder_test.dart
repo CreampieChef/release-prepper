@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 
 import 'package:release_prepper/feature/image_folder/image_folder_controller.dart';
 import 'package:release_prepper/feature/image_folder/image_folder_section.dart';
+import 'package:release_prepper/feature/photosets/photosets_controller.dart';
+import 'package:release_prepper/feature/progress_row.dart';
 import 'package:release_prepper/feature/release/release.dart';
 import 'package:release_prepper/feature/release/release_fields.dart';
 import 'package:release_prepper/feature/release/release_store.dart';
@@ -17,6 +19,7 @@ import 'package:release_prepper/feature/screenshots/images_store.dart';
 import 'package:release_prepper/feature/section_title.dart';
 import 'package:release_prepper/feature/tab/tab_manager.dart';
 import 'package:release_prepper/l10n/app_localizations.dart';
+import 'package:release_prepper/service/images/image_dimensions.dart';
 import 'package:release_prepper/service/photosets/directory_reader.dart';
 import 'package:release_prepper/service/photosets/photoset_scanner.dart';
 
@@ -89,15 +92,42 @@ void main() {
     Release release,
     ImagesStore store,
     TabManager tabManager,
-    String tabId,
-  ) => ImageFolderController(
+    String tabId, {
+    List<PhotosetReader>? readers,
+  }) => ImageFolderController(
     release: release,
-    scanner: PhotosetScanner(readers: [const DirectoryPhotosetReader()]),
+    scanner: PhotosetScanner(
+      readers: readers ?? [const DirectoryPhotosetReader()],
+    ),
     store: store,
     releaseStore: ReleaseStore(),
     tabManager: tabManager,
     tabId: tabId,
   );
+
+  // The same bound as the other feature tests: the wait is on what the run shows,
+  // and a run that does not finish within it fails rather than passing by luck. A
+  // test that looks at what a run shows while it is going waits on the count its
+  // progress row says, so it uses `waitUntil` by itself. Both only work inside
+  // `runAsync`, because the scan reads on another isolate and the event loop is
+  // only real there.
+  Future<void> waitUntil(WidgetTester tester, Finder until) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+
+    while (DateTime.now().isBefore(deadline)) {
+      await tester.pump();
+
+      if (until.evaluate().isNotEmpty) {
+        return;
+      }
+
+      await Future.delayed(const Duration(milliseconds: 10));
+    }
+
+    throw StateError(
+      '${until.describeMatch(Plurality.one)} did not appear within 10 seconds',
+    );
+  }
 
   Future<void> clickAndWait(
     WidgetTester tester,
@@ -106,30 +136,24 @@ void main() {
   ) async {
     await tester.runAsync(() async {
       await tester.tap(trigger);
-      final deadline = DateTime.now().add(const Duration(seconds: 10));
-      while (DateTime.now().isBefore(deadline)) {
-        await tester.pump();
-        if (until.evaluate().isNotEmpty) return;
-        await Future.delayed(const Duration(milliseconds: 10));
-      }
-      throw StateError(
-        'the run started by ${trigger.describeMatch(Plurality.one)} '
-        'did not show ${until.describeMatch(Plurality.one)} within 10 seconds',
-      );
+
+      await waitUntil(tester, until);
     });
   }
 
   Future<void> openSection(
     WidgetTester tester,
     Release release,
-    List<Map<String, String>> applied,
-  ) async {
+    List<Map<String, String>> applied, {
+    List<PhotosetReader>? readers,
+  }) async {
     await tester.pumpWidget(
       MultiProvider(
         providers: [
           Provider<PhotosetScanner>(
-            create: (_) =>
-                PhotosetScanner(readers: [const DirectoryPhotosetReader()]),
+            create: (_) => PhotosetScanner(
+              readers: readers ?? [const DirectoryPhotosetReader()],
+            ),
           ),
           ChangeNotifierProvider<TabManager>(create: (_) => TabManager()),
           Provider<ImagesStore>(create: (_) => ImagesStore()),
@@ -170,7 +194,9 @@ void main() {
       final store = ImagesStore();
       final controller = testController(release, store, tabManager, tabId);
 
-      final result = await controller.scan() as ImageFolderSuccess;
+      final result = await controller.scan(
+        onProgress: discardCopyProgress,
+      ) as ImageFolderSuccess;
 
       // The folder is the item, so it is named by the folder, as a single
       // photoset names its item. The name is a basename, so it is read with the
@@ -223,7 +249,9 @@ void main() {
       'tab-1',
     );
 
-    final result = await controller.scan() as ImageFolderSuccess;
+    final result = await controller.scan(
+      onProgress: discardCopyProgress,
+    ) as ImageFolderSuccess;
 
     expect(result.written.single.file, '${p.basename(pickedDir.path)}/a.png');
     expect(
@@ -247,7 +275,9 @@ void main() {
       'tab-1',
     );
 
-    final result = await controller.scan() as ImageFolderSuccess;
+    final result = await controller.scan(
+      onProgress: discardCopyProgress,
+    ) as ImageFolderSuccess;
 
     expect(result.values['totalPhotoCount'], '1');
     expect(result.notImages, ['notes.txt']);
@@ -285,13 +315,15 @@ void main() {
         'tab-1',
       );
 
-      await controller.scan();
+      await controller.scan(onProgress: discardCopyProgress);
 
       File(p.join(pickedDir.path, 'b.png'))
           .writeAsBytesSync(pngPhoto(100, 100));
       File(p.join(pickedDir.path, 'a.png')).deleteSync();
 
-      final result = await controller.scan() as ImageFolderSuccess;
+      final result = await controller.scan(
+        onProgress: discardCopyProgress,
+      ) as ImageFolderSuccess;
 
       expect(result.written.map((record) => record.file), [
         '${p.basename(pickedDir.path)}/b.png',
@@ -374,4 +406,149 @@ void main() {
       findsOneWidget,
     );
   });
+
+  // A tile appears when its file is copied, not when the run ends, so a folder
+  // with many images shows what has been copied while it works
+  // (`ai/image_folder_upload.md` §5). The reader here counts the folder at once
+  // and then waits on the second image, so the state between two copies is what
+  // the test looks at.
+  testWidgets('the images appear as the run copies them', (tester) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    writePhoto('a.png');
+    writePhoto('b.png');
+
+    final release = testRelease(pickedDir.path);
+    final applied = <Map<String, String>>[];
+
+    await openSection(
+      tester,
+      release,
+      applied,
+      readers: [
+        _SlowReader(names: ['a.png', 'b.png'], slow: 'b.png'),
+      ],
+    );
+
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Scan'));
+
+      await waitUntil(tester, find.text('Images copied: 1 / 2'));
+
+      // The row is drawn while the run is going, so it is there in this window.
+      expect(find.byType(ProgressRow), findsOneWidget);
+
+      expect(find.text('a.png'), findsOneWidget);
+      expect(find.text('b.png'), findsNothing);
+
+      // The tile for the second image is there when its file is copied.
+      await waitUntil(tester, find.text('b.png'));
+    });
+
+    await tester.pump();
+
+    // The run is over, so the row is not drawn for a run that is not going, and
+    // what the section shows is the manifest — both files.
+    expect(find.byType(ProgressRow), findsNothing);
+    expect(find.text('a.png'), findsOneWidget);
+    expect(find.text('b.png'), findsOneWidget);
+  });
+
+  // A photo that could not be copied does not move the count the row shows: the
+  // number is what the run wrote, not what it tried, as the Upload section's bar
+  // follows (`ai/upload_images.md`).
+  test('a photo that could not be copied does not move the count', () async {
+    // Only the second file is on disk. The reader counts both, because a reader
+    // is what says what a photo is, and the copy is what finds the first one gone
+    // and reports it.
+    writePhoto('b.png');
+
+    final controller = testController(
+      testRelease(pickedDir.path),
+      ImagesStore(),
+      TabManager(),
+      'tab-1',
+      readers: [
+        _SlowReader(names: ['a.png', 'b.png']),
+      ],
+    );
+
+    final reports = <List<int>>[];
+
+    final result = await controller.scan(
+      onProgress: (progress) {
+        reports.add([progress.done, progress.total]);
+      },
+    ) as ImageFolderSuccess;
+
+    expect(result.notCopied, ['a.png']);
+
+    // The total is the two the reader counted; one was copied, so the count
+    // reaches one.
+    expect(reports, [
+      [0, 2],
+      [1, 2],
+    ]);
+  });
+}
+
+/// A test that is not about what a run reports while it works takes a function
+/// that does nothing with the report, so the tests that are about it are the ones
+/// that read it — the same arrangement the photoset tests use.
+void discardCopyProgress(CopyProgress progress) {}
+
+/// A reader that reports the names it is given and waits on one of them, so a test
+/// can look at what the section shows between two copies, or at a name the folder
+/// no longer has. A reader is called on another isolate, so it holds nothing an
+/// isolate cannot take: plain values and the files it reads.
+class _SlowReader implements PhotosetReader {
+  _SlowReader({required this.names, this.slow});
+
+  /// How long this reader waits on the name it is given. The window between two
+  /// reports has to be wide enough that the test sees the state between them
+  /// rather than racing it, and it stays inside the bound the test's wait uses.
+  static const delay = Duration(seconds: 5);
+
+  /// The photos this reader counts, in the order it gives them. A name it counts
+  /// that is not on disk is counted anyway, because the reader is what says what a
+  /// photo is, and the copy is what finds it gone and reports it.
+  final List<String> names;
+
+  /// The name this reader waits on, so the ones before it have been copied and
+  /// reported by the time the test looks. Null for a test that only needs the
+  /// names to be counted.
+  final String? slow;
+
+  @override
+  bool canRead(SourceEntry entry) => entry.isDirectory;
+
+  @override
+  Future<List<ScannedPhoto>> read(String path) async => [
+    for (final name in names)
+      ScannedPhoto(
+        name: name,
+        size: await _length(path, name),
+        dimensions: readImageDimensionsSync(p.join(path, name)),
+      ),
+  ];
+
+  @override
+  Future<List<int>> photoBytes(String path, String name) async {
+    if (name == slow) {
+      await Future.delayed(delay);
+    }
+
+    try {
+      return await File(p.join(path, name)).readAsBytes();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<int> _length(String path, String name) async {
+    final file = File(p.join(path, name));
+
+    return file.existsSync() ? await file.length() : 0;
+  }
 }

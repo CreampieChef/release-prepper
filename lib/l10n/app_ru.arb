@@ -113,6 +113,28 @@
             }
         }
     },
+    "photosetScanProgress": "Просканировано фотосетов: {done} / {total}",
+    "@photosetScanProgress": {
+        "placeholders": {
+            "done": {
+                "type": "int"
+            },
+            "total": {
+                "type": "int"
+            }
+        }
+    },
+    "photosetPickProgress": "Выбрано фото: {done} / {total}",
+    "@photosetPickProgress": {
+        "placeholders": {
+            "done": {
+                "type": "int"
+            },
+            "total": {
+                "type": "int"
+            }
+        }
+    },
     "photosetPackNoPhotosets": "Фотосетов нет. Выберите папку и сканируйте её.",
     "singlePhotosetNoPhotosets": "Фото нет. Выберите папку и сканируйте её.",
     "photosetSkippedEntries": "Не фотосеты: {entries}",
@@ -174,6 +196,17 @@
         "placeholders": {
             "names": {
                 "type": "String"
+            }
+        }
+    },
+    "imageFolderCopyProgress": "Скопировано изображений: {done} / {total}",
+    "@imageFolderCopyProgress": {
+        "placeholders": {
+            "done": {
+                "type": "int"
+            },
+            "total": {
+                "type": "int"
             }
         }
     },

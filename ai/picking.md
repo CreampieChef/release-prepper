@@ -139,6 +139,32 @@ nothing to group (`ai/single_photoset.md` §7).
 - Pick computes the picks and copies them in one step. There is no preview of the rule before the
   files are written: the feature shows what is on disk, as the Screenshots section does.
 
+- While a run is going the block draws a progress row: the bar and the count next to it, with the
+  shared `ProgressRow` (`lib/feature/progress_row.dart`), the same shape as the bar the Upload
+  section draws for each hoster (`ai/upload_images.md`). The row is drawn only while a run is going,
+  as the Torrent section's progress is (`ai/torrents.md`): before a run there is nothing to show, and
+  after one the results the run produced are what the block shows. The words around the two numbers
+  name what the run counts, so they are resolved per type and the row is given what they say
+  (`ai/doc.md` §6).
+
+- Both counts are known before the run has done anything, because both are what the run can know
+  first: the scan decides which entries are items before it reads any of them, and the pick is the
+  rule's arithmetic before it copies a file. So a row has a measure from its first report. The scan
+  counts items, which is what a type's item is: for the type whose item is the folder the user picked
+  the item count is one, so a row counting items says nothing, its words for a scan row are null, and
+  nothing is drawn for that type (`ai/image_folder_upload.md` §5).
+
+- What the block shows while a run is going is what the run has done so far, not what it will do.
+  A set's line is drawn when that set is read, so a root with many sets shows what it has found as it
+  finds it; the items are replaced at the report that only gives the total — the point the scan has
+  decided what the source contains — so a scan that cannot read the folder replaces nothing. A pick
+  shows the photos as it copies them, and the count on a line is the records that exist, so a photo
+  the run could not write does not move it, which is the rule the Upload section's bars follow.
+  Because the block and the photo area are two widgets in two grid cells, the block records what its
+  run wrote in the state the editor holds and tells the editor for each photo, so the area builds as
+  each photo is written rather than after the run — the generation cannot be the block's own counter
+  here for the same reason it is not a widget's counter in `AGENTS.md` §5.
+
 - The picked photos are one grid, not one column per set.
   For a pack the grid is split by kind instead of being one set of columns: the portraits are drawn
   in columns of the portrait width and the landscapes in columns of the landscape width, and the two
@@ -244,6 +270,18 @@ the window, so it is not taken.
   not drawn above the placeholder that says the list is empty, because a header naming a list is not
   drawn above an empty one. It has no action: the buttons belong to the whole block, and they are in
   its heading row.
+
+- Every other line of the list is tinted, because a list read as bands of text is followed with the
+  eye — the same rule the Video pack section follows (`ai/video_pack.md` §5), with the same padding
+  that makes a tinted line read as a band rather than as a line of text with a colour behind it. The
+  parity is the position in the order the items are stored, so a re-scan of the same folder does not
+  change a line's colour. The header naming the list is not a line, so it is not tinted. The band is
+  the line's, not the set's: the photos of a set are what the grid shows, and a band round them would
+  be a band around a set rather than a line of the list. The tint is on the line's own `Material`, as
+  the table rows' are, so a line is the same shape whether or not it is tinted and keeps a hover
+  highlight if it ever becomes clickable — a plain container paints its colour over the highlight,
+  which is painted on the canvas of the nearest `Material` ancestor. Nothing in this list is clickable
+  today, so the reason is the shape the tables have, not a highlight the list shows.
 
 - The line naming a set shows two numbers, `picked / total`: what the rule picked for that set,
   and what the scan counted for it. Before a pick the first number is 0, because nothing has been

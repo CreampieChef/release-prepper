@@ -117,6 +117,39 @@ void main() {
     },
   );
 
+  // The count a run reports is what it can know before it works: the entries the
+  // scan decided are items, put in their order, before any of them is read. So
+  // the first report gives the total and names nothing, and each following report
+  // names the item it has read (`ai/photoset_pack.md` §4).
+  test(
+    'the scan reports the total before it reads and each item as it reads it',
+    () async {
+      Directory(p.join(directory.path, 'set01')).createSync();
+      Directory(p.join(directory.path, 'set02')).createSync();
+      writePhoto('set01', 'a.png', 100, 100);
+      writePhoto('set02', 'a.png', 100, 100);
+
+      final reports = <List<String>>[];
+
+      await scanner().scan(
+        directory.path,
+        ItemBoundary.entries,
+        onProgress: (progress) {
+          reports.add([
+            '${progress.scanned} / ${progress.total}',
+            progress.set?.path ?? '',
+          ]);
+        },
+      );
+
+      expect(reports, [
+        ['0 / 2', ''],
+        ['1 / 2', 'set01'],
+        ['2 / 2', 'set02'],
+      ]);
+    },
+  );
+
   test('the whole photo is what copying needs', () async {
     Directory(p.join(directory.path, 'set01')).createSync();
     writePhoto('set01', 'a.png', 100, 100);

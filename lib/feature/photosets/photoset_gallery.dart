@@ -15,11 +15,11 @@ import 'photoset_group.dart';
 /// editor builds, so the run that writes the files and the pictures that show
 /// them are not one widget's state (`AGENTS.md` §5).
 ///
-/// It has no state of its own: a run happens in the block, and the editor
-/// builds again afterwards, so the pictures here are resolved against the cache
-/// the run emptied. A single photoset has no space beside its block for the
-/// pictures, so it never reaches this widget; its block draws them with the
-/// same grid.
+/// It has no state of its own: a run happens in the block, which notifies the
+/// editor as each photo is written, so the pictures here appear during the run
+/// and are resolved against the cache that run emptied. A single photoset has no
+/// space beside its block for the pictures, so it never reaches this widget; its
+/// block draws them with the same grid.
 class PhotosetGallery extends StatelessWidget {
   const PhotosetGallery({required this.state, super.key});
 
@@ -30,10 +30,7 @@ class PhotosetGallery extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final strings = photosetStrings(state.controller.release.releaseType, l10n);
-    final groups = [
-      for (final item in state.controller.photosets())
-        photosetGroup(state, item),
-    ];
+    final groups = photosetGroups(state, state.controller.photosets());
 
     return Column(
       key: const ValueKey('photosetGallery'),

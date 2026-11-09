@@ -5,6 +5,7 @@ import '../../service/images/masonry.dart';
 import '../image_tile.dart';
 import '../release/release.dart';
 import '../release/release_type.dart';
+import '../screenshots/images.dart';
 import 'photosets_controller.dart';
 
 /// The parts the two widgets that show a photoset share (`ai/picking.md` §7): the
@@ -53,11 +54,13 @@ const photosetColumnMaxWidth = 2 * photosetColumnWidth;
 // (`ai/picking.md` §7).
 const photosetBlockMaxWidth = 400.0;
 
-/// The state the block and the gallery read: the controller both use, and the
-/// generation the pictures are keyed with. For a pack the two are separate
-/// widgets in two grid cells, so the run that writes the files and the pictures
-/// that show them cannot be one widget's state, and the generation cannot be one
-/// widget's counter — the editor, which places both, holds this (`AGENTS.md` §5).
+/// The state the block and the gallery read: the controller both use, the
+/// generation the pictures are keyed with, and the records the run in progress
+/// has written. For a pack the two are separate widgets in two grid cells, so
+/// the run that writes the files and the pictures that show them cannot be one
+/// widget's state, and neither the generation nor what a run has written can be
+/// one widget's counter — the editor, which places both, holds this
+/// (`AGENTS.md` §5).
 class PhotosetState {
   PhotosetState({required this.controller});
 
@@ -68,16 +71,24 @@ class PhotosetState {
   /// the same names, which is the case the poster does not have.
   int generation = 0;
 
-  /// What a run wrote. The cache entry for each file is dropped here, because
-  /// evicting alone is not enough: the widget that shows the picture must also
-  /// re-resolve, and it does when the editor builds again with the generation
-  /// this recorded. A run that wrote nothing changes nothing, so nothing is
-  /// evicted and the generation stays.
-  void recordRun(List<String> paths) {
-    if (paths.isEmpty) return;
+  /// What the run in progress has written. A photo is shown as it is written, so
+  /// the cache entry for its path is dropped and the generation moves at that
+  /// moment rather than at the end of the run — the same rule the Screenshots
+  /// section follows. It is cleared when the run ends, because from then on the
+  /// manifest is what the two widgets read.
+  final List<ImageRecord> running = [];
 
-    evictCachedImages(paths);
+  void recordCopy(ImageRecord record) {
+    evictCachedImages([controller.absolutePath(record)]);
+
+    running.add(record);
     generation += 1;
+  }
+
+  /// The run is over: what it wrote is in `images.json`, so the records the two
+  /// widgets read are the manifest's again.
+  void endRun() {
+    running.clear();
   }
 }
 
@@ -93,6 +104,8 @@ class PhotosetStrings {
     required this.photosTitle,
     required this.emptyText,
     required this.pickHint,
+    required this.pickProgress,
+    this.scanProgress,
   });
 
   /// The heading of the data block: the line that names the folder the user
@@ -118,6 +131,16 @@ class PhotosetStrings {
   /// What the block says when the user asks it to pick before the source has been
   /// picked.
   final String pickHint;
+
+  /// The words for a run's progress, with the two numbers it reports.
+  ///
+  /// The pick counts photos, which is the same measure for one set as for many,
+  /// so it is one set of words. The scan counts the sets the scan found, and that
+  /// is only a count for the type that has a list: for the type whose item is one
+  /// folder the scan has one item, so a row counting it says nothing and is null
+  /// there, and the block draws nothing (`ai/picking.md` §7).
+  final String Function(int done, int total) pickProgress;
+  final String Function(int done, int total)? scanProgress;
 }
 
 PhotosetStrings photosetStrings(
@@ -130,6 +153,8 @@ PhotosetStrings photosetStrings(
     photosTitle: l10n.screenshotsSectionTitle,
     emptyText: l10n.photosetPackNoPhotosets,
     pickHint: l10n.photosetPackSourceEmpty,
+    pickProgress: l10n.photosetPickProgress,
+    scanProgress: l10n.photosetScanProgress,
   ),
   ReleaseType.singlePhotoset => PhotosetStrings(
     blockTitle: l10n.singlePhotosetSectionTitle,
@@ -137,6 +162,10 @@ PhotosetStrings photosetStrings(
     photosTitle: l10n.singlePhotosetSectionTitle,
     emptyText: l10n.singlePhotosetNoPhotosets,
     pickHint: l10n.singlePhotosetSourceEmpty,
+    pickProgress: l10n.photosetPickProgress,
+    // One item, so a row counting the items says nothing and the strings that
+    // assume several sets are not used here (`ai/picking.md` §7).
+    scanProgress: null,
   ),
   // Only here because a switch over the release types has to be exhaustive: these
   // have the Screenshots section, the Video pack section and the Image folder
@@ -149,6 +178,8 @@ PhotosetStrings photosetStrings(
     photosTitle: l10n.photosetPackSectionTitle,
     emptyText: l10n.photosetPackNoPhotosets,
     pickHint: l10n.photosetPackSourceEmpty,
+    pickProgress: l10n.photosetPickProgress,
+    scanProgress: null,
   ),
 };
 
@@ -166,16 +197,54 @@ class PhotosetGroup {
   final List<double?> ratios;
 }
 
-/// Reads one set as the feature lays it out. The ratios are read here because both
-/// grids need them before they draw, and a photo whose header cannot be read is the
-/// null that lays out as a square (`ai/picking.md` §7).
-PhotosetGroup photosetGroup(PhotosetState state, ReleaseItem item) {
-  final paths = state.controller.pickedPhotos(item.path);
+/// Reads the sets as the feature lays them out, in the order the scan wrote
+/// them. The manifest is read once for the whole list rather than once per set,
+/// because a run rebuilds the list for every set it has already read.
+List<PhotosetGroup> photosetGroups(
+  PhotosetState state,
+  List<ReleaseItem> items,
+) {
+  final manifest = state.controller.store.loadSync(
+    state.controller.release.directoryPath,
+  );
+
+  return [for (final item in items) photosetGroup(state, item, manifest)];
+}
+
+/// Reads one set as the feature lays it out: the photos the rule picked for it
+/// in the order the source gives them, and the ratio each of those has. A photo
+/// whose header cannot be read is the null that lays out as a square
+/// (`ai/picking.md` §7).
+///
+/// The records are the manifest's plus the ones the run in progress has written.
+/// A run replaces the records it writes, so the two are the same set at the end
+/// of it; while it runs what is already on disk stays shown and each new photo
+/// is added as it is written, so a re-pick does not blank the list while it
+/// works. They are keyed by the record path, because that is the record ID and
+/// the same photo cannot be counted twice.
+PhotosetGroup photosetGroup(
+  PhotosetState state,
+  ReleaseItem item,
+  ImagesManifest manifest,
+) {
+  final paths = <String>{};
+
+  for (final path in state.controller.pickedPhotos(manifest, item.path)) {
+    paths.add(path);
+  }
+
+  for (final record in state.running) {
+    if (record.item == item.path) {
+      paths.add(state.controller.absolutePath(record));
+    }
+  }
+
+  final ordered = [for (final path in paths) path];
 
   return PhotosetGroup(
     item: item,
-    paths: paths,
-    ratios: [for (final path in paths) state.controller.aspectRatio(path)],
+    paths: ordered,
+    ratios: [for (final path in ordered) state.controller.aspectRatio(path)],
   );
 }
 
@@ -194,27 +263,53 @@ String photosetCountText(AppLocalizations l10n, PhotosetGroup group) {
 /// The line naming one set: its name and the two counts. It is drawn once, in
 /// the block, because the grid no longer names a set above its photos — the tile
 /// says which set its photo is from instead (`ai/picking.md` §7).
+///
+/// Every other line is tinted, because a list read as bands of text is followed
+/// with the eye (`ai/picking.md` §7), as the two tables the app has are
+/// (`ai/video_pack.md` §5). The parity is the position in the order the items are
+/// stored, so a re-scan of the same folder does not change a line's colour. The
+/// header naming the list is not a line, so it is not tinted.
+///
+/// The tint is on a `Material` for the same reason the tables' is: a line is the
+/// same shape whether or not it is tinted, and a plain container paints its colour
+/// over the hover highlight, which is painted on the canvas of the nearest
+/// `Material` ancestor. Nothing here is clickable today, so the reason is the shape
+/// the tables have and what a line would need if it ever became clickable.
 Widget photosetLine(
   BuildContext context,
   AppLocalizations l10n,
   PhotosetState state,
   PhotosetGroup group,
+  int index,
 ) {
   final theme = Theme.of(context);
 
-  return Row(
-    // The key is the item's path, not the name it is shown under: two items whose
-    // display names collide are still two sets (§5.3).
-    key: ValueKey(('groupHeader', group.item.path)),
-    children: [
-      Expanded(
-        child: Text(
-          state.controller.displayName(group.item.path),
-          style: theme.textTheme.bodyMedium,
-        ),
+  return Material(
+    color: index.isOdd
+        ? theme.colorScheme.surfaceContainerHigh
+        : Colors.transparent,
+    child: Padding(
+      // The padding is what makes a tinted line read as a band rather than as a
+      // line of text with a colour behind it; the same value the two tables use.
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        // The key is the item's path, not the name it is shown under: two items whose
+        // display names collide are still two sets (§5.3).
+        key: ValueKey(('groupHeader', group.item.path)),
+        children: [
+          Expanded(
+            child: Text(
+              state.controller.displayName(group.item.path),
+              style: theme.textTheme.bodyMedium,
+            ),
+          ),
+          Text(
+            photosetCountText(l10n, group),
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
       ),
-      Text(photosetCountText(l10n, group), style: theme.textTheme.bodySmall),
-    ],
+    ),
   );
 }
 

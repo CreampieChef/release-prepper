@@ -8,6 +8,7 @@ import 'package:release_prepper/feature/photosets/photosets_controller.dart';
 import 'package:release_prepper/feature/photosets/photoset_block.dart';
 import 'package:release_prepper/feature/photosets/photoset_gallery.dart';
 import 'package:release_prepper/feature/photosets/photoset_group.dart';
+import 'package:release_prepper/feature/progress_row.dart';
 import 'package:release_prepper/feature/release/release.dart';
 import 'package:release_prepper/feature/release/release_fields.dart';
 import 'package:release_prepper/feature/release/release_store.dart';
@@ -190,6 +191,30 @@ void main() {
   // load the run did not finish in time. So the wait is on what the run shows,
   // with a bound, and a run that does not finish within it fails rather than
   // passing by luck.
+  //
+  // A test that looks at what a run shows while it is going — a set that has
+  // been read while the next one is still being read — waits on the count the
+  // progress row says, so it uses `waitUntil` on its own. Both only work inside
+  // `runAsync`, because the scan reads on another isolate and the event loop is
+  // only real there.
+  Future<void> waitUntil(WidgetTester tester, Finder until) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+
+    while (DateTime.now().isBefore(deadline)) {
+      await tester.pump();
+
+      if (until.evaluate().isNotEmpty) {
+        return;
+      }
+
+      await Future.delayed(const Duration(milliseconds: 10));
+    }
+
+    throw StateError(
+      '${until.describeMatch(Plurality.one)} did not appear within 10 seconds',
+    );
+  }
+
   Future<void> clickAndWait(
     WidgetTester tester,
     Finder trigger,
@@ -197,16 +222,8 @@ void main() {
   ) async {
     await tester.runAsync(() async {
       await tester.tap(trigger);
-      final deadline = DateTime.now().add(const Duration(seconds: 10));
-      while (DateTime.now().isBefore(deadline)) {
-        await tester.pump();
-        if (until.evaluate().isNotEmpty) return;
-        await Future.delayed(const Duration(milliseconds: 10));
-      }
-      throw StateError(
-        'the run started by ${trigger.describeMatch(Plurality.one)} '
-        'did not show ${until.describeMatch(Plurality.one)} within 10 seconds',
-      );
+
+      await waitUntil(tester, until);
     });
   }
 
@@ -230,7 +247,9 @@ void main() {
         tabId,
       );
 
-      final result = await controller.scan() as PhotosetSuccess;
+      final result = await controller.scan(
+        onProgress: discardScanProgress,
+      ) as PhotosetSuccess;
 
       expect(release.items.single.path, 'set01');
       expect(release.items.single.type, 'photoset');
@@ -270,7 +289,9 @@ void main() {
       tabId,
     );
 
-    final result = await controller.scan() as PhotosetSuccess;
+    final result = await controller.scan(
+      onProgress: discardScanProgress,
+    ) as PhotosetSuccess;
 
     expect(release.items.single.path, 'set01');
     expect(release.items.single.fields.value('photoCount'), '2');
@@ -301,7 +322,9 @@ void main() {
       tabId,
     );
 
-    final result = await controller.scan() as PhotosetSuccess;
+    final result = await controller.scan(
+      onProgress: discardScanProgress,
+    ) as PhotosetSuccess;
 
     expect(result.values.keys, [
       'photosetCount',
@@ -329,7 +352,7 @@ void main() {
       tabId,
     );
 
-    await controller.scan();
+    await controller.scan(onProgress: discardScanProgress);
 
     // The source changed on disk: one set is gone and a loose file appeared.
     // The re-scan is what notices, and it replaces what it recorded before.
@@ -339,10 +362,93 @@ void main() {
     File(p.join(directory.path, 'cover.png'))
         .writeAsBytesSync([0x89, 0x50, 0x4E, 0x47]);
 
-    final result = await controller.scan() as PhotosetSuccess;
+    final result = await controller.scan(
+      onProgress: discardScanProgress,
+    ) as PhotosetSuccess;
 
     expect(release.items.map((item) => item.path), ['set02']);
     expect(result.skipped, ['cover.png']);
+  });
+
+  // What a run reports while it works is what the widgets show while it works, so
+  // the reports and the state they change are checked together here
+  // (`ai/photoset_pack.md` §4). The scan gives the total before it reads anything,
+  // because it decides what the entries are first, and the controller records an
+  // item at the report that names it.
+  test('an item is recorded at the report that names it', () async {
+    writePhotoAt('source/set01', 'a.png', 100, 100);
+    writePhotoAt('source/set02', 'b.png', 100, 100);
+
+    final tabManager = TabManager();
+    final release = testRelease(p.join(directory.path, 'source'));
+    final tabId = tabManager.addReleaseEditor(release);
+
+    final controller = testController(
+      release,
+      ImagesStore(),
+      tabManager,
+      tabId,
+    );
+
+    // What the items are at each report: nothing at the report that only gives
+    // the total, then one set, then two.
+    final seen = <List<String>>[];
+
+    final reports = <List<int>>[];
+
+    final result = await controller.scan(
+      onProgress: (progress) {
+        reports.add([progress.scanned, progress.total]);
+        seen.add([for (final item in release.items) item.path]);
+      },
+    ) as PhotosetSuccess;
+
+    expect(result.scan.sets.map((set) => set.path), ['set01', 'set02']);
+
+    expect(reports, [
+      [0, 2],
+      [1, 2],
+      [2, 2],
+    ]);
+
+    expect(seen, [
+      [],
+      ['set01'],
+      ['set01', 'set02'],
+    ]);
+  });
+
+  // The items are replaced at the report that only gives the total, so a scan
+  // that never gets there replaces nothing: a source that cannot be read is not
+  // evidence that it is empty.
+  test('a scan that does not reach the reading replaces nothing', () async {
+    writePhotoAt('source/set01', 'a.png', 100, 100);
+
+    final tabManager = TabManager();
+    final release = testRelease(p.join(directory.path, 'source'));
+    final tabId = tabManager.addReleaseEditor(release);
+
+    final controller = testController(
+      release,
+      ImagesStore(),
+      tabManager,
+      tabId,
+    );
+
+    await controller.scan(onProgress: discardScanProgress);
+
+    expect(release.items.map((item) => item.path), ['set01']);
+
+    // The source is gone, so the scan fails before it can name an item, and no
+    // report is made.
+    Directory(p.join(directory.path, 'source')).deleteSync(recursive: true);
+
+    final failed = await controller.scan(
+      onProgress: discardScanProgress,
+    ) as PhotosetFailure;
+
+    expect(failed.kind, PhotosetFailureKind.sourceNotFound);
+    expect(release.items.map((item) => item.path), ['set01']);
   });
 
   // The name shown is derived from the path, because the stored path is the
@@ -455,6 +561,95 @@ void main() {
 
     expect(header.top, greaterThan(heading.bottom));
     expect(line.top, greaterThan(header.bottom));
+  });
+
+  // A line appears while the scan is still reading the next set, so a root with
+  // many sets shows what it has read rather than nothing until the run ends
+  // (`ai/photoset_pack.md` §4). The reader here reads one set and then waits, so
+  // the state between the two reports is what the test looks at.
+  testWidgets('a line appears while the scan is reading the next set', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    writePhotoAt('source/set01', 'a.png', 100, 100);
+    writePhotoAt('source/set02', 'b.png', 100, 100);
+
+    final release = testRelease(p.join(directory.path, 'source'));
+    final state = testState(release, readers: [_SlowReader(slow: 'set02')]);
+
+    await openPhotosets(tester, state);
+
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Scan'));
+
+      // The count is what the entries gave before any reading, so it says two
+      // while only one has been read.
+      await waitUntil(tester, find.text('Photosets scanned: 1 / 2'));
+
+      // The row is drawn while the run is going, so it is there in this window.
+      expect(find.byType(ProgressRow), findsOneWidget);
+
+      expect(find.text('set01'), findsOneWidget);
+      expect(find.text('set02'), findsNothing);
+
+      await waitUntil(tester, find.text('set02'));
+    });
+
+    await tester.pump();
+
+    // The run is over, so the row is not drawn for a run that is not going, and
+    // the two lines are there.
+    expect(find.text('set01'), findsOneWidget);
+    expect(find.text('set02'), findsOneWidget);
+  });
+
+  // Every other line of the list is tinted, so it reads as bands of text, as the
+  // two tables the app has do (`ai/video_pack.md` §5). The parity is the position in
+  // the order the items are stored — the order the scan wrote them here — rather
+  // than anything the drawing decides.
+  testWidgets('the lines of the list alternate', (tester) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    for (final set in ['set01', 'set02', 'set03']) {
+      writePhotoAt('source/$set', 'a.png', 100, 100);
+    }
+
+    final release = testRelease(p.join(directory.path, 'source'));
+    final state = testState(release);
+
+    await openPhotosets(tester, state);
+
+    await clickAndWait(tester, find.text('Scan'), find.text('set01'));
+
+    final theme = Theme.of(tester.element(find.byType(PhotosetBlock)));
+
+    // The line's own `Material` is the nearest one above it, which is the shape the
+    // two tables use.
+    Material lineMaterial(String path) => tester.widget<Material>(
+      find
+          .ancestor(
+            of: find.byKey(ValueKey(('groupHeader', path))),
+            matching: find.byType(Material),
+          )
+          .first,
+    );
+
+    expect(lineMaterial('set01').color, Colors.transparent);
+    expect(lineMaterial('set02').color, theme.colorScheme.surfaceContainerHigh);
+    expect(lineMaterial('set03').color, Colors.transparent);
+
+    // The line's own `Material` is the nearest one above it: the header naming the
+    // list is not a line, so it has no band of its own.
+    expect(
+      find.ancestor(
+        of: find.text('Photoset List'),
+        matching: find.byType(SectionTitle),
+      ),
+      findsOneWidget,
+    );
   });
 
   // The same block for a single set: the strings are the ones that read wrong for
@@ -586,8 +781,13 @@ void main() {
 
     final controller = testController(release, store, tabManager, tabId);
 
-    final scan = await controller.scan() as PhotosetSuccess;
-    final result = await controller.pick(scan.scan);
+    final scan = await controller.scan(
+      onProgress: discardScanProgress,
+    ) as PhotosetSuccess;
+    final result = await controller.pick(
+      scan.scan,
+      onProgress: discardCopyProgress,
+    );
 
     // The release folder mirrors the structure the user picked, so the folder
     // carries the display name, and the record path is relative to the release
@@ -625,10 +825,15 @@ void main() {
 
     final controller = testController(release, store, tabManager, tabId);
 
-    final scan = await controller.scan() as PhotosetSuccess;
+    final scan = await controller.scan(
+      onProgress: discardScanProgress,
+    ) as PhotosetSuccess;
 
-    await controller.pick(scan.scan);
-    final second = await controller.pick(scan.scan);
+    await controller.pick(scan.scan, onProgress: discardCopyProgress);
+    final second = await controller.pick(
+      scan.scan,
+      onProgress: discardCopyProgress,
+    );
 
     expect(
       store.loadSync(directory.path).of(ImageKind.photo),
@@ -664,8 +869,13 @@ void main() {
       ),
     );
 
-    final scan = await controller.scan() as PhotosetSuccess;
-    final result = await controller.pick(scan.scan);
+    final scan = await controller.scan(
+      onProgress: discardScanProgress,
+    ) as PhotosetSuccess;
+    final result = await controller.pick(
+      scan.scan,
+      onProgress: discardCopyProgress,
+    );
 
     final manifest = store.loadSync(directory.path);
 
@@ -685,12 +895,17 @@ void main() {
 
     final controller = testController(release, store, tabManager, tabId);
 
-    final scan = await controller.scan() as PhotosetSuccess;
+    final scan = await controller.scan(
+      onProgress: discardScanProgress,
+    ) as PhotosetSuccess;
 
     // The file the rule picked is gone by the time the pick runs.
     File(p.join(directory.path, 'source/set01/001.png')).deleteSync();
 
-    final result = await controller.pick(scan.scan);
+    final result = await controller.pick(
+      scan.scan,
+      onProgress: discardCopyProgress,
+    );
 
     expect(result.notCopied, ['set01/001.png']);
     expect(result.written.map((record) => record.file), [
@@ -698,6 +913,98 @@ void main() {
       'set01/005.png',
       'set01/007.png',
       'set01/009.png',
+    ]);
+  });
+
+  // The number a pick reports against is what the rule chose, so it is known
+  // before anything is copied, and each photo is reported as it is written
+  // (`ai/picking.md` §7).
+  test('a pick reports each photo against the total the rule chose', () async {
+    for (var index = 0; index < 10; index++) {
+      writePhotoAt('source/set01', '${index.toString().padLeft(3, '0')}.png');
+    }
+
+    final tabManager = TabManager();
+    final store = ImagesStore();
+    final release = testRelease(p.join(directory.path, 'source'));
+    final tabId = tabManager.addReleaseEditor(release);
+
+    final controller = testController(release, store, tabManager, tabId);
+
+    final scan = await controller.scan(
+      onProgress: discardScanProgress,
+    ) as PhotosetSuccess;
+
+    final reports = <List<int>>[];
+    final files = <String>[];
+
+    final result = await controller.pick(
+      scan.scan,
+      onProgress: (progress) {
+        reports.add([progress.done, progress.total]);
+
+        if (progress.record != null) {
+          files.add(progress.record!.file);
+        }
+      },
+    );
+
+    // The first report gives the total with nothing written, so the bar has a
+    // measure before the first file exists.
+    expect(reports.first, [0, 5]);
+
+    // Then one report per photo, in the order the run wrote them, each naming
+    // the record it wrote so the caller can show it.
+    expect(reports, [
+      [0, 5],
+      [1, 5],
+      [2, 5],
+      [3, 5],
+      [4, 5],
+      [5, 5],
+    ]);
+
+    expect(files, result.written.map((record) => record.file));
+  });
+
+  // A photo the run could not write does not move the count: the number is what
+  // the run wrote, not what it tried, which is the rule the Upload section's bar
+  // follows (`ai/upload_images.md`).
+  test('a photo that could not be written does not move the count', () async {
+    for (var index = 0; index < 10; index++) {
+      writePhotoAt('source/set01', '${index.toString().padLeft(3, '0')}.png');
+    }
+
+    final tabManager = TabManager();
+    final store = ImagesStore();
+    final release = testRelease(p.join(directory.path, 'source'));
+    final tabId = tabManager.addReleaseEditor(release);
+
+    final controller = testController(release, store, tabManager, tabId);
+
+    final scan = await controller.scan(
+      onProgress: discardScanProgress,
+    ) as PhotosetSuccess;
+
+    File(p.join(directory.path, 'source/set01/001.png')).deleteSync();
+
+    final reports = <List<int>>[];
+
+    await controller.pick(
+      scan.scan,
+      onProgress: (progress) {
+        reports.add([progress.done, progress.total]);
+      },
+    );
+
+    // Four of the five the rule chose were written, so the count reaches four
+    // against five.
+    expect(reports, [
+      [0, 5],
+      [1, 5],
+      [2, 5],
+      [3, 5],
+      [4, 5],
     ]);
   });
 
@@ -713,8 +1020,13 @@ void main() {
 
     final controller = testController(release, store, tabManager, tabId);
 
-    final scan = await controller.scan() as PhotosetSuccess;
-    final result = await controller.pick(scan.scan);
+    final scan = await controller.scan(
+      onProgress: discardScanProgress,
+    ) as PhotosetSuccess;
+    final result = await controller.pick(
+      scan.scan,
+      onProgress: discardCopyProgress,
+    );
 
     expect(result.emptySets, ['set01']);
     expect(result.written.map((record) => record.file), ['set02/a.png']);
@@ -1195,6 +1507,59 @@ void main() {
 /// A test that does not check them takes a function that takes nothing, because the
 /// helper's default has to be one value rather than a function written at each call.
 void discardValues(Map<String, String> values) {}
+
+/// The same for the two progress callbacks: a test that is not about what a run
+/// reports while it works takes a function that does nothing with the report, so
+/// the tests that are about it are the ones that read it.
+void discardScanProgress(ScanProgress progress) {}
+
+void discardCopyProgress(CopyProgress progress) {}
+
+/// A reader that reads one set and then waits, so a test can look at what a
+/// widget shows between two reports (`ai/photoset_pack.md` §4). A reader is called
+/// on another isolate, so it holds nothing an isolate cannot take: the name it was
+/// given and the files it lists.
+class _SlowReader implements PhotosetReader {
+  _SlowReader({required this.slow});
+
+  /// How long this reader waits on the name it is given. The window between two
+  /// reports has to be wide enough that the test sees the state between them
+  /// rather than racing it, and it stays inside the bound the test's wait uses.
+  static const delay = Duration(seconds: 5);
+
+  /// The set this reader waits on, named as the scan names an entry. The scan
+  /// reads the items in order, so the sets before it are read first and reported
+  /// first.
+  final String slow;
+
+  @override
+  bool canRead(SourceEntry entry) => entry.isDirectory;
+
+  @override
+  Future<List<ScannedPhoto>> read(String path) async {
+    if (p.basename(path) == slow) {
+      await Future.delayed(delay);
+    }
+
+    final entries = await Directory(path).list().toList();
+
+    final names = [for (final entry in entries) p.basename(entry.path)];
+
+    return [
+      for (final name in names)
+        ScannedPhoto(name: name, size: await File(p.join(path, name)).length()),
+    ];
+  }
+
+  @override
+  Future<List<int>> photoBytes(String path, String name) async {
+    try {
+      return await File(p.join(path, name)).readAsBytes();
+    } catch (_) {
+      return const [];
+    }
+  }
+}
 
 /// A reader for an archive, so two items can share a display name without
 /// writing a real ZIP.

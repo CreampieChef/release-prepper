@@ -14,7 +14,10 @@ import '../tab/tab_manager.dart';
 
 /// Photoset state and side effects (`ai/photoset_pack.md` §4). It owns no
 /// `Listenable` (rule 3) and shows no messages (rule 13): the widget calls
-/// `scan()`, shows what came back, and maps a result to localized text.
+/// `scan()`, shows what came back, and maps a result to localized text. It
+/// reports what a run has done through a plain callback the widget passes in, as
+/// the Upload and Screenshots controllers do, so a set is shown as it is read
+/// rather than when the run ends.
 ///
 /// It writes the items, because an item is what the scan produces — the same
 /// kind of write as the source the editor records, and the user cannot add an
@@ -23,6 +26,11 @@ import '../tab/tab_manager.dart';
 /// as the Stash section does. The item-level values are written here because
 /// they belong to the item being created, and there is no form row for them
 /// yet.
+///
+/// The work it asks the scanner to do runs on another isolate, so reading a
+/// large archive does not hold up the UI isolate (`ai/photoset_pack.md` §4).
+/// That is why the run reports as it goes: the report is what lets the widget
+/// build between two sets.
 class PhotosetController {
   PhotosetController({
     required this.release,
@@ -48,13 +56,34 @@ class PhotosetController {
   /// because the scan is what says what the source contains; the image records
   /// that point at an item whose path changes are lost with it, which is the
   /// same rule as a rename losing a record (`ai/release_structure.md` §4).
-  Future<PhotosetResult> scan() async {
+  ///
+  /// Each set is recorded as the scan reads it, so the caller can show a set
+  /// before the run ends (`ai/photoset_pack.md` §4). The items are replaced at
+  /// the point the scan has decided what the source contains — the report that
+  /// only gives the total — so a scan that cannot read the folder replaces
+  /// nothing.
+  Future<PhotosetResult> scan({
+    required void Function(ScanProgress progress) onProgress,
+  }) async {
     if (release.source.trim().isEmpty) {
       return const PhotosetFailure(PhotosetFailureKind.sourceEmpty);
     }
 
     final fieldList = fieldListFor(release.releaseType);
-    final result = await scanner.scan(release.source, fieldList.itemBoundary);
+
+    final result = await scanner.scan(
+      release.source,
+      fieldList.itemBoundary,
+      onProgress: (progress) {
+        if (progress.set == null) {
+          release.items.clear();
+        } else {
+          _recordItem(fieldList, progress.set!);
+        }
+
+        onProgress(progress);
+      },
+    );
 
     if (result is ScanFailure) {
       return PhotosetFailure(switch (result.kind) {
@@ -65,22 +94,6 @@ class PhotosetController {
     }
 
     final success = result as ScanSuccess;
-
-    release.items.clear();
-
-    for (final set in success.sets) {
-      final item = ReleaseItem(
-        path: set.path,
-        type: fieldList.itemType,
-        fields: FieldValues(),
-      );
-
-      for (final field in fieldList.itemFields) {
-        item.fields.setValue(field.name, '${set.photoCount}');
-      }
-
-      release.items.add(item);
-    }
 
     // The write path is the editor's, so the values are returned rather than
     // written. Marking the tab dirty here is for the items; the values mark it
@@ -113,6 +126,22 @@ class PhotosetController {
     );
   }
 
+  /// One item, as the scan read it. An item is what the scan produces, so this
+  /// is the controller's write, not the editor's.
+  void _recordItem(FieldList fieldList, ScannedSet set) {
+    final item = ReleaseItem(
+      path: set.path,
+      type: fieldList.itemType,
+      fields: FieldValues(),
+    );
+
+    for (final field in fieldList.itemFields) {
+      item.fields.setValue(field.name, '${set.photoCount}');
+    }
+
+    release.items.add(item);
+  }
+
   /// Copies the photos the rule picked into the release and records them
   /// (`ai/picking.md` §7). The rule is pure and lives in the service; this is
   /// the part that writes. The scan result is passed in, not held here, as the
@@ -122,8 +151,19 @@ class PhotosetController {
   /// of other kinds are kept, the same way a generation run keeps them. With no
   /// override the rule is deterministic, so a second run writes the same photos
   /// again.
-  Future<PhotosetPickResult> pick(ScanSuccess scan) async {
+  ///
+  /// The number the run reports against is what the rule chose, so it is known
+  /// before anything is copied, and each photo is reported as it is written so
+  /// the caller can show it before the run ends. The manifest is still written
+  /// once, at the end, for the whole run.
+  Future<PhotosetPickResult> pick(
+    ScanSuccess scan, {
+    required void Function(CopyProgress progress) onProgress,
+  }) async {
     final picked = PhotosetPicker.pick(scan.sets);
+
+    final total = [for (final pick in picked.picks) pick.photos.length]
+        .fold(0, (sum, count) => sum + count);
 
     final kept = [
       for (final record in (await store.load(release.directoryPath)).images)
@@ -132,6 +172,9 @@ class PhotosetController {
 
     final written = <ImageRecord>[];
     final notCopied = <String>[];
+
+    // The total is what the first report says, before anything has been copied.
+    onProgress(CopyProgress(done: 0, total: total));
 
     for (final pick in picked.picks) {
       for (final photo in pick.photos) {
@@ -155,13 +198,17 @@ class PhotosetController {
           await target.parent.create(recursive: true);
           await target.writeAsBytes(bytes, flush: true);
 
-          written.add(
-            ImageRecord(
-              item: pick.set.path,
-              kind: ImageKind.photo,
-              file: relative,
-              urls: const {},
-            ),
+          final record = ImageRecord(
+            item: pick.set.path,
+            kind: ImageKind.photo,
+            file: relative,
+            urls: const {},
+          );
+
+          written.add(record);
+
+          onProgress(
+            CopyProgress(done: written.length, total: total, record: record),
           );
         } catch (_) {
           // A photo that could not be written is reported, not guessed at.
@@ -214,9 +261,13 @@ class PhotosetController {
   /// The picked photos of one set, in the order `images.json` lists them, as
   /// absolute paths. The section shows an image only for a file that is there,
   /// for the same reason the Screenshots section does (`ai/picking.md` §7).
-  List<String> pickedPhotos(String itemPath) => [
-    for (final record
-        in store.loadSync(release.directoryPath).of(ImageKind.photo))
+  ///
+  /// The manifest is given rather than read here, because the widget builds the
+  /// list of sets in one pass and a run rebuilds that pass for every set it has
+  /// already read: reading the file once per set is one parse per row per
+  /// rebuild.
+  List<String> pickedPhotos(ImagesManifest manifest, String itemPath) => [
+    for (final record in manifest.of(ImageKind.photo))
       if (record.item == itemPath && File(absolutePath(record)).existsSync())
         absolutePath(record),
   ];
@@ -330,4 +381,23 @@ class PhotosetPickResult {
   /// The sets with no photos. They contribute nothing to the pick, so they are
   /// reported.
   final List<String> emptySets;
+}
+
+/// What a run that copies files reports while it works: the photos copied over
+/// the photos it decided to copy — the ones the picking rule chose, or the ones
+/// the scan counted for the type that copies all of them. A photo that could not
+/// be read or written does not move [done], so the count is what was copied, the
+/// same rule the Upload section's bars follow (`ai/upload_images.md`).
+///
+/// [record] is the record this run has just written, so the widget can show the
+/// photo as it is written; the report at the start of a run has none, because it
+/// only gives the total the run will reach. This is shared by the two features
+/// that copy files into a release, so one shape reports both.
+class CopyProgress {
+  const CopyProgress({required this.done, required this.total, this.record});
+
+  final int done;
+  final int total;
+
+  final ImageRecord? record;
 }
