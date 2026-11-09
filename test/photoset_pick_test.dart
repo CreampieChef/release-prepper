@@ -202,6 +202,37 @@ void main() {
     expect(counts(withExtremes), counts(withoutExtremes));
   });
 
+  // Which of the photos the rule considers the extreme is the comparison the
+  // scan uses for the fields it writes, so the photo the run guarantees is the
+  // photo the post names (`ai/picking.md` §4, `ai/photoset_pack.md` §3). On an
+  // equal area that comparison prefers the landscape, so this is the case where
+  // the shape decides rather than the order the source gives.
+  test('on an equal area the extreme kept is the landscape photo', () {
+    // A set of 20, 3 asked for: the division gives [3, 10, 16]. The smallest
+    // area is present in both orientations, and the landscape is the second of
+    // the two, so without the tie the answer would name '001.jpg'. The largest
+    // is at a position the division already reaches, so the only change the run
+    // makes is for the smallest.
+    final result = PhotosetPicker.pick([
+      measuredSet(
+        'set01',
+        20,
+        extremes: {
+          1: const ImageDimensions(width: 10, height: 20), // 200, portrait
+          2: const ImageDimensions(width: 20, height: 10), // 200, landscape
+          10: const ImageDimensions(width: 500, height: 200), // 100000
+        },
+      ),
+    ], options(3, includeExtremes: true));
+
+    expect(result.total, 3);
+    expect(result.picks.first.photos.map((photo) => photo.name), [
+      '002.jpg',
+      '010.jpg',
+      '016.jpg',
+    ]);
+  });
+
   test('a photo whose header cannot be read cannot be an extreme', () {
     // The unmeasured photo is at a position the division reaches; as the scan
     // says, it has no area, so it is not an extreme, and the answer is the same

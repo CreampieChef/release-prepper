@@ -238,6 +238,28 @@ class PhotosetScanner {
   }
 }
 
+/// The comparison an extreme photo is decided by, for both the fields the scan
+/// writes and the photos the picker guarantees — one comparison, so the post
+/// and the picks name the same photo (`ai/picking.md` §4). Pixel area is the
+/// measure: two photos with different sides are not ordered by any single side.
+/// On an equal area the two are the same size, so the one the field states is
+/// the landscape; an extreme present in one orientation is kept as it is
+/// (`ai/photoset_pack.md` §3).
+bool isSmallerExtreme(ImageDimensions left, ImageDimensions right) =>
+    left.area < right.area ||
+    (left.area == right.area && _prefersOrientation(left, right));
+
+bool isLargerExtreme(ImageDimensions left, ImageDimensions right) =>
+    left.area > right.area ||
+    (left.area == right.area && _prefersOrientation(left, right));
+
+/// On an equal area the tie is broken by the shape, in the direction a field
+/// states a resolution in. This decides only when the same size is present in
+/// both orientations: an extreme present in one orientation is the extreme the
+/// scan has, and it is not moved.
+bool _prefersOrientation(ImageDimensions left, ImageDimensions right) =>
+    left.isLandscape && !right.isLandscape;
+
 sealed class ScanResult {
   const ScanResult();
 }
@@ -265,15 +287,15 @@ final class ScanSuccess extends ScanResult {
       for (final photo in set.photos) photo.size,
   ].fold(0, (total, size) => total + size);
 
-  /// The smallest and the largest photo by pixel area, across all photos. There
-  /// is no per-set minimum or maximum (`ai/photoset_pack.md` §3). Null when no
-  /// photo could be measured, because a field is not written with a value the
-  /// app does not have.
-  ImageDimensions? get minResolution =>
-      _extreme((left, right) => left.area < right.area);
+  /// The smallest and the largest photo by pixel area, across all photos, on
+  /// the comparisons `isSmallerExtreme` and `isLargerExtreme`, so the fields
+  /// and the photos the picker guarantees name the same photo. There is no
+  /// per-set minimum or maximum (`ai/photoset_pack.md` §3). Null when no photo
+  /// could be measured, because a field is not written with a value the app
+  /// does not have.
+  ImageDimensions? get minResolution => _extreme(isSmallerExtreme);
 
-  ImageDimensions? get maxResolution =>
-      _extreme((left, right) => left.area > right.area);
+  ImageDimensions? get maxResolution => _extreme(isLargerExtreme);
 
   /// The distinct extensions among the counted photos, lowercased and sorted
   /// alphabetically — the same rule as the video formats
@@ -285,6 +307,10 @@ final class ScanSuccess extends ScanResult {
       for (final photo in set.photos) photo.extension,
   ]..sort()).toSet().toList();
 
+  /// The photo [isMore] says is the extreme. Of the photos it treats as equal —
+  /// the same size and the same shape — the first one the source gives is kept,
+  /// so the same input gives the same value twice, as the picking rule does
+  /// (`ai/picking.md` §4).
   ImageDimensions? _extreme(
     bool Function(ImageDimensions, ImageDimensions) isMore,
   ) {

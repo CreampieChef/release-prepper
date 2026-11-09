@@ -76,6 +76,15 @@ App-generated, at the item level:
 Resolution is compared by pixel area, not by a side, and it is aggregated at the release level
 only — there is no per-set min/max. A resolution value is written as `WIDTHxHEIGHT`.
 
+On an equal area the two photos are the same size, so the one reported is the landscape: when
+the same extreme area is present in both orientations, the field states the landscape one. An
+extreme that exists in one orientation only is kept as the scan has it — the shape never moves
+an extreme, it only decides which of two equal photos the field states. This is one comparison,
+used by the scan for the fields it writes and by the picker for the photos it guarantees, so the
+post and the picks name the same photo (`ai/picking.md` §4). The shape is the shape the
+dimensions give, not the 1.2 line the grid uses to decide which zone a tile is in
+(`ai/picking.md` §7): a field states the photo as its header says it is.
+
 `totalSize` is the same name the video pack has, so it is the same kind of value and the same label
 (`ai/video_pack.md` §3): the bytes each counted photo has in the source. That is the size on disk
 for a file in a folder, and the size the archive states for an entry, which is its uncompressed

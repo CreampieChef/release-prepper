@@ -125,11 +125,12 @@ photos are picked — except when the popup asks for the extremes, which is the 
 does read them. So the picker needs the scan to have run, for the counts, and the dimensions only for
 what the checkbox asks for.
 
-When the extremes are asked for, the rule keeps the smallest and the largest photo by pixel area among
-the picks, on the same comparison the scan uses for the fields it writes, so the rule agrees with what
-the post says. An extreme that is not among the picks replaces the pick nearest to it, so the run
-copies exactly the count the user asked for: the guarantee is kept without adding a photo, because the
-count is the number the user chose.
+When the extremes are asked for, the rule keeps the smallest and the largest photo by pixel area
+among the picks, on the same comparison the scan uses for the fields it writes — including the tie
+that decides which of two equal photos the comparison prefers (`ai/photoset_pack.md` §3) — so the
+rule agrees with what the post says. An extreme that is not among the picks replaces the pick
+nearest to it, so the run copies exactly the count the user asked for: the guarantee is kept
+without adding a photo, because the count is the number the user chose.
 
 Three things make this deterministic, and they are what the tests check rather than rely on:
 
@@ -140,8 +141,10 @@ Three things make this deterministic, and they are what the tests check rather t
 - A photo whose header could not be read has no area, so it cannot be an extreme, and a pack with
   nothing measurable has nothing to guarantee.
 - Of the picks that can be replaced, the first one at the nearest distance in the order the source
-  gives is the one replaced, and the first photo of an equal area is the extreme. So the same input
-  gives the same output.
+gives is the one replaced. Of the photos the comparison treats as equal — the same size and the
+same shape — the first one the source gives is the extreme, and the comparison prefers the
+landscape when the same size is present in both orientations, so the photo the rule keeps is the
+photo the field names. So the same input gives the same output.
 
 The numbers — 5, 5%, 50, and the 100 the slider goes up to — are a posting convention for the
 tracker, not a property of the pack. Whether they are constants in the code or values the tracker

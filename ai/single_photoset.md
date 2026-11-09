@@ -71,7 +71,8 @@ App-generated, at the item level:
 writes the item's value, the section shows the count per set, and the aggregate is the name the pack
 already has. Dropping either would make one of the two read the other.
 
-Resolution is compared by pixel area, as for a pack, and a resolution value is written as
+Resolution is compared by pixel area, as for a pack, including the tie that decides which of two
+equal photos is reported (`ai/photoset_pack.md` §3), and a resolution value is written as
 `WIDTHxHEIGHT`. `totalSize` is the same name and the same rule as the pack's (`ai/photoset_pack.md`
 §3): the sizes the counted photos have in the source, summed — with one item that is the set's own
 total. `imageFormats` is the distinct extensions among the counted photos, lowercased and sorted

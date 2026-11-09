@@ -191,6 +191,51 @@ void main() {
     },
   );
 
+  // On an equal area the two photos are the same size, so the one the field
+  // states is the landscape; that is the only case the shape decides, and the
+  // picking rule reads the same comparison for the same photos
+  // (`ai/photoset_pack.md` §3, `ai/picking.md` §4). The order the source gives
+  // is name order here, so the portrait is found first in both pairs, and the
+  // tie is what changes the answer.
+  test(
+    'on an equal area the reported extreme is the landscape photo',
+    () async {
+      Directory(p.join(directory.path, 'set01')).createSync();
+
+      writePhoto('set01', 'a.png', 500, 1000); // 500000, portrait
+      writePhoto('set01', 'b.png', 1000, 500); // 500000, landscape
+      writePhoto('set01', 'c.png', 100, 200); // 20000, portrait
+      writePhoto('set01', 'd.png', 200, 100); // 20000, landscape
+
+      final result = await scanner().scan(
+        directory.path,
+        ItemBoundary.entries,
+      ) as ScanSuccess;
+
+      expect(result.maxResolution?.value, '1000x500');
+      expect(result.minResolution?.value, '200x100');
+    },
+  );
+
+  // An extreme present in one orientation is kept as the scan has it, because
+  // there is no photo of that size in the other shape to match it with.
+  test('an extreme present in one orientation is kept as it is', () async {
+    Directory(p.join(directory.path, 'set01')).createSync();
+
+    writePhoto('set01', 'a.png', 1000, 600); // 600000
+    writePhoto('set01', 'b.png', 800, 1000); // 800000, portrait, the largest
+    writePhoto('set01', 'c.png', 100, 300); // 30000, portrait, the smallest
+    writePhoto('set01', 'd.png', 200, 200); // 40000, square
+
+    final result = await scanner().scan(
+      directory.path,
+      ItemBoundary.entries,
+    ) as ScanSuccess;
+
+    expect(result.maxResolution?.value, '800x1000');
+    expect(result.minResolution?.value, '100x300');
+  });
+
   test('a photo whose header cannot be read is counted and reported', () async {
     Directory(p.join(directory.path, 'set01')).createSync();
 

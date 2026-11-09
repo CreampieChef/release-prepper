@@ -213,19 +213,20 @@ class PhotosetPicker {
   }
 
   /// The extremes the popup asked for (`ai/picking.md` §4): the smallest and
-  /// the largest photo by pixel area, on the same comparison the scan uses for
-  /// the fields it writes, so the rule agrees with what the post says. An
-  /// extreme that is not among the picks replaces the pick nearest to it, so the
-  /// run copies exactly the count the user asked for. An extreme put in this way
-  /// is never put out again for the other one, which is what makes a count below
-  /// three the case the guarantee cannot keep — the popup's minimum is above
-  /// three, so that case is the guard, not the path.
+  /// the largest photo, on the comparisons the scan uses for the fields it
+  /// writes — `isSmallerExtreme` and `isLargerExtreme` — so the rule agrees
+  /// with what the post says. An extreme that is not among the picks replaces
+  /// the pick nearest to it, so the run copies exactly the count the user asked
+  /// for. An extreme put in this way is never put out again for the other one,
+  /// which is what makes a count below three the case the guarantee cannot
+  /// keep — the popup's minimum is above three, so that case is the guard, not
+  /// the path.
   static void keepExtremes(List<ScannedSet> sets, Set<int> chosen) {
     final kept = <int>{};
 
     for (final position in [
-      extremePosition(sets, (left, right) => left.area < right.area),
-      extremePosition(sets, (left, right) => left.area > right.area),
+      extremePosition(sets, isSmallerExtreme),
+      extremePosition(sets, isLargerExtreme),
     ]) {
       // A photo whose header could not be read has no area, so it cannot be an
       // extreme, and a pack with nothing measurable has nothing to guarantee.
@@ -267,10 +268,10 @@ class PhotosetPicker {
   }
 
   /// The position in the whole array of the photo that the comparison says is
-  /// the extreme — the smallest or the largest by pixel area
-  /// (`ai/picking.md` §4). Null when no photo could be measured, which is what
-  /// the scan reports as well. The first photo of an equal area is the one kept,
-  /// so the same input gives the same output twice.
+  /// the extreme (`ai/picking.md` §4). Null when no photo could be measured,
+  /// which is what the scan reports as well. Of the photos it treats as equal —
+  /// the same size and the same shape — the first one the source gives is the
+  /// one kept, so the same input gives the same output twice.
   static int? extremePosition(
     List<ScannedSet> sets,
     bool Function(ImageDimensions, ImageDimensions) isMore,

@@ -323,9 +323,11 @@ What is left unfinished is not a compile error but missing behaviour:
   shows does not say which. With nothing grouping the photos there is no column in the grid for such a
   set. The scan decides which entries under the picked folder are items, counts the
   photos in each, and reads their dimensions from the file headers rather than by decoding the image;
-  the minimum and the maximum are decided by pixel area across all photos, and what the scan could not
-  take is reported rather than guessed at. The values it counts go through the editor's single write
-  path; the items it records are the scan's own output, because an item is what the scan produces.
+  the minimum and the maximum are decided by pixel area across all photos, on the same comparison the
+  picker uses, where an equal area is answered in favour of the landscape (`ai/photoset_pack.md` §3);
+  what the scan could not take is reported rather than guessed at. The values it counts go through the
+  editor's single write path; the items it records are the scan's own output, because an item is what
+  the scan produces.
   A set's line is drawn as the scan reads that set, and the block draws the shared progress row with
   the count a run has reached while it is going (`ai/picking.md` §7).
 - A single photoset (`ai/single_photoset.md`) is that same block with one item: the picked folder
@@ -1917,7 +1919,12 @@ lib/
                                 archive entry read through the same format dispatch.
                                 readImageDimensionsSync() is the same header read synchronously, so
                                 a widget can lay a grid out while it builds — the same reason
-                                ImagesStore.loadSync exists.
+                                ImagesStore.loadSync exists. `area` is what the extremes
+                                are compared by, and `isLandscape` is the shape the
+                                dimensions give, which is what a resolution field states
+                                (`ai/photoset_pack.md` §3). Neither is the grid's 1.2
+                                line, which decides which zone a tile is in
+                                (`ai/picking.md` §7).
       masonry.dart              minColumnWidth and columnGap: the column width the page is built
                                 from and the gap between its columns, shared because a section
                                 drawn as the page's columns has to draw exactly those
@@ -2034,19 +2041,23 @@ lib/
                                 because a pack is the entries under the source and a single
                                 photoset is the source itself (`ai/single_photoset.md` §5) —
                                 counts and measures the photos in each, and lists the formats
-                                among them. The readers are behind an interface, so a format can
-                                be added without changing the scan (`ai/photoset_pack.md` §5); the
-                                interface also gives the whole photo, for the photo the picker
-                                copies. Each reader is called on another isolate, so reading a
-                                large archive does not hold up the isolate the UI runs on, and a
-                                reader therefore holds nothing from one call to the next
-                                (`ai/photoset_pack.md` §4). The items the entries give are decided
-                                before any reading, so the count it reports is known before the
-                                first item is read: it reports that count, and then each item as it
-                                reads it, through the optional callback the caller passes — the same
-                                shape as `ToolRunner`'s `onOutput`, so a caller that reports nothing
-                                takes no callback (`ai/picking.md` §7). + the typed scan result, and
-                                the progress report. Called only when the user asks.
+                                among them. `isSmallerExtreme` and `isLargerExtreme` are the two
+                                comparisons an extreme photo is decided by, and the picker uses
+                                the same two, so the field and the pick name one photo
+                                (`ai/photoset_pack.md` §3, `ai/picking.md` §4). The readers are
+                                behind an interface, so a format can be added without changing
+                                the scan (`ai/photoset_pack.md` §5); the interface also gives the
+                                whole photo, for the photo the picker copies. Each reader is
+                                called on another isolate, so reading a large archive does not
+                                hold up the isolate the UI runs on, and a reader therefore holds
+                                nothing from one call to the next (`ai/photoset_pack.md` §4).
+                                The items the entries give are decided before any reading, so the
+                                count it reports is known before the first item is read: it
+                                reports that count, and then each item as it reads it, through the
+                                optional callback the caller passes — the same shape as
+                                `ToolRunner`'s `onOutput`, so a caller that reports nothing takes
+                                no callback (`ai/picking.md` §7). + the typed scan result, and the
+                                progress report. Called only when the user asks.
       directory_reader.dart     DirectoryPhotosetReader: a photoset that is a directory — the files
                                 directly inside it, in name order.
       zip_reader.dart           ZipPhotosetReader: a photoset that is a ZIP archive — its entries,
@@ -3126,9 +3137,11 @@ share. Order is the order the source gives: for an archive the order of its entr
 directory name order, because a directory has no order of its own. An archive that cannot be read
 is an empty set, as a directory that cannot be listed is — one entry does not fail the whole
 source. The dimensions come from the file header, not by decoding the image, and the minimum and
-the maximum are decided by pixel area across all photos; the formats are the distinct extensions
-among the counted photos, lowercased and sorted, the same rule as the video formats. The name a
-row shows is derived from the item path, because the stored path is the record ID.
+the maximum are decided by pixel area across all photos, with the landscape preferred when the
+same area is present in both orientations (`ai/photoset_pack.md` §3); the formats are the
+distinct extensions among the counted photos, lowercased and sorted, the same rule as the video
+formats. The name a row shows is derived from the item path, because the stored path is the
+record ID.
 
 **Reading the picked folder for a video pack.** `ai/video_pack.md` is the spec. `VideoPackSection` is
 the section below the form for a video pack: its title row with the Scan and Generate buttons at the
@@ -3176,9 +3189,11 @@ below one photo with nothing, or placed evenly across the whole pack as one grou
 group are the centres of evenly spaced intervals, and that one formula serves both ways. When the
 popup asks for the extremes, the smallest and the largest photo by pixel area are among the picks, and
 each one that is not replaces the pick nearest to it, so the run copies exactly the count asked for.
-Ties are broken by the order the source gives, so the same input gives the same output. The rule reads
-counts, and the dimensions only for the extremes, on the same comparison the scan uses for the fields
-it writes.
+Ties are broken by the order the source gives, so the same input gives the same output, except on an
+equal area where the comparison prefers the landscape — the same tie the scan's fields use
+(`ai/photoset_pack.md` §3), so the photo the run guarantees is the photo the field names. The rule
+reads counts, and the dimensions only for the extremes, on the comparison the scan uses for the
+fields it writes.
 
 `PhotosetBlock` has its Pick button next to Scan in its heading row, disabled until a scan has run
 because what the popup opens at is what the scan read. Pick opens the popup — the extremes checkbox,
@@ -4525,8 +4540,10 @@ reported rather than counted, files outside the extension list are not counted,
 a subfolder inside a set is not read, and when the boundary it is given is the
 source the source itself is the item and its path is the source's own name, the
 order is the order the source gives, the minimum and the maximum are decided by
-pixel area across all photos, a photo whose header cannot be read is counted and
-reported, the size a photo has is the bytes the source gives it — the size on
+pixel area across all photos, with the landscape preferred when the same area is
+present in both orientations, and an extreme in one orientation kept as it is;
+a photo whose header cannot be read is counted and reported, the size a photo
+has is the bytes the source gives it — the size on
 disk for a file in a folder, the entry's own length for an archive, including
 the cases where the header holds placeholders instead of the sizes, and the
 total is summed across the sets, so a photo whose header cannot be read is still

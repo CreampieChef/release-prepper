@@ -14,6 +14,13 @@ class ImageDimensions {
   /// are decided by area (`ai/photoset_pack.md` §3).
   int get area => width * height;
 
+  /// Whether the photo is wider than it is tall. This is the shape its
+  /// dimensions give, which is what a resolution field states. The 1.2 line in
+  /// `masonry.dart` answers a different question — which zone a tile is in in
+  /// the grid — and a photo just past square is not a landscape there
+  /// (`ai/picking.md` §7).
+  bool get isLandscape => width > height;
+
   /// The value a resolution field holds.
   String get value => [width, height].join('x');
 }
