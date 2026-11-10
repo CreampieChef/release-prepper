@@ -1,13 +1,16 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:path/path.dart' as p;
 
 import '../../service/images/image_dimensions.dart';
+import '../../service/native_tools/ffmpeg.dart';
 import '../../service/photosets/photoset_picker.dart';
 import '../../service/photosets/photoset_scanner.dart';
 import '../release/release.dart';
 import '../release/release_fields.dart';
 import '../release/release_store.dart';
+import '../release/release_type.dart';
 import '../screenshots/images.dart';
 import '../screenshots/images_store.dart';
 import '../tab/tab_manager.dart';
@@ -31,10 +34,16 @@ import '../tab/tab_manager.dart';
 /// large archive does not hold up the UI isolate (`ai/photoset_pack.md` §4).
 /// That is why the run reports as it goes: the report is what lets the widget
 /// build between two sets.
+///
+/// For a pack the run also writes a preview thumbnail next to each photo it
+/// copies (`ai/picking.md` §8). That is the only place those files come from,
+/// and nothing is recorded for them, so the path is derived here, from the
+/// photo's record.
 class PhotosetController {
   PhotosetController({
     required this.release,
     required this.scanner,
+    required this.ffmpeg,
     required this.store,
     required this.releaseStore,
     required this.tabManager,
@@ -43,6 +52,12 @@ class PhotosetController {
 
   final Release release;
   final PhotosetScanner scanner;
+
+  /// The tool the run writes a preview thumbnail with. Only the pack's run asks
+  /// for one, and a call that cannot run is not reported: the photo the tile
+  /// shows is the one the run wrote, whatever the thumbnail did.
+  final Ffmpeg ffmpeg;
+
   final ImagesStore store;
 
   /// `release.json`, for the last-edit stamp a pick writes. The scan changes no
@@ -51,6 +66,60 @@ class PhotosetController {
 
   final TabManager tabManager;
   final String tabId;
+
+  /// The largest side a preview thumbnail is written at (`ai/picking.md` §8).
+  static const thumbnailMaxSize = 800;
+
+  /// The prefix a thumbnail's name has. The file is in the same folder as the
+  /// photo it is a copy of, and nothing is recorded for it: a thumbnail is not
+  /// an image the post uses, and the Upload section sends records, so there is
+  /// nothing for it to send. This is the same shape as the video thumbnail's
+  /// `_rp_thumbnail.jpg` (`ai/doc.md` §2).
+  static const thumbnailPrefix = '_rp_thumb_';
+
+  /// The name a photo's thumbnail is written under. The photo's own name is
+  /// kept as it is, so two photos in one set cannot reach the same thumbnail
+  /// name; the extension is the JPEG one the tool writes, and it is not added
+  /// to a name that is already a JPEG, so `001.jpg` gives `_rp_thumb_001.jpg`
+  /// and `001.png` gives `_rp_thumb_001.png.jpg` (`ai/picking.md` §8).
+  static String thumbnailFileName(String name) {
+    final extension = p.extension(name).toLowerCase();
+
+    if (extension == '.jpg' || extension == '.jpeg') {
+      return '$thumbnailPrefix$name';
+    }
+
+    return '$thumbnailPrefix$name.jpg';
+  }
+
+  /// Whether a run writes a thumbnail for a photo (`ai/picking.md` §8). Only
+  /// the pack has them, for now. A photo already within the cap is not written,
+  /// because the tool would write the same picture again and the only thing
+  /// gained is a process. A photo whose header could not be read has no
+  /// dimensions, so the rule cannot know it is within the cap and writes one:
+  /// the rule skips what it can know, never what it guesses.
+  bool writesThumbnail(ImageDimensions? dimensions) =>
+      release.releaseType == ReleaseType.photosetPack &&
+      (dimensions == null ||
+          math.max(dimensions.width, dimensions.height) > thumbnailMaxSize);
+
+  /// A photo's thumbnail, as an absolute path, derived from the photo. Nothing
+  /// is stored for it, as nothing is stored for the video thumbnail.
+  String thumbnailPath(String photoAbsolutePath) => p.join(
+    p.dirname(photoAbsolutePath),
+    thumbnailFileName(p.basename(photoAbsolutePath)),
+  );
+
+  /// The same path when its file is on disk, otherwise null. The tile shows the
+  /// photo for a photo whose thumbnail is not there, for the same reason the
+  /// image boxes show only a file that exists: a tile built for a thumbnail the
+  /// tool has not written stays empty for that path, whatever the tool writes
+  /// later.
+  String? thumbnailOnDisk(String photoAbsolutePath) {
+    final path = thumbnailPath(photoAbsolutePath);
+
+    return File(path).existsSync() ? path : null;
+  }
 
   /// Reads the source and records what it finds. A re-scan replaces the items,
   /// because the scan is what says what the source contains; the image records
@@ -149,6 +218,13 @@ class PhotosetController {
   /// decided are passed in too: the popup owns them as widget state, and the
   /// controller runs the rule with what it chose.
   ///
+  /// For a pack the run writes a preview thumbnail beside each photo it copies
+  /// (`ai/picking.md` §8). It is not recorded, so nothing here returns it: the
+  /// file is the photo's, and its path is derived from the record. A thumbnail
+  /// that could not be written is not reported — the photo it is a copy of is
+  /// on disk and the tile shows that, so a missing thumbnail is not a failure
+  /// the user is told about.
+  ///
   /// A run replaces the photo records it writes, so the poster and the records
   /// of other kinds are kept, the same way a generation run keeps them. With no
   /// override the rule is deterministic, so a second run writes the same photos
@@ -207,6 +283,20 @@ class PhotosetController {
             file: relative,
             urls: const {},
           );
+
+          // The thumbnail is written before the photo is reported, so the tile
+          // built for it as the run goes shows the thumbnail rather than the
+          // full file. The result is not kept: nothing the user is told depends
+          // on it. A call that could not run leaves no file, and the tile falls
+          // back to the photo (`ai/picking.md` §8).
+          if (writesThumbnail(photo.dimensions)) {
+            await ffmpeg.resizeImage(
+              releaseDirectory: release.directoryPath,
+              inputPath: target.path,
+              outputPath: thumbnailPath(absolutePath(record)),
+              maxSize: thumbnailMaxSize,
+            );
+          }
 
           written.add(record);
 

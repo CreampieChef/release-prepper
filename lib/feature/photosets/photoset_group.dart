@@ -88,7 +88,12 @@ class PhotosetState {
   final List<ImageRecord> running = [];
 
   void recordCopy(ImageRecord record) {
-    evictCachedImages([controller.absolutePath(record)]);
+    // The thumbnail is rewritten under the same name too, so the rule covers it
+    // as well: both paths are emptied, and the picture is keyed with this
+    // generation so it resolves against the empty cache (`AGENTS.md` §5).
+    final photo = controller.absolutePath(record);
+
+    evictCachedImages([photo, controller.thumbnailPath(photo)]);
 
     running.add(record);
     generation += 1;
@@ -398,20 +403,32 @@ Widget photosetListHeader(BuildContext context, PhotosetStrings strings) {
 /// it, which is its own ratio, so nothing is cropped. `setName` is the line
 /// naming the set the photo is from, which only a grid mixing sets draws
 /// (`ai/picking.md` §7).
+///
+/// The picture is the run's thumbnail when that file is on disk, and the photo
+/// itself when it is not (`ai/picking.md` §8). The tile is still the photo's:
+/// its key and the name under it are the photo's, not the thumbnail's, because
+/// the tile is the record and the thumbnail is only how the record is drawn. A
+/// tile that takes the fallback path is a photo the run skipped or could not
+/// write, and the same rule as the image boxes applies: only a file that is
+/// there is shown.
 Widget photosetTile(
   PhotosetState state,
   String path,
   double pictureHeight, {
   String? setName,
-}) => Padding(
-  padding: EdgeInsets.all(photosetTileGap / 2),
-  child: ImageTile(
-    path: path,
-    height: pictureHeight,
-    groupLabel: setName,
-    picture: imageFromFile(path, state.generation, fit: BoxFit.cover),
-  ),
-);
+}) {
+  final picture = state.controller.thumbnailOnDisk(path) ?? path;
+
+  return Padding(
+    padding: EdgeInsets.all(photosetTileGap / 2),
+    child: ImageTile(
+      path: path,
+      height: pictureHeight,
+      groupLabel: setName,
+      picture: imageFromFile(picture, state.generation, fit: BoxFit.cover),
+    ),
+  );
+}
 
 /// One photo in the grid: the set it is from and which of that set's photos it
 /// is. The grid is the photos of every set together, in the order the source

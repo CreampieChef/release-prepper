@@ -238,10 +238,15 @@ Rules:
 - `urls` is unchanged: hoster → URL type → URL, only successful uploads stored, so the skip
   rule is unaffected.
 - **Records are the source of truth for image paths.** Nothing is derived from the release
-  directory, because two posters cannot share one derived name.
+  directory for a record, because two posters cannot share one derived name. The exception is an
+  image that is not a record at all: the video thumbnail and a photo's preview thumbnail
+  (`ai/picking.md` §8) are paths derived from the file they belong to, because nothing is recorded
+  for them and the Upload section only sends records.
 - The release folder mirrors the structure the user picked for the images that are copied into
-  it. Only the images that are uploaded are kept; the archive itself is not. Generated images
-  stay in the `images/` folder at the release root as they do today.
+  it. Only the images that are uploaded are kept; the archive itself is not. The two preview files
+  the app writes — the video thumbnail and a photo's thumbnail (`ai/picking.md` §8) — are in those
+  folders with them and are never uploaded. Generated images stay in the `images/` folder at the
+  release root as they do today.
 - **Provenance is not data.** A record does not say whether the app generated it or the user
   copied it. `kind` decides what can be regenerated: a screenshot can, a copied photo cannot.
 - **An image that has been uploaded is not regenerated.** Once a record has any URL, it is

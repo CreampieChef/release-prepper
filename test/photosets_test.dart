@@ -20,9 +20,13 @@ import 'package:release_prepper/l10n/app_localizations.dart';
 import 'package:release_prepper/feature/screenshots/images.dart';
 import 'package:release_prepper/feature/screenshots/images_store.dart';
 import 'package:release_prepper/service/images/masonry.dart';
+import 'package:release_prepper/service/native_tools/ffmpeg.dart';
+import 'package:release_prepper/service/native_tools/tool_runner.dart';
 import 'package:release_prepper/service/photosets/directory_reader.dart';
 import 'package:release_prepper/service/photosets/photoset_picker.dart';
 import 'package:release_prepper/service/photosets/photoset_scanner.dart';
+
+import 'test_runner.dart';
 
 void main() {
   late Directory directory;
@@ -120,11 +124,13 @@ void main() {
     TabManager tabManager,
     String tabId, {
     List<PhotosetReader>? readers,
+    _FakeFfmpeg? ffmpeg,
   }) => PhotosetController(
     release: release,
     scanner: PhotosetScanner(
       readers: readers ?? [const DirectoryPhotosetReader()],
     ),
+    ffmpeg: ffmpeg ?? _FakeFfmpeg(),
     store: store,
     releaseStore: ReleaseStore(),
     tabManager: tabManager,
@@ -143,7 +149,11 @@ void main() {
 
   // The state the two widgets share is built by the editor, so a test builds it the
   // way the editor does.
-  PhotosetState testState(Release release, {List<PhotosetReader>? readers}) {
+  PhotosetState testState(
+    Release release, {
+    List<PhotosetReader>? readers,
+    _FakeFfmpeg? ffmpeg,
+  }) {
     final tabManager = TabManager();
     final tabId = tabManager.addReleaseEditor(release);
 
@@ -154,6 +164,7 @@ void main() {
         tabManager,
         tabId,
         readers: readers,
+        ffmpeg: ffmpeg,
       ),
     );
   }
@@ -1121,6 +1132,263 @@ void main() {
     ]);
   });
 
+  // The name a thumbnail is written under. The photo's own name is kept as it
+  // is, and the extension the tool writes is not added to a name that is
+  // already a JPEG, so nothing doubles (`ai/picking.md` §8). Keeping the whole
+  // name is what makes two photos in one set reach two different files.
+  test("the thumbnail name keeps the photo's name as it is", () {
+    expect(
+      PhotosetController.thumbnailFileName('001.jpg'),
+      '_rp_thumb_001.jpg',
+    );
+    expect(
+      PhotosetController.thumbnailFileName('001.jpeg'),
+      '_rp_thumb_001.jpeg',
+    );
+    expect(
+      PhotosetController.thumbnailFileName('001.png'),
+      '_rp_thumb_001.png.jpg',
+    );
+    expect(
+      PhotosetController.thumbnailFileName('001.webp'),
+      '_rp_thumb_001.webp.jpg',
+    );
+
+    expect(
+      PhotosetController.thumbnailFileName('a.jpg'),
+      isNot(PhotosetController.thumbnailFileName('a.png')),
+    );
+  });
+
+  // Only a photo larger than the cap is written: for one already within it the
+  // tool would produce the same picture again, so the only thing gained is a
+  // process (`ai/picking.md` §8).
+  test('the run writes a thumbnail only for a photo above the cap', () async {
+    writePhotoAt('source/set01', '001.png', 1200, 900);
+    writePhotoAt('source/set01', '002.png', 800, 400);
+
+    final tabManager = TabManager();
+    final store = ImagesStore();
+    final release = testRelease(p.join(directory.path, 'source'));
+    final tabId = tabManager.addReleaseEditor(release);
+
+    final ffmpeg = _FakeFfmpeg();
+    final controller = testController(
+      release,
+      store,
+      tabManager,
+      tabId,
+      ffmpeg: ffmpeg,
+    );
+
+    final scan = await controller.scan(
+      onProgress: discardScanProgress,
+    ) as PhotosetSuccess;
+    final result = await controller.pick(
+      scan.scan,
+      defaultOptions(2),
+      onProgress: discardCopyProgress,
+    );
+
+    expect(ffmpeg.calls.map((call) => p.basename(call.inputPath)), ['001.png']);
+
+    // The tool is asked for the file the run copied into the release, not for
+    // the source: the source may be gone later, and the release folder is what
+    // the tile reads.
+    expect(ffmpeg.calls.map((call) => call.inputPath), [
+      controller.absolutePath(result.written.first),
+    ]);
+    expect(ffmpeg.calls.first.maxSize, 800);
+
+    expect(
+      File(
+        p.join(
+          directory.path,
+          'set01',
+          PhotosetController.thumbnailFileName('001.png'),
+        ),
+      ).existsSync(),
+      isTrue,
+    );
+
+    // Nothing is recorded for a thumbnail, so the manifest holds the photos as
+    // it did before this feature: the tile's path comes from the record, not
+    // from a record of its own.
+    expect(
+      store.loadSync(directory.path).images.map((record) => record.file),
+      result.written.map((record) => record.file),
+    );
+  });
+
+  // A photo whose header cannot be read has no dimensions, so the rule cannot
+  // know whether it is within the cap. It writes one for it: the rule skips
+  // what it can know, never what it guesses (`ai/picking.md` §8).
+  test(
+    'a photo whose dimensions are not known is not skipped by the cap',
+    () async {
+      writePhotoAt('source/set01', 'small.png', 100, 100);
+      writeRawAt('source/set01', 'unknown.png', [0x47, 0x49, 0x46, 0x38, 0x39]);
+
+      final tabManager = TabManager();
+      final store = ImagesStore();
+      final release = testRelease(p.join(directory.path, 'source'));
+      final tabId = tabManager.addReleaseEditor(release);
+
+      final ffmpeg = _FakeFfmpeg();
+      final controller = testController(
+        release,
+        store,
+        tabManager,
+        tabId,
+        ffmpeg: ffmpeg,
+      );
+
+      final scan = await controller.scan(
+        onProgress: discardScanProgress,
+      ) as PhotosetSuccess;
+
+      await controller.pick(
+        scan.scan,
+        defaultOptions(2),
+        onProgress: discardCopyProgress,
+      );
+
+      expect(ffmpeg.calls.map((call) => p.basename(call.inputPath)), [
+        'unknown.png',
+      ]);
+    },
+  );
+
+  // A tool that is not installed does not stop the run, and a call that fails
+  // does not stop the next photo: what a tile shows is the photo, so a
+  // thumbnail the run could not write is not something the user is told about
+  // (`ai/picking.md` §8).
+  test(
+    'the photos a run could not give a thumbnail are still copied and reported',
+    () async {
+      writePhotoAt('source/set01', '001.png', 1200, 900);
+      writePhotoAt('source/set01', '002.png', 1200, 900);
+
+      final tabManager = TabManager();
+      final store = ImagesStore();
+      final release = testRelease(p.join(directory.path, 'source'));
+      final tabId = tabManager.addReleaseEditor(release);
+
+      final ffmpeg = _FakeFfmpeg(failsFor: {'001.png'});
+      final controller = testController(
+        release,
+        store,
+        tabManager,
+        tabId,
+        ffmpeg: ffmpeg,
+      );
+
+      final scan = await controller.scan(
+        onProgress: discardScanProgress,
+      ) as PhotosetSuccess;
+      final result = await controller.pick(
+        scan.scan,
+        defaultOptions(2),
+        onProgress: discardCopyProgress,
+      );
+
+      expect(result.notCopied, isEmpty);
+      expect(result.written, hasLength(2));
+
+      // The photo whose call failed has no thumbnail on disk, so its tile takes
+      // the fallback path; the other has one.
+      expect(
+        controller.thumbnailOnDisk(
+          controller.absolutePath(result.written.first),
+        ),
+        isNull,
+      );
+      expect(
+        controller.thumbnailOnDisk(
+          controller.absolutePath(result.written.last),
+        ),
+        isNotNull,
+      );
+    },
+  );
+
+  test('a run with the tool not installed writes no thumbnails', () async {
+    writePhotoAt('source/set01', '001.png', 1200, 900);
+
+    final tabManager = TabManager();
+    final store = ImagesStore();
+    final release = testRelease(p.join(directory.path, 'source'));
+    final tabId = tabManager.addReleaseEditor(release);
+
+    final ffmpeg = _FakeFfmpeg(notAvailable: true);
+    final controller = testController(
+      release,
+      store,
+      tabManager,
+      tabId,
+      ffmpeg: ffmpeg,
+    );
+
+    final scan = await controller.scan(
+      onProgress: discardScanProgress,
+    ) as PhotosetSuccess;
+    final result = await controller.pick(
+      scan.scan,
+      defaultOptions(1),
+      onProgress: discardCopyProgress,
+    );
+
+    expect(result.written, hasLength(1));
+    expect(ffmpeg.calls, hasLength(1));
+    expect(
+      File(controller.absolutePath(result.written.first)).existsSync(),
+      isTrue,
+    );
+    expect(
+      controller.thumbnailOnDisk(controller.absolutePath(result.written.first)),
+      isNull,
+    );
+  });
+
+  // Only the pack writes them, for now (`ai/picking.md` §8). A single photoset
+  // shows its photos with the same grid, so its tiles take the fallback path,
+  // and a run for it asks the tool for nothing.
+  test(
+    'the run writes thumbnails for the pack and not for a single photoset',
+    () async {
+      writePhotoAt('source', '001.png', 1200, 900);
+
+      final tabManager = TabManager();
+      final store = ImagesStore();
+      final release = testRelease(
+        p.join(directory.path, 'source'),
+        releaseType: ReleaseType.singlePhotoset,
+      );
+      final tabId = tabManager.addReleaseEditor(release);
+
+      final ffmpeg = _FakeFfmpeg();
+      final controller = testController(
+        release,
+        store,
+        tabManager,
+        tabId,
+        ffmpeg: ffmpeg,
+      );
+
+      final scan = await controller.scan(
+        onProgress: discardScanProgress,
+      ) as PhotosetSuccess;
+
+      await controller.pick(
+        scan.scan,
+        defaultOptions(1),
+        onProgress: discardCopyProgress,
+      );
+
+      expect(ffmpeg.calls, isEmpty);
+    },
+  );
+
   // The number a pick reports against is what the rule chose, so it is known
   // before anything is copied, and each photo is reported as it is written
   // (`ai/picking.md` §7).
@@ -2085,6 +2353,120 @@ void main() {
     // line is not drawn again above a column.
     expect(find.byType(Positioned), findsNWidgets(3));
   });
+
+  // A tile's picture is the thumbnail the run wrote for its photo when that
+  // file is on disk, and the photo when it is not (`ai/picking.md` §8). The
+  // tile is still the photo's: the grid positions it by the photo and the line
+  // under it names the photo, so only the picture inside it is the thumbnail.
+  testWidgets(
+    'a tile shows the thumbnail when it is on disk and the photo when not',
+    (tester) async {
+      tester.view.physicalSize = const Size(2000, 2000);
+      tester.view.devicePixelRatio = 1.0;
+
+      // One photo above the cap, so the fake tool writes a thumbnail for it,
+      // and one already within it, so nothing is written and that tile takes
+      // the fallback path.
+      writePhotoAt('source/set01', 'big.png', 1200, 900);
+      writePhotoAt('source/set01', 'small.png', 100, 100);
+
+      final ffmpeg = _FakeFfmpeg();
+      final release = testRelease(p.join(directory.path, 'source'));
+      final state = testState(release, ffmpeg: ffmpeg);
+
+      await openPhotosets(tester, state, showGallery: true);
+
+      await scanAndWait(tester);
+
+      await clickAndWait(
+        tester,
+        find.byKey(const ValueKey('photosetPickButton')),
+        find.byKey(const ValueKey('pickOptionsDialog')),
+      );
+
+      // A pack this small is picked in full, so both tiles are drawn.
+      await confirmPick(tester, lineFor('set01', 2, 2));
+
+      // The gallery is another widget, so the test builds it again the way the
+      // editor does, as the other pack tests do.
+      await openPhotosets(tester, state, showGallery: true);
+
+      expect(
+        find.byKey(
+          ValueKey(('photoTile', p.join(directory.path, 'set01', 'big.png'))),
+        ),
+        findsOneWidget,
+      );
+
+      final paths = tester
+          .widgetList<Image>(find.byType(Image))
+          .map((image) => (image.image as FileImage).file.path);
+
+      expect(
+        paths,
+        containsAll([
+          p.join(directory.path, 'set01', '_rp_thumb_big.png.jpg'),
+          p.join(directory.path, 'set01', 'small.png'),
+        ]),
+      );
+    },
+  );
+
+  // A run rewrites a thumbnail under the same name, so the tile that shows it
+  // has to re-resolve it, which is what `AGENTS.md` §5 requires: the cache
+  // entry for the path it wrote is emptied, and the key changes with the
+  // generation. A second run cannot be waited for, because its count is already
+  // what the first one reached, so the test reports the record through the
+  // callback the block uses.
+  testWidgets('a tile re-resolves a thumbnail written under the same name', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    writePhotoAt('source/set01', 'big.png', 1200, 900);
+
+    final ffmpeg = _FakeFfmpeg();
+    final release = testRelease(p.join(directory.path, 'source'));
+    final state = testState(release, ffmpeg: ffmpeg);
+
+    await openPhotosets(tester, state, showGallery: true);
+
+    await scanAndWait(tester);
+
+    await clickAndWait(
+      tester,
+      find.byKey(const ValueKey('photosetPickButton')),
+      find.byKey(const ValueKey('pickOptionsDialog')),
+    );
+
+    // A set this small is picked in full.
+    await confirmPick(tester, lineFor('set01', 1, 1));
+
+    await openPhotosets(tester, state, showGallery: true);
+
+    final record = ImageRecord(
+      item: 'set01',
+      kind: ImageKind.photo,
+      file: 'set01/big.png',
+      urls: const {},
+    );
+
+    final key = tester.widget<Image>(find.byType(Image).first).key;
+
+    // The picture is the thumbnail, so the key names that path.
+    expect((key as ValueKey<String>).value, contains('_rp_thumb_'));
+
+    state.recordCopy(record);
+
+    await openPhotosets(tester, state, showGallery: true);
+
+    expect(
+      tester.widget<Image>(find.byType(Image).first).key,
+      isNot(key),
+      reason: 'the tile must re-resolve the rewritten thumbnail',
+    );
+  });
 }
 
 /// What the block hands to the editor's write path is the values the scan counted.
@@ -2164,4 +2546,59 @@ class _FakeArchiveReader implements PhotosetReader {
       return const [];
     }
   }
+}
+
+/// The tool a pick run writes a preview thumbnail with (`ai/picking.md` §8). It
+/// records the calls it was asked for and writes a stub file for the one it
+/// accepts, so a test can tell what the run wrote apart from what it decided to
+/// write. `failsFor` is the set of inputs it refuses, and `notAvailable` is the
+/// tool not being installed: neither writes a file, which is the case the tile
+/// falls back for.
+class _FakeFfmpeg implements Ffmpeg {
+  _FakeFfmpeg({this.failsFor = const {}, this.notAvailable = false});
+
+  final Set<String> failsFor;
+  final bool notAvailable;
+
+  final calls = <({String inputPath, String outputPath, int maxSize})>[];
+
+  @override
+  ToolRunner get runner => testRunner();
+
+  @override
+  Future<ToolRunResult> version({required String releaseDirectory}) async =>
+      const ToolRunSuccess(stdout: '', stderr: '');
+
+  @override
+  Future<ToolRunResult> resizeImage({
+    required String releaseDirectory,
+    required String inputPath,
+    required String outputPath,
+    required int maxSize,
+  }) async {
+    calls.add((inputPath: inputPath, outputPath: outputPath, maxSize: maxSize));
+
+    if (notAvailable) {
+      return const ToolRunNotAvailable();
+    }
+
+    if (failsFor.contains(p.basename(inputPath))) {
+      return const ToolRunFailure(exitCode: 1, stdout: '', stderr: '');
+    }
+
+    // A file the widget test can find; its contents are not a real image.
+    File(outputPath).writeAsBytesSync(const [0xFF, 0xD8, 0xFF, 0xD9]);
+
+    return const ToolRunSuccess(stdout: '', stderr: '');
+  }
+
+  // Not a call this feature makes; the fake is the tool, and the tool has the
+  // calls the app can ask it for.
+  @override
+  Future<ToolRunResult> screenshot({
+    required String releaseDirectory,
+    required String inputPath,
+    required String outputPath,
+    required double seekSeconds,
+  }) async => const ToolRunSuccess(stdout: '', stderr: '');
 }

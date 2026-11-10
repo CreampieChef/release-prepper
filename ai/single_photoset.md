@@ -162,7 +162,9 @@ not changed for this type, and its tests already cover the single-set case as a 
 
 The picked photos are copied into the release, mirroring the structure the user picked, and recorded as
 `kind: photo` with `item` set to the item path — the Upload section's progress bars count them
-unchanged.
+unchanged. No preview thumbnail is written for this type, so the tile that draws one shows the photo
+itself: the fallback of `ai/picking.md` §8, which is what this type did before the pack's run started
+writing them.
 
 ## 7. The block
 

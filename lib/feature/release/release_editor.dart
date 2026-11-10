@@ -379,6 +379,7 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
         controller: PhotosetController(
           release: widget.release,
           scanner: context.read<PhotosetScanner>(),
+          ffmpeg: context.read<Ffmpeg>(),
           store: context.read<ImagesStore>(),
           releaseStore: context.read<ReleaseStore>(),
           tabManager: context.read<TabManager>(),

@@ -199,6 +199,11 @@ Implemented. The rule is `ai/picking.md`; the seam defined here is what the code
 - A selector takes the scanned items and a rule and returns the photos it picks.
 - The picked photos are copied into the release, mirroring the structure the user picked
   (`ai/release_structure.md` §4), and recorded as `kind: photo`.
+- Each photo the run copies gets a preview thumbnail beside it, capped at 800 px on the biggest side
+  and not recorded: its name is derived from the photo's, as the video thumbnail's is
+  (`ai/picking.md` §8), so there is no record for the Upload section to send. This is the only type
+  that writes them, and the tile draws the thumbnail when its file is on disk and the photo when it
+  is not.
 - The section shows them in place of the screenshots as one grid of tiles, where each tile names the
   set its photo is from as well as its file name, because nothing groups them (`ai/picking.md` §7).
 - For a pack that grid is split by kind: the portraits in the columns of the portrait width,
@@ -262,12 +267,18 @@ Done:
    rule 12 in `ai/doc.md` now lists `archive` as the package used for reading archives and for
    nothing else. The display-name collision report comes with it, since with directories only it
    cannot happen.
+10. The preview thumbnails of §6: the name rule, the cap and the skip in the controller, the tool
+    call in the copy loop, the tile drawing the thumbnail when its file is there, and the cache
+    eviction for both paths (`AGENTS.md` §5). The tests are the name rule, what a run writes and
+    skips, a tool that is not installed, a call that fails, and the tile resolving to the thumbnail
+    or to the photo (`test/photosets_test.dart`). The other two types that show these tiles take
+    the fallback path, because nothing is generated for them.
 
 Left:
 
-10. `message_controller.dart` — iteration and the grouping rule.
-11. `template_renderer.dart` — iteration over a list.
-12. The per-item forms in the editor (`ai/release_structure.md` §7 item 11).
+11. `message_controller.dart` — iteration and the grouping rule.
+12. `template_renderer.dart` — iteration over a list.
+13. The per-item forms in the editor (`ai/release_structure.md` §7 item 11).
 
 ## 9. Open questions
 

@@ -314,8 +314,12 @@ What is left unfinished is not a compile error but missing behaviour:
   set together, grouped by kind — the portraits in the columns of the portrait width and the
   landscapes in the columns of the landscape width, never mixed, with the counts deciding how many
   columns each kind gets (`ai/picking.md` §7) — so within a kind the order is the order the source
-  gives and across the grid it is not. Each tile says which set its photo is from as well as its file
-  name. Nothing is shown before the scan, because opening a release is a read and changes nothing, and
+  gives and across the grid it is not. Each tile says which set its photo is from as well as its
+  file name, and draws the run's preview thumbnail for that photo when its file is on disk and the
+  photo itself when it is not (`ai/picking.md` §8): the pick run writes one beside each photo it
+  copies, capped at 800 px on the biggest side, skipped for a photo already within the cap, and
+  recorded nowhere, so the Upload section has nothing to send for it. Nothing is shown before the
+  scan, because opening a release is a read and changes nothing, and
   nothing is drawn for a set before a pick, because the feature shows what is on disk. A set the scan
   found is named by its line in the block even when nothing was picked for it, because the list is what
   the scan found: after a run that line can say 0 for a set the scan could not read, or for one the
@@ -1199,14 +1203,19 @@ lib/
                                  records an item as the scan reads it and reports a photo as it copies
                                  it (`ScanProgress` from the service, `CopyProgress` here, shared with
                                  the Image folder controller); the count is what the run wrote, so a
-                                 photo it could not write does not move it (`ai/picking.md` §7)
+                                 photo it could not write does not move it (`ai/picking.md` §7). For
+                                 a pack the run also writes a preview thumbnail beside each photo it
+                                 copies, and the name rule, the 800 px cap, the skip for a photo
+                                 already within it, and the path a tile resolves when that file is on
+                                 disk and the photo when it is not are here (`ai/picking.md` §8)
       photoset_group.dart      PhotosetState: the controller and the generation the two widgets
                                that show a photoset read. For a pack the run and the pictures are
                                two grid cells, so neither widget can own them and the generation
                                cannot be one widget's counter (`AGENTS.md` §5); the editor, which
                                places both, holds it. What a run wrote is recorded here as the run
-                               reports it, so the cache is emptied for the path it wrote and the
-                               generation moves at that moment rather than at the end of the run;
+                               reports it, so the cache is emptied for the photo and for its
+                               thumbnail, and the generation moves at that moment rather than at the
+                               end of the run;
                                the records are cleared when the run ends, because from then on the
                                manifest is what the two widgets read
                                (`ai/picking.md` §7). Also the strings resolved per type,
@@ -1216,8 +1225,10 @@ lib/
                                lays it out, the line naming it, the row naming the two columns
                                of the list, which is null for the type that has no list as the
                                header naming it is, the padding inside a row of the list, the
-                               tile,
-                               the one grid shape, and the four numbers the grid is built from:
+                               tile — which draws the run's thumbnail when its file is on disk and
+                               the photo when it is not, while the key it is placed by and the name
+                               under it stay the photo's (`ai/picking.md` §8) — the one grid shape,
+                               and the four numbers the grid is built from:
                                the width a portrait's column is, the width a landscape's is —
                                which is the number of columns a landscape spans — the widest the
                                block's column is, and the widest a column of the pack's grid may
@@ -3204,7 +3215,11 @@ the popup's answer: a dismissed popup is not an agreement, so Cancel runs nothin
 the photos the rule picked into the release under the display name — the release folder mirrors the
 structure the user picked for the images that are copied into it — and records them as `kind: photo`
 with `item` set to the set's path, replacing the photo records this run writes while the poster and
-the records of other kinds are kept. The picked photos are one grid, in the order the source gives the
+the records of other kinds are kept. For a pack the run also writes a preview thumbnail beside each
+photo it copies — a JPEG copy capped at 800 px on the biggest side, skipped for a photo already
+within it, named from the photo, and recorded nowhere, so nothing about it is uploaded
+(`ai/picking.md` §8) — and a tile draws that file when it is on disk and the photo when it is not.
+The picked photos are one grid, in the order the source gives the
 sets and, within a set, the order it gives the photos; the message still groups them by set
 (`ai/photoset_pack.md` §7), because that is a list rather than a grid, and a tile says which set its
 photo is from because nothing else does. The grid is as many columns of `photosetColumnWidth` as fit

@@ -476,10 +476,10 @@ So the exit code is enough for a create, unlike mtn's, but not for a modify.
 
 # ffmpeg and ffprobe
 
-The app calls ffmpeg for the video thumbnail, the poster image and the
-screenshots, and ffprobe for a file's metadata. The Windows build is committed;
-on the other platforms these are the user's tools, and nothing in the build step
-installs them.
+The app calls ffmpeg for the video thumbnail, the poster image, the screenshots, and the
+preview thumbnails a photoset pack's pick run writes, and ffprobe for a file's
+metadata. The Windows build is committed; on the other platforms these are the user's
+tools, and nothing in the build step installs them.
 
 ## Resolution
 

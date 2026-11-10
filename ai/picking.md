@@ -1,10 +1,10 @@
 # Picking photos from a pack
 
 **Implemented.** The rule is `lib/service/photosets/photoset_picker.dart`; the writing is the
-photosets controller and the showing is the block and the photo area (§7). `ai/photoset_pack.md` §6
-is the seam this fills, and the places in `ai/doc.md` that describe the feature — §2, the two
-inventory entries in §3, the runtime flow in §5, and the key list in §6 — were updated in the same
-change, as the project rule requires.
+photosets controller and the showing is the block and the photo area (§7), with the preview
+thumbnails the pack's run writes (§8). `ai/photoset_pack.md` §6 is the seam this fills, and the
+places in `ai/doc.md` that describe the feature — §2, the two inventory entries in §3, the runtime
+flow in §5, and the key list in §6 — were updated in the same change, as the project rule requires.
 
 ## 1. How many
 
@@ -351,7 +351,14 @@ the window, so it is not taken.
 - A grid needs each photo's ratio before it draws, so the layout reads the header — the same reader
   the scan uses, read synchronously for the same reason `ImagesStore.loadSync` exists: a widget lays
   out while it builds. A photo whose header cannot be read takes a square tile and is reported as
-  the scan reports what it cannot take.
+  the scan reports what it cannot take. The ratio is read from the photo, not from the thumbnail
+  (§8), so a tile is the same box whether or not a thumbnail exists; the thumbnail keeps the
+  proportions, so nothing is cropped either way.
+
+- A tile draws the thumbnail the run wrote for its photo when that file is on disk, and the photo
+  itself when it is not (§8). The tile is the photo's: the key it is placed by and the name under
+  it are the photo's, because the tile is the record and the thumbnail is only how the record is
+  drawn.
 
 - The assignment is a pure function, so it is tested on its own: each photo goes to the columns that
   are highest up when it is placed, ties to the lower index, and the order is the order the source
@@ -440,3 +447,48 @@ is is not something the block knows.
 
 - The picked photos are `kind: photo` records with `item` set to the set's path, so the Upload
   section's progress bars count them unchanged.
+
+## 8. Preview thumbnails
+
+The grid shows what is on disk, so a tile for a large photo decodes the whole file before it is
+drawn at the width of a column. For a pack with dozens of high-res photos that is what makes the
+area slow to build. The run therefore writes a small copy of each photo it copies, next to it, and
+the tile draws that copy. Nothing here is a new kind of state: the tile still reads what is on disk.
+
+- Only the pack writes them, for now. A single photoset and an image folder show the same tiles, so
+  they take the fallback path, which is what they do today.
+- The file lives in the same folder as the photo it is a copy of. Its name is `_rp_thumb_` followed
+  by the photo's own name with the extension `.jpg`, and the extension is not added to a name that
+  is already a JPEG: `001.jpg` gives `_rp_thumb_001.jpg` and `001.png` gives
+  `_rp_thumb_001.png.jpg`. Keeping the whole name is what makes the names unique — two photos in one
+  set cannot reach the same thumbnail.
+- The biggest side is capped at 800 px, through `Ffmpeg.resizeImage`, which keeps the proportions.
+  A photo already within the cap is not written, because the tool would write the same picture
+  again and the only thing gained would be a process. A photo whose header cannot be read has no
+  dimensions, so the rule cannot know whether it is within the cap and writes one for it: the rule
+  skips what it can know, never what it guesses.
+- The cost is one tool call per photo above the cap — the same kind of cost the header reader exists
+  to avoid (§4). It is paid once, while the run copies, and what it buys is a tile that decodes an
+  800 px file instead of the whole photo every time the area builds. A run of photos already within
+  the cap pays nothing, which is why the skip is part of the rule rather than an optimisation left
+  out.
+- Nothing is recorded in `images.json`. The path is derived from the photo, as the video thumbnail's
+  is (`ai/doc.md` §2), and that is what makes a thumbnail never uploaded: the Upload section sends
+  records, and there is no record for a thumbnail. The message, the counts and the order of the
+  manifest are unchanged.
+- A thumbnail is written from the file the run copied into the release, not from the file in the
+  source, because the source may be gone later and the release folder is what the tile reads.
+- A missing thumbnail is not an empty tile and not something the user is told about: the tile draws
+  the photo. A tool that is not installed, or a call that fails, does not stop the run, because a
+  thumbnail is an optimisation rather than a file the post uses. The progress row still counts
+  photos, not files written, and a photo whose thumbnail failed still counts as copied.
+- A run rewrites a thumbnail under the same name, so `AGENTS.md` §5 applies to it as it does to the
+  photo: the cache is emptied for the thumbnail path too, and the picture is keyed with the
+  generation so it resolves against the empty cache.
+
+The name rule, the cap, the skip, and the derived path are in `PhotosetController`; drawing the
+thumbnail is in `photoset_group.dart`. What the tests cover is the name rule, a run that writes and
+a run that skips, a run whose tool is not installed, a call that fails, the tile resolving to the
+thumbnail when that file is there and to the photo when it is not, and a tile re-resolving a
+rewritten thumbnail (`test/photosets_test.dart`).
+
