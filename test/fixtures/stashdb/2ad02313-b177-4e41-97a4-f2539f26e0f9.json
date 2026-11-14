@@ -1,0 +1,67 @@
+{
+  "expected": {
+    "subsite": "ParodyPass.com",
+    "site": "NewSensations.com"
+  },
+  "response": {
+    "data": {
+      "findScene": {
+        "studio": {
+          "name": "Parody Pass",
+          "urls": [
+            {
+              "url": "https://network.newsensations.com/tour_pp/",
+              "site": {
+                "name": "Home",
+                "category": {
+                  "name": "Primary sources"
+                }
+              }
+            },
+            {
+              "url": "https://parodypass.com/",
+              "site": {
+                "name": "Home",
+                "category": {
+                  "name": "Primary sources"
+                }
+              }
+            }
+          ],
+          "parent": {
+            "name": "New Sensations",
+            "urls": [
+              {
+                "url": "https://theporndb.net/sites/newsensations",
+                "site": {
+                  "name": "ThePornDB",
+                  "category": {
+                    "name": "Other stash-boxes"
+                  }
+                }
+              },
+              {
+                "url": "https://www.newsensations.com/",
+                "site": {
+                  "name": "Home",
+                  "category": {
+                    "name": "Primary sources"
+                  }
+                }
+              },
+              {
+                "url": "https://www.wikidata.org/wiki/Q3003832",
+                "site": {
+                  "name": "Wikidata",
+                  "category": {
+                    "name": "Third-party databases"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "expected": {
+    "subsite": "MyDirtyMaid.net",
+    "site": "BangBros.com"
+  },
+  "response": {
+    "data": {
+      "findScene": {
+        "studio": {
+          "name": "My Dirty Maid",
+          "urls": [
+            {
+              "url": "http://mydirtymaid.net/",
+              "site": {
+                "name": "Home",
+                "category": {
+                  "name": "Primary sources"
+                }
+              }
+            },
+            {
+              "url": "https://www.indexxx.com/websites/5283/mydirtymaid.com/",
+              "site": {
+                "name": "Indexxx",
+                "category": {
+                  "name": "Third-party databases"
+                }
+              }
+            }
+          ],
+          "parent": {
+            "name": "BangBros",
+            "urls": [
+              {
+                "url": "https://bangbros.com/",
+                "site": {
+                  "name": "Home",
+                  "category": {
+                    "name": "Primary sources"
+                  }
+                }
+              },
+              {
+                "url": "https://www.wikidata.org/wiki/Q806473",
+                "site": {
+                  "name": "Wikidata",
+                  "category": {
+                    "name": "Third-party databases"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

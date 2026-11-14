@@ -37,8 +37,8 @@ query($id: ID!) {
     production_date
     studio {
       name
-      urls { url site { category { name } } }
-      parent { name urls { url site { category { name } } } }
+      urls { url site { name category { name } } }
+      parent { name urls { url site { name category { name } } } }
     }
     tags { name }
     performers { as performer { name } }

@@ -1,0 +1,72 @@
+{
+  "expected": {
+    "subsite": "SINematica.com",
+    "site": ""
+  },
+  "response": {
+    "data": {
+      "findScene": {
+        "studio": {
+          "name": "SINematica",
+          "urls": [
+            {
+              "url": "https://twitter.com/sinematicabrand",
+              "site": {
+                "name": "Twitter",
+                "category": {
+                  "name": "Social media"
+                }
+              }
+            },
+            {
+              "url": "https://www.data18.com/studios/sinematica",
+              "site": {
+                "name": "DATA18",
+                "category": {
+                  "name": "Third-party databases"
+                }
+              }
+            },
+            {
+              "url": "https://www.iafd.com/studio.rme/studio=11993/sinematica.com.htm",
+              "site": {
+                "name": "IAFD",
+                "category": {
+                  "name": "Third-party databases"
+                }
+              }
+            },
+            {
+              "url": "https://www.indexxx.com/websites/11195/sinematica.com/",
+              "site": {
+                "name": "Indexxx",
+                "category": {
+                  "name": "Third-party databases"
+                }
+              }
+            },
+            {
+              "url": "https://www.instagram.com/sinematica_brand",
+              "site": {
+                "name": "Instagram",
+                "category": {
+                  "name": "Social media"
+                }
+              }
+            },
+            {
+              "url": "https://www.sinematica.com/",
+              "site": {
+                "name": "Home",
+                "category": {
+                  "name": "Primary sources"
+                }
+              }
+            }
+          ],
+          "parent": null
+        }
+      }
+    }
+  }
+}

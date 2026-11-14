@@ -429,36 +429,47 @@ void main() {
 
   // A studio's URL list is not only its own site: it can hold links to other
   // databases, and those are often listed first, so the first URL is not the
-  // site the studio is on. The URL in the Primary sources category is the site,
-  // so it is the one the domain is read from, whatever its place in the list
-  // is.
-  test(
-    'the domain is read from the URL in the Primary sources category',
-    () async {
-      final controller = stashController(_FakeClient(null));
+  // site the studio is on. The URLs in the Primary sources category are the
+  // candidates. Within them the one whose host is named for the studio is its
+  // own site, because a studio with a parent can have a URL in that category
+  // that is the parent's page, and the order does not say which is which. When
+  // nothing in the category is named for the studio, the order is what decides.
+  test('the URL in the Primary sources category is read, and within it the one named for the studio', () async {
+    final controller = stashController(_FakeClient(null));
 
-      expect(
-        (await controller.fieldValues(
-          scene(
-            studio: studioWith('MILFSoup', [
-              urlWith('https://iafd.com/name', site: 'IAFD', category: 'Other'),
-              urlWith(
-                'https://www.milfsoup.com',
-                site: 'MILFSoup',
-                category: 'Primary sources',
-              ),
-              urlWith(
-                'https://www.bangbros.com',
-                site: 'BangBros',
-                category: 'Primary sources',
-              ),
-            ]),
-          ),
-        ))['subsiteAndSite'],
-        'MILFSoup.com',
-      );
-    },
-  );
+    expect(
+      (await controller.fieldValues(
+        scene(
+          studio: studioWith('MILFSoup', [
+            urlWith('https://iafd.com/name', site: 'IAFD', category: 'Other'),
+            urlWith(
+              'https://network.example.com/tour',
+              category: 'Primary sources',
+            ),
+            urlWith('https://www.milfsoup.com', category: 'Primary sources'),
+          ]),
+        ),
+      ))['subsiteAndSite'],
+      'MILFSoup.com',
+    );
+
+    // The name is not the same word as either host, so nothing is named for the
+    // studio and the first URL in the category is what is read.
+    expect(
+      (await controller.fieldValues(
+        scene(
+          studio: studioWith('Example Studio', [
+            urlWith(
+              'https://network.example.com/tour',
+              category: 'Primary sources',
+            ),
+            urlWith('https://example-studio.com', category: 'Primary sources'),
+          ]),
+        ),
+      ))['subsiteAndSite'],
+      'network.example.com',
+    );
+  });
 
   // When no URL is in that category, the one recorded under the site named
   // Studio is what is tried next, because that is the site a studio URL is
@@ -520,6 +531,53 @@ void main() {
       ))['subsiteAndSite'],
       'example-studio.com',
     );
+  });
+
+  // The real cases, one file per case in `test/fixtures/stashdb/`: the response
+  // as StashDB gave it, trimmed to the fields the rule reads, with the values
+  // the case expects. The precondition is the files in the repository. The
+  // mapping is read from the asset the app ships, because a case whose domain is
+  // in the mapping is answered by the file rather than by the rule. A case that
+  // is the same shape as another is not kept twice, so these files are the set.
+  test('a real case gives the values it is expected to give', () async {
+    final files =
+        Directory('test/fixtures/stashdb').listSync().whereType<File>().toList()
+          ..sort((a, b) => a.path.compareTo(b.path));
+
+    expect(files, isNotEmpty);
+
+    final mapping = jsonDecode(File(DomainMap.assetPath).readAsStringSync());
+
+    final controller = stashController(
+      _FakeClient(null),
+      domains: {
+        for (final entry in (mapping as Map<String, dynamic>).entries)
+          entry.key: entry.value as String,
+      },
+    );
+
+    // Keyed by the file, so a failure names the case it is about.
+    final got = <String, Map<String, String>>{};
+    final want = <String, Map<String, String>>{};
+
+    for (final file in files) {
+      final fixture = jsonDecode(file.readAsStringSync());
+      final result = StashClient.parseResponse(fixture['response']);
+
+      expect(result, isA<StashSceneSuccess>());
+
+      final expected = (fixture['expected'] as Map).cast<String, String>();
+      final subsite = expected['subsite'] ?? '';
+      final site = expected['site'] ?? '';
+      final joined = site.isEmpty ? subsite : '$subsite / $site';
+
+      got[file.path] = await controller.fieldValues(
+        (result as StashSceneSuccess).scene,
+      );
+      want[file.path] = {'subsiteAndSite': joined};
+    }
+
+    expect(got, want);
   });
 
   // The site number is a field of its own, so a title that contains it says the

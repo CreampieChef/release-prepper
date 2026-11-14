@@ -1,0 +1,143 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>stash-db-import</title>
+<style>
+  body { font: 14px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 46rem; }
+  h1 { font-size: 1.2rem; }
+  p.note { color: #555; }
+  label { display: block; margin: 0.6rem 0 0.2rem; font-weight: 600; }
+  input { width: 100%; padding: 0.4rem; font: inherit; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  button { margin-top: 1rem; padding: 0.5rem 0.9rem; font: inherit; }
+  #cases { margin-top: 1.5rem; border-top: 1px solid #ddd; padding-top: 1rem; }
+  .case { border: 1px solid #ddd; padding: 0.6rem; margin-bottom: 0.6rem; }
+  .case h2 { font-size: 1rem; margin: 0 0 0.4rem; }
+  .case code { font-family: ui-monospace, monospace; word-break: break-all; }
+  .diff { color: #b3261e; font-weight: 600; }
+  .same { color: #1c6b2a; }
+  ul.cases { margin: 0.5rem 0 0; padding-left: 1.2rem; }
+</style>
+
+<h1>stash-db-import</h1>
+
+<p class="note">
+  Records one scene's response as test data, with the values it should produce.
+  A part StashDB does not report is left as nothing here, so a case with no studio
+  or no URL is a case as the app sees it. The key is not recorded.
+</p>
+
+<form id="form">
+  <label for="apiKey">StashDB API key</label>
+  <input id="apiKey" name="apiKey" autocomplete="off">
+
+  <label for="sceneUrl">Scene URL or scene ID</label>
+  <input id="sceneUrl" name="sceneUrl" autocomplete="off"
+         placeholder="https://stashdb.org/scenes/&lt;uuid&gt;">
+
+  <div class="pair">
+    <div>
+      <label for="expectedSubsite">Expected subsite</label>
+      <input id="expectedSubsite" name="expectedSubsite" autocomplete="off">
+    </div>
+    <div>
+      <label for="expectedSite">Expected site</label>
+      <input id="expectedSite" name="expectedSite" autocomplete="off">
+    </div>
+  </div>
+
+  <label>
+    <input type="checkbox" id="overwrite" name="overwrite" style="width: auto">
+    Write again if this scene is already recorded
+  </label>
+
+  <button type="submit">Create test data</button>
+</form>
+
+<div id="status" aria-live="polite"></div>
+<div id="cases"></div>
+
+<script>
+  const form = document.getElementById("form");
+  const status = document.getElementById("status");
+  const cases = document.getElementById("cases");
+
+  // The names the page shows are the app's field names, so a case read back from a
+  // file says the same thing here as it does in the form.
+  const joined = (subsite, site) => (site ? `${subsite} / ${site}` : subsite);
+
+  function line(label, expected, current) {
+    const same = expected === current;
+    const row = document.createElement("div");
+    row.innerHTML = `<strong>${label}</strong>: ` +
+      `<code>${expected || "—"}</code> · got <code>${current || "—"}</code>`;
+    row.className = same ? "same" : "diff";
+    return row;
+  }
+
+  function show(result) {
+    const caseDiv = document.createElement("div");
+    caseDiv.className = "case";
+
+    const title = document.createElement("h2");
+    title.textContent = result.record.exists
+      ? `${result.record.id} — already there, not written`
+      : `${result.record.id} — recorded`;
+    caseDiv.appendChild(title);
+
+    const file = document.createElement("div");
+    file.innerHTML = `<a href="/captured/${result.record.id}.json">${result.record.file}</a>`;
+    caseDiv.appendChild(file);
+
+    const current = result.record.current || { subsite: "", site: "" };
+
+    caseDiv.appendChild(line("subsite", result.expected.subsite, current.subsite));
+    caseDiv.appendChild(line("site", result.expected.site, current.site));
+    caseDiv.appendChild(
+      line("the value the field gets", joined(result.expected.subsite, result.expected.site),
+           result.record.currentValue)
+    );
+
+    cases.prepend(caseDiv);
+  }
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const body = {
+      apiKey: form.apiKey.value,
+      sceneUrl: form.sceneUrl.value,
+      expectedSubsite: form.expectedSubsite.value,
+      expectedSite: form.expectedSite.value,
+      overwrite: document.getElementById("overwrite").checked,
+    };
+
+    status.textContent = "asking StashDB…";
+
+    let response;
+
+    try {
+      response = await fetch("/capture", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch (error) {
+      status.textContent = `request failed: ${error.message}`;
+      return;
+    }
+
+    const result = await response.json();
+
+    if (result.error) {
+      status.textContent = result.error;
+      return;
+    }
+
+    status.textContent = "";
+    show(result);
+
+    if (result.record.exists) {
+      status.textContent = `${result.record.file} is already there; it was not changed.`;
+    }
+  });
+</script>

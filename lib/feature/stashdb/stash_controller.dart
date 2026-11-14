@@ -352,28 +352,33 @@ class StashController {
     if (mapped != null) return mapped;
 
     final host = source.host;
-    final dot = host.indexOf('.');
+    final label = _label(host);
 
-    if (dot <= 0) return host;
+    if (label == host) return host;
 
-    final label = host.substring(0, dot);
-    final tld = host.substring(dot);
+    final rest = host.substring(label.length);
 
-    final name = studio.name.replaceAll(' ', '');
-
-    return name.toLowerCase() == label ? '$name$tld' : '$label$tld';
+    return _word(studio.name) == label
+        ? '${studio.name.replaceAll(' ', '')}$rest'
+        : host;
   }
 
   /// The URL the domain is read from, with its host, or null when the studio
   /// has no URL with a host. A URL with no host is not a domain, so it is not a
   /// candidate at any step. The first URL is not the site the studio is on when
-  /// the list has links to other databases in it, and it often does, so the URL
-  /// in the Primary sources category is the one the domain is read from. When
-  /// none is in that category, the URL recorded under the site named Studio is
-  /// what is tried next; when there is neither, the first URL with a host is
-  /// what is read, as before.
+  /// the list has links to other databases in it, and it often does, so the
+  /// URLs in the Primary sources category are the candidates, and one of them
+  /// is what is read: the one whose host is named for the studio, because a
+  /// studio with a parent can have a URL in that category that is the parent's
+  /// page rather than its own site, and the order the response lists them in
+  /// does not say which is which. When none of them is named for the studio,
+  /// the first is what is read. When no URL is in that category, the URL
+  /// recorded under the site named Studio is what is tried next; when there is
+  /// neither, the first URL with a host is what is read, as before.
   ({StashUrl url, String host})? _source(StashStudio studio) {
     ({StashUrl url, String host})? first;
+    ({StashUrl url, String host})? primary;
+    ({StashUrl url, String host})? named;
     ({StashUrl url, String host})? site;
 
     for (final url in studio.urls) {
@@ -387,11 +392,31 @@ class StashController {
 
       if (url.siteName == studioSiteName) site ??= candidate;
 
-      if (url.categoryName == primarySourceCategory) return candidate;
+      if (url.categoryName == primarySourceCategory) {
+        primary ??= candidate;
+
+        if (named == null && _word(studio.name) == _label(host)) {
+          named = candidate;
+        }
+      }
     }
 
-    return site ?? first;
+    return named ?? primary ?? site ?? first;
   }
+
+  /// The part of a host a studio name is compared with: its first label, or the
+  /// whole host when there is no dot to split it at.
+  String _label(String host) {
+    final dot = host.indexOf('.');
+
+    return dot <= 0 ? host : host.substring(0, dot);
+  }
+
+  /// The studio name as the word that comparison is made with: one word,
+  /// lowercase. Choosing the URL and writing the domain use the same
+  /// comparison, so they cannot disagree about which host a name is the same
+  /// word as.
+  String _word(String name) => name.replaceAll(' ', '').toLowerCase();
 
   /// The host of one URL, without `www.`. A value with no scheme is read as a
   /// host, because StashDB stores URLs as text and one without a scheme is
@@ -411,8 +436,8 @@ class StashController {
 
 /// One value the import changed rather than copied: the field it is for, what
 /// was done to it, and the value as the scene reported it as its parts. The
-/// popup lists these under "Import notes", with the cut parts struck through, so
-/// what the app writes is not shown as if it were what StashDB reported.
+/// popup lists these under "Import notes", with the cut parts struck through,
+/// so what the app writes is not shown as if it were what StashDB reported.
 class ImportNote {
   const ImportNote({
     required this.field,

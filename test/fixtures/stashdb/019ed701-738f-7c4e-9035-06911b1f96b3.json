@@ -1,0 +1,36 @@
+{
+  "expected": {
+    "subsite": "JacquieEtMichelTV.net",
+    "site": ""
+  },
+  "response": {
+    "data": {
+      "findScene": {
+        "studio": {
+          "name": "Jacquie & Michel TV",
+          "urls": [
+            {
+              "url": "https://www.iafd.com/distrib.rme/distrib=8091/jacquieetmicheltv.net.htm",
+              "site": {
+                "name": "IAFD",
+                "category": {
+                  "name": "Third-party databases"
+                }
+              }
+            },
+            {
+              "url": "https://www.jacquieetmicheltv.net/en/",
+              "site": {
+                "name": "Home",
+                "category": {
+                  "name": "Primary sources"
+                }
+              }
+            }
+          ],
+          "parent": null
+        }
+      }
+    }
+  }
+}
