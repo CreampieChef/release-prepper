@@ -69,10 +69,13 @@ void main() {
   /// that reaches nothing; the preview tests below give the controller a fake
   /// they can look at. The domain map answers from a map rather than from the
   /// asset on disk, so a test that is not about the mapping is not also about
-  /// the file.
+  /// the file. The field list is the single video's, because that is the type
+  /// the mapping is described for; a test about which names another type has
+  /// passes its list instead.
   StashController stashController(
     StashClient client, {
     Map<String, String> domains = const {},
+    FieldList fieldList = singleVideoFieldList,
   }) => StashController(
     client: client,
     downloader: _FakeDownloader(
@@ -81,6 +84,7 @@ void main() {
     domainMap: DomainMap(
       bundle: _FakeBundle({DomainMap.assetPath: jsonEncode(domains)}),
     ),
+    fieldList: fieldList,
   );
 
   test(
@@ -164,6 +168,54 @@ void main() {
     expect(values['description'], 'Description text');
   });
 
+  // The same rules write the values for the single photoset under the names its
+  // own field list has: the site is one field there, so the two parts are
+  // written into it as the same string, and the number is written nowhere,
+  // because the type has no field for it (`ai/single_photoset.md` §9).
+  test('the same values are written under the names the type has', () async {
+    final controller = stashController(
+      _FakeClient(null),
+      fieldList: singlePhotosetFieldList,
+    );
+
+    final values = await controller.fieldValues(
+      scene(
+        title: 'Example title 12345',
+        code: '12345',
+        details: 'Description text',
+        releaseDate: '2024-06-01',
+        studio: studioWith('MILFSoup', [
+          urlWith('https://www.milfsoup.com', category: 'Primary sources'),
+        ]),
+        parentStudio: studioWith('BangBros', [
+          urlWith('https://www.bangbros.com', category: 'Primary sources'),
+        ]),
+        performers: const [StashAppearance(name: 'Real Name', alias: 'Alias')],
+        tags: const ['anal'],
+      ),
+    );
+
+    expect(values.keys, [
+      'siteOrJournal',
+      'cast',
+      'videoTitle',
+      'productionDate',
+      'genreTags',
+      'description',
+    ]);
+
+    expect(values['siteOrJournal'], 'MILFSoup.com / BangBros.com');
+
+    // The number is cut from the title for this type too, so a title that
+    // contains it is a value the import changed.
+    expect(values['videoTitle'], 'Example title');
+
+    expect(values['cast'], 'Alias');
+    expect(values['productionDate'], '2024-06-01');
+    expect(values['genreTags'], 'anal');
+    expect(values['description'], 'Description text');
+  });
+
   // StashDB has a production date only when someone entered one, so the release
   // date is the usual source and the production date is what is left when there
   // is no release date.
@@ -206,15 +258,52 @@ void main() {
   test(
     'the fields filled from the movie file are never filled from StashDB',
     () {
-      expect(
-        StashController.fillableFields.any(
-          (name) => singleVideoFieldList.field(name).filledByApp,
-        ),
-        isFalse,
-      );
-      expect(StashController.fillableFields, isNot(contains('additionalInfo')));
+      for (final fieldList in [singleVideoFieldList, singlePhotosetFieldList]) {
+        final controller = stashController(
+          _FakeClient(null),
+          fieldList: fieldList,
+        );
+
+        for (final name in controller.fillableFields()) {
+          expect(fieldList.field(name).filledByApp, isFalse, reason: name);
+        }
+
+        expect(controller.fillableFields(), isNot(contains('additionalInfo')));
+      }
     },
   );
+
+  // Which names the section offers is the field list of the type, not a list
+  // the controller holds: the site is the same value written under the name the
+  // type has, and a value the type has no field for is not offered for it. The
+  // order is the order the type's field list lists them, which is the order the
+  // popup shows them in (`ai/single_photoset.md` §9).
+  test('the values offered are the names the type has a field for', () {
+    expect(stashController(_FakeClient(null)).fillableFields(), [
+      'cast',
+      'videoTitle',
+      'siteNumber',
+      'subsiteAndSite',
+      'productionDate',
+      'genreTags',
+      'description',
+    ]);
+
+    expect(
+      stashController(
+        _FakeClient(null),
+        fieldList: singlePhotosetFieldList,
+      ).fillableFields(),
+      [
+        'siteOrJournal',
+        'cast',
+        'videoTitle',
+        'productionDate',
+        'genreTags',
+        'description',
+      ],
+    );
+  });
 
   // The link is not a value the section offers with a checkbox: it is what the
   // user typed, and the section writes it through the same path. It is built
@@ -226,7 +315,7 @@ void main() {
       final controller = stashController(_FakeClient(null));
 
       expect(controller.sceneUrl(scene()), 'https://stashdb.org/scenes/$id');
-      expect(StashController.fillableFields, isNot(contains('sceneUrl')));
+      expect(controller.fillableFields(), isNot(contains('sceneUrl')));
     },
   );
 
@@ -590,6 +679,36 @@ void main() {
     );
   });
 
+  // A note names the field the value is written into, so for the single
+  // photoset it names the name that type's field list has rather than the
+  // single video's, and the notes are in the order that list lists the values —
+  // the site before the set name, which is the order the popup shows them in
+  // (`ai/single_photoset.md` §9).
+  test(
+    'a note names the field the type has, in the order that list lists them',
+    () {
+      final controller = stashController(
+        _FakeClient(null),
+        fieldList: singlePhotosetFieldList,
+      );
+
+      final notes = controller.changedValues(
+        scene(
+          title: 'Example title 12345',
+          code: '12345',
+          studio: studioWith('Example Studio', [
+            urlWith('https://example-studio.com'),
+          ]),
+        ),
+      );
+
+      expect(notes.map((note) => note.field).toList(), [
+        'siteOrJournal',
+        'videoTitle',
+      ]);
+    },
+  );
+
   // The poster is the first image the scene has, the same rule as images.json:
   // the first poster record is the primary one. It is not a field, so it is not
   // in fieldValues.
@@ -623,6 +742,7 @@ void main() {
         client: _FakeClient(null),
         downloader: downloader,
         domainMap: DomainMap(bundle: _FakeBundle({})),
+        fieldList: singleVideoFieldList,
       );
 
       await controller.downloadPoster(scene());
@@ -641,6 +761,7 @@ void main() {
         const DownloadFailure(DownloadFailureKind.failed),
       ),
       domainMap: DomainMap(bundle: _FakeBundle({})),
+      fieldList: singleVideoFieldList,
     );
 
     final path = controller.previewPath(scene());

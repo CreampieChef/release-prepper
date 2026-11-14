@@ -3559,7 +3559,10 @@ void main() {
   // The same two widgets as a pack, because nothing in the layout branches on
   // the type: the block that draws its rows, and the area that draws the
   // pictures. Only the words differ, and the block draws nothing below its rows
-  // for either type (`ai/single_photoset.md` §7, `ai/picking.md` §7).
+  // for either type (`ai/single_photoset.md` §7, `ai/picking.md` §7). The Stash
+  // row is drawn here, because this type's field list names the scene link the
+  // row is (`ai/single_photoset.md` §9), and the video sections are not,
+  // because there is no video to take a frame from.
   testWidgets(
     'a single photoset form shows the Photoset block and its photo area, not the video sections',
     (tester) async {
@@ -3568,7 +3571,8 @@ void main() {
 
       await openEditor(tester, testSinglePhotosetRelease('/tmp/x'));
 
-      expect(find.byKey(const ValueKey('stashSection')), findsNothing);
+      // The row this type's field list names, so the row is drawn.
+      expect(find.byKey(const ValueKey('stashSection')), findsOneWidget);
       expect(find.byKey(const ValueKey('photosetBlock')), findsOneWidget);
       expect(find.byKey(const ValueKey('photosetGallery')), findsOneWidget);
 
@@ -3581,6 +3585,29 @@ void main() {
       expect(find.text('Poster image'), findsOneWidget);
     },
   );
+
+  // The same placement as the single video form: the scene link row is the
+  // first row of the column this type's fields are in, under its poster box,
+  // because it is what the form is filled from (`ai/single_photoset.md` §9).
+  testWidgets('the scene row is the first row of the single photoset form', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    await openEditor(tester, testSinglePhotosetRelease('/tmp/x'));
+
+    final poster = tester.getRect(find.byType(AspectRatio).first);
+    final row = tester.getRect(find.byKey(const ValueKey('stashSection')));
+    final firstField = find.byKey(const ValueKey('siteOrJournal'));
+
+    // A row is as wide as the column it is in.
+    expect(row.width, closeTo(tester.getRect(firstField).width, 0.5));
+
+    expect(row.left, closeTo(poster.left, 0.5));
+    expect(row.top, greaterThan(poster.bottom));
+    expect(row.top, lessThan(tester.getRect(firstField).top));
+  });
 
   // A single set is a folder with photos in it, not a folder with sets in it,
   // so the source row says which one it is.

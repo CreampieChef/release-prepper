@@ -19,6 +19,12 @@ import 'stash_controller.dart';
 /// to fields. It resolves its dependencies from the provider scope and builds
 /// its own per-widget controller, as the other sections do.
 ///
+/// The row is drawn for the types whose field list names the scene link: the
+/// single video and the single photoset (`ai/single_photoset.md` §9). It takes
+/// the release type because the labels and the fields it can fill are per type,
+/// and it is the field list that says which names this type has, so the
+/// controller is given it here.
+///
 /// The row does not write fields itself: it hands the chosen values to the
 /// editor's single write path through `onApply`, so the tab becomes dirty and
 /// Ctrl+S saves them. The poster is not a field, so it goes through `onPoster`,
@@ -45,9 +51,8 @@ class StashSection extends StatefulWidget {
     super.key,
   });
 
-  /// The type the labels are resolved for, because `fieldLabel` needs it. This
-  /// row is part of the Single video form only, so the type it is given is that
-  /// one.
+  /// The type the labels and the fillable fields are resolved for, because
+  /// `fieldLabel` needs it and the field list says which names the type has.
   final ReleaseType releaseType;
 
   /// Writes the chosen values through the editor's single write path.
@@ -89,6 +94,7 @@ class _StashSectionState extends State<StashSection> {
       client: context.read<StashClient>(),
       downloader: context.read<ImageDownloader>(),
       domainMap: context.read<DomainMap>(),
+      fieldList: fieldListFor(widget.releaseType),
     );
     _input = TextEditingController(text: widget.initialUrl);
     _inputFocus = FocusNode();

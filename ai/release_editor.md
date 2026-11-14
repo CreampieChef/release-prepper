@@ -44,4 +44,6 @@ a value the file did not give. A part the probe does not report is left out
 rather than guessed, so a stream line may be shorter than the example above.
 
 The field list also names `sceneUrl`, which has no row of its own: the Stash
-section is the widget that shows and edits it.
+section is the widget that shows and edits it, and that widget is drawn for the
+types whose field list names the field — this one and the single photoset
+(`ai/single_photoset.md` §9).

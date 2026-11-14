@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import '../../service/network/image_downloader.dart';
 import '../../service/network/stash_client.dart';
 import '../../service/stashdb/domain_map.dart';
+import '../release/release_fields.dart';
 
 /// StashDB state for the editor: what the app asks for, and which form field
 /// each value goes into. It owns no `Listenable` (rule 3) and shows no messages
@@ -15,6 +16,7 @@ class StashController {
     required this.client,
     required this.downloader,
     required this.domainMap,
+    required this.fieldList,
   });
 
   final StashClient client;
@@ -31,20 +33,43 @@ class StashController {
   /// asset is read once rather than per field.
   final DomainMap domainMap;
 
-  /// The fields StashDB can fill, which are the values the section shows with a
-  /// checkbox. The ones the app fills from the movie file are not here, and
-  /// `additionalInfo` has no StashDB value at all. `sceneUrl` is not here
-  /// either: it is not a value the section offers, it is what the user typed,
-  /// and the section writes it through the same path. The order is the order
-  /// the section lists the values in.
-  static const fillableFields = <String>[
+  /// The field list of the type the section is filling, which is what says
+  /// which names exist for it (`ai/release_structure.md` §3). The controller is
+  /// not the place that knowledge is kept: it states which values a scene can
+  /// answer for, and the field list decides which of them this type has a field
+  /// for. The two site names are the same value written under different names,
+  /// so a type with no name for a value is given nothing for it rather than a
+  /// value for a field it does not have.
+  final FieldList fieldList;
+
+  /// The names a scene can answer for. Which of them the section shows with a
+  /// checkbox is `fillableFields`, and the order the section lists the values
+  /// in is the order the type's field list lists them. The two site names are
+  /// the same value written under different names: the field that says the
+  /// subsite and the site apart, and the single site field.
+  static const _sceneValues = <String>[
     'cast',
     'videoTitle',
     'siteNumber',
     'subsiteAndSite',
+    'siteOrJournal',
     'productionDate',
     'genreTags',
     'description',
+  ];
+
+  /// The fields the section can fill for this type: the names a scene can
+  /// answer for that this type's field list has. The fields the app fills from
+  /// the movie file are not among them, and `additionalInfo` has no StashDB
+  /// value at all. `sceneUrl` is not among them either: it is not a value the
+  /// section offers, it is what the user typed, and the section writes it
+  /// through the same path. For a single video this is the seven names it has;
+  /// for the single photoset the site is its own field and there is no site
+  /// number to offer, because that type has no field for one
+  /// (`ai/single_photoset.md` §9).
+  List<String> fillableFields() => [
+    for (final field in fieldList.fields)
+      if (_sceneValues.contains(field.name)) field.name,
   ];
 
   /// The category a studio's own site is in. A studio's URL list can hold links
@@ -145,8 +170,9 @@ class StashController {
     }
   }
 
-  /// The values for the form, in the order the section lists them. A field is
-  /// the value as the scene reported it, except where the import changes it,
+  /// The values for the form, in the order the type's field list lists them, so
+  /// a value for a name the type does not have is not offered for it. A field
+  /// is the value as the scene reported it, except where the import changes it,
   /// which is what `changedValues()` describes. A field StashDB has nothing for
   /// is left out rather than written as an empty string, so the section shows
   /// only what it can actually fill.
@@ -167,11 +193,13 @@ class StashController {
       ].join(', '),
       'videoTitle' => _kept(_titleParts(scene)),
       'siteNumber' => scene.code,
-      // The field is "subsite and site", so the subsite comes first. StashDB's
-      // studio is the subsite when it has a parent, and the parent is the site.
-      // Both are written as their domain rather than as the name StashDB holds,
-      // and the two are separated by " / ".
-      'subsiteAndSite' =>
+      // The subsite is the studio when it has a parent, and the parent is the
+      // site, and both are written as their domain rather than as the name
+      // StashDB holds. The two names the types use for this value are the same
+      // value written under different names: the single video's field says both
+      // parts, separated by " / ", and the single photoset has one site field,
+      // so the same string is what goes into it (`ai/single_photoset.md` §9).
+      'subsiteAndSite' || 'siteOrJournal' =>
         scene.parentStudio.isEmpty
             ? _domain(scene.studio, domains)
             : '${_domain(scene.studio, domains)} / '
@@ -184,65 +212,83 @@ class StashController {
         scene.releaseDate.isEmpty ? scene.productionDate : scene.releaseDate,
       'genreTags' => scene.tags.join(', '),
       'description' => scene.details,
-      // The default is the fields the section does not offer: the ones the app
-      // fills from the movie file, `additionalInfo`, and the scene link, which
-      // is not a value the section offers — it is what the user typed, and
-      // `sceneUrl()` is what builds it.
+      // Reached only for a name a scene cannot answer for, which
+      // `fillableFields()` keeps out of the map.
       _ => '',
     };
 
     return {
-      for (final field in fillableFields)
+      for (final field in fillableFields())
         if (value(field).isNotEmpty) field: value(field),
     };
   }
 
-  /// What the import changed rather than copied, in the order the section lists
-  /// the values. A value it copied as the scene reported it is not here: the
-  /// popup shows what was done to a value, so the user can see that what the app
-  /// writes is not what StashDB reported.
+  /// What the import changed rather than copied, in the order the type's field
+  /// list lists the values — the order the popup lists them in. A value it
+  /// copied as the scene reported it is not here: the popup shows what was done
+  /// to a value, so the user can see that what the app writes is not what
+  /// StashDB reported. A field this type has no name for produces no note,
+  /// because there is no value for it to describe.
   List<ImportNote> changedValues(StashScene scene) {
-    final parts = _titleParts(scene);
     final notes = <ImportNote>[];
 
-    if (parts.any((part) => part.cut)) {
-      notes.add(
-        ImportNote(
-          field: 'videoTitle',
-          kind: ImportNoteKind.siteNumberStrippedFromTitle,
-          parts: parts,
-        ),
-      );
-    }
+    for (final field in fillableFields()) {
+      switch (field) {
+        case 'videoTitle':
+          final parts = _titleParts(scene);
 
-    // A domain read from a URL that is not in the Primary sources category is
-    // not what the rule would give, so the note shows the URL it was read from.
-    // The subsite is the first part of the field, so its note comes first, and
-    // a studio with no URL to read has no URL to show.
-    for (final studio in [scene.studio, scene.parentStudio]) {
-      final source = _source(studio);
+          if (parts.any((part) => part.cut)) {
+            notes.add(
+              ImportNote(
+                field: field,
+                kind: ImportNoteKind.siteNumberStrippedFromTitle,
+                parts: parts,
+              ),
+            );
+          }
 
-      if (source == null || source.url.categoryName == primarySourceCategory) {
-        continue;
+        case 'subsiteAndSite':
+        case 'siteOrJournal':
+          // A domain read from a URL that is not in the Primary sources
+          // category is not what the rule would give, so the note shows the URL
+          // it was read from, and names the field it is written into, which is
+          // the name this type has for it. The subsite is the first part of the
+          // value, so its note comes first, and a studio with no URL to read
+          // has no URL to show.
+          for (final studio in [scene.studio, scene.parentStudio]) {
+            final source = _source(studio);
+
+            if (source == null ||
+                source.url.categoryName == primarySourceCategory) {
+              continue;
+            }
+
+            notes.add(
+              ImportNote(
+                field: field,
+                kind: ImportNoteKind.domainFromOtherUrl,
+                parts: [ImportPart(text: source.url.url, cut: false)],
+              ),
+            );
+          }
+
+        default:
+          // A value the import copies as the scene reported it has nothing to
+          // note.
+          break;
       }
-
-      notes.add(
-        ImportNote(
-          field: 'subsiteAndSite',
-          kind: ImportNoteKind.domainFromOtherUrl,
-          parts: [ImportPart(text: source.url.url, cut: false)],
-        ),
-      );
     }
 
     return notes;
   }
 
-  /// The title as the parts the app keeps and the parts it cuts. The site number
-  /// is a field of its own, so a title that contains it says the same thing
-  /// twice, and every occurrence is cut. A number that is not in the title, or a
-  /// scene with no number, leaves the title as one kept part; an empty stretch of
-  /// text is not a part.
+  /// The title as the parts the app keeps and the parts it cuts. For the single
+  /// video the site number is a field of its own, so a title that contains it
+  /// says the same thing twice, and every occurrence is cut; for the single
+  /// photoset there is no field for the number, but the number is still cut,
+  /// because a set name is the title without it (`ai/single_photoset.md` §9). A
+  /// number that is not in the title, or a scene with no number, leaves the
+  /// title as one kept part; an empty stretch of text is not a part.
   List<ImportPart> _titleParts(StashScene scene) {
     final code = scene.code;
 

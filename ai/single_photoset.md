@@ -48,6 +48,16 @@ User-provided, at the release level:
 | `genreTags` | the tags — the existing name, reused |
 | `description` | the description — the existing name, reused |
 | `additionalInfo` | the additional information — the existing name, reused |
+| `sceneUrl` | the scene the set is from — the existing name, reused, and the name the Stash row writes (§9) |
+
+`additionalInfo` is on the list because the template reads it as an optional line, so the type has
+the field and the row the other types have (`ai/description_template.md` §Variables). A field with
+no row and no value would be stored but never written, which is why it was not on this list while
+no template read it.
+
+`sceneUrl` is on the list because the row the field has is drawn for this type too (§9). It has no
+row the form builds, as it has for a single video: its widget is the Stash row, and that is what
+writes it through the editor's write path (`ai/release_structure.md` §3).
 
 `additionalInfo` is on the list because the template reads it as an optional line, so the type has
 the field and the row the other types have (`ai/description_template.md` §Variables). A field with
@@ -106,9 +116,10 @@ reports the set's stats, and the sample is what the post shows, not what it meas
 
 The poster is not a field. It is the poster box every type has (`ai/doc.md` §5).
 
-The form has the first column the other types have: the user fields with the poster box above them. The
-derived values are not a second column of rows: they are the rows the Photosets block draws, as they are
-for the pack, so the form's second column is the block and what the row has left is the photo area
+The form has the first column the other types have: the user fields with the poster box above them, and
+the scene link row as its first row, as it is for a single video (§9). The derived values are not a
+second column of rows: they are the rows the Photosets block draws, as they are for the pack, so the
+form's second column is the block and what the row has left is the photo area
 (`ai/picking.md` §7). They are drawn in the order the field list gives them, so the count the pick wrote
 is the row after the count the scan took. Because the block is this type's second column, the Torrent
 section is at the end of it, below the block (`ai/torrents.md`). There is no second image box, because
@@ -121,8 +132,8 @@ titles itself and the area titles itself.
 type the words are *Model* and *Set name*, not *Cast* and *Video title*, so `fieldLabel` takes the
 release type and resolves those two per type. It is called by the editor's form, the Stash section and
 the Video pack section, so its signature took the type; what it returns for the other types does not
-change. The Stash section has no release to ask, so the type is passed to it — it is only ever rendered
-for a single video.
+change. The Stash section has no release to ask, so the type is passed to it; it is rendered for the two
+types whose field list names the scene link, a single video and a single photoset (§9).
 
 The same applies to the strings the Photosets block shows. "Photo packs" and "Pick the folder with the
 photosets" read wrong for one set, so the strings are resolved per type as
@@ -255,7 +266,52 @@ The block titles stay as they are: the code writes *Скриншоты*, and a p
 word. That is the decision `ai/description_template.md` §Open items names, and it is taken here as "no
 change".
 
-## 9. What changed in code
+## 9. The Stash row
+
+The row is drawn for this type as it is for a single video: the first row of the form's first
+column, under the poster box (`ai/release_editor.md`). It is the widget the `sceneUrl` field has, and
+the editor draws it for the types whose field list names that field, so the field list is what decides
+this rather than a check on the type. A pack has no row, because a pack is not one scene, and the video
+pack has the name in its per-item list, not in the form's.
+
+The values the popup offers are the names this type's field list has. `StashController` states which
+values a scene can answer for, and the field list says which of them this type has, so the same rule
+writes the value and the name it is written into is the type's:
+
+| What the popup offers | What it writes |
+| --- | --- |
+| the model | `cast` |
+| the set name | `videoTitle` |
+| the site | `siteOrJournal` |
+| the date | `productionDate` |
+| the tags | `genreTags` |
+| the description | `description` |
+
+The site is the value the single video's `subsiteAndSite` gets — the studio's domain, and the parent's
+after it when it has one, the two separated by " / " — written into this type's one site field. A value
+the type has no field for is not offered: there is no site number here, so nothing is written for it.
+The fields the app fills, and `additionalInfo`, are not values a scene answers for, as they are for the
+other type, and the poster goes through the poster path rather than the field path.
+
+The number is still cut from the title. For a single video the reason is that the number is a field of
+its own, so a title that contains it says the same thing twice; this type has no field for the number,
+and the number is still cut, because the set name is the title without it — so a title that contains the
+scene's code is a value the import changed, and the popup lists it under "Import notes". A note names
+the field the value is written into, so for this type it names `siteOrJournal` and the set name rather
+than the single video's names: the message is the same key, with the label this type's words resolve to
+(§4).
+
+The values are listed in the order the type's field list lists them, and that is the order the popup
+shows them in and the order its notes are in. For this type that is the site first, then the model, the
+set name, the date, the tags, the description — the same order the field list writes the values in,
+which is what the block's rows follow (§3). What a single video shows does not change, because its field
+list already listed the values in the order the popup showed them.
+
+The section takes the type for its labels and the field list for its names: the widget builds the field
+list for the type it is given and passes it to the controller, as the photoset controller is given one
+(`ai/release_structure.md` §3).
+
+## 10. What changed in code
 
 1. `release_type.dart` — the enum value, and the `releaseTypeLabel` arm.
 2. `release_fields.dart` — `singlePhotosetFieldList`, the `imageFormats` label, `hasField`, and
@@ -281,6 +337,17 @@ change".
 8. Tests: the form for the type, the scan with the source as the item, the formats field, the
    block's strings, the drawing that is the same as the pack's, the placement of the block and the photo
    area, and the title template of the type with the tracker's as the fallback.
+9. `release_fields.dart` — `sceneUrl` on this type's field list, with no row the form builds, because its
+   row is the Stash row's (§3, §9).
+10. `lib/feature/stashdb/` — `StashController` is given the field list, so the names it offers are the
+   ones this type has and an import note names the field a value is written into; the rules that write the
+   values are the same for both types, including the number being cut from the title (§9). The widget
+   builds the field list for the type it is given and passes it to the controller.
+11. `release_editor.dart` — the scene link row is drawn for the types whose field list names the field, so
+   the field list is what decides it here rather than a check on the type (§9).
+12. Tests for §9: the names offered per type, the values written under the names this type has, a note
+   naming the field this type has, the popup showing this type's words, and the row as the first row of
+   the form's first column.
 
 The picking rule does not change for this type, and its tests already cover a single set as a pack of
 one. The drawing is one implementation for both types, so nothing in it knows which type it is drawing:
@@ -288,7 +355,7 @@ the two widths, the split by kind and the cap on the share are the same here as 
 (`ai/picking.md` §7). What differs is what a tile says, because a grid with one set does not name the set
 on its tiles (§7).
 
-## 10. Open questions
+## 11. Open questions
 
 - Whether a photoset may contain subfolders — the same open question as for packs, and this type is
   where it is most likely to appear.

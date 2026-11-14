@@ -72,6 +72,7 @@ void main() {
     String initialUrl = '',
     ImageDownloader? downloader,
     AssetBundle? bundle,
+    ReleaseType releaseType = ReleaseType.singleVideo,
   }) async {
     tester.view.physicalSize = const Size(2000, 2000);
     tester.view.devicePixelRatio = 1.0;
@@ -98,7 +99,7 @@ void main() {
           home: Scaffold(
             body: SingleChildScrollView(
               child: StashSection(
-                releaseType: ReleaseType.singleVideo,
+                releaseType: releaseType,
                 onApply: (values) => applied.add(values),
                 onPoster: posters.add,
                 initialUrl: initialUrl,
@@ -176,6 +177,74 @@ void main() {
     // The key is the one the settings hold.
     expect(client.calls, [(id, 'the-key')]);
   });
+
+  // The row is drawn for the single photoset too, so what it offers there is
+  // the names that type's field list has, said with the words that type uses:
+  // the model is the same value as a cast, the set name the same value as a
+  // title, and the site is one field rather than a subsite and a site
+  // (`ai/single_photoset.md` §4, §9).
+  testWidgets(
+    'a single photoset offers the names its field list has, with its own words',
+    (tester) async {
+      final applied = <Map<String, String>>[];
+      final posters = <String>[];
+
+      await pumpSection(
+        tester,
+        _FakeClient(const StashSceneSuccess(scene)),
+        await settingsWith({'stashdb': 'the-key'}),
+        applied,
+        posters,
+        releaseType: ReleaseType.singlePhotoset,
+      );
+
+      await fetch(tester);
+
+      for (final name in [
+        'siteOrJournal',
+        'cast',
+        'videoTitle',
+        'productionDate',
+        'genreTags',
+        'description',
+      ]) {
+        expect(
+          find.byKey(ValueKey('stash-row-$name')),
+          findsOneWidget,
+          reason: name,
+        );
+      }
+
+      // A name this type has no field for is not something the popup can offer:
+      // there is no field to write the value into.
+      expect(find.byKey(const ValueKey('stash-row-siteNumber')), findsNothing);
+
+      // The labels are resolved per type, so these are the words this type
+      // uses.
+      for (final label in ['Site or journal', 'Model', 'Set name']) {
+        expect(find.text(label), findsOneWidget, reason: label);
+      }
+
+      await tester.tap(find.byKey(const ValueKey('stashApplyButton')));
+      await tester.pumpAndSettle();
+
+      // The values, in the order the type's field list lists them, and the
+      // link, which the row writes on its own.
+      expect(applied.single.keys.toList(), [
+        'siteOrJournal',
+        'cast',
+        'videoTitle',
+        'productionDate',
+        'genreTags',
+        'description',
+        'sceneUrl',
+      ]);
+
+      // The same value the single video's site field gets, written under the
+      // name this type has.
+      expect(applied.single['siteOrJournal'], 'example-studio.com');
+    },
+  );
 
   // The popup is the only place the values are chosen, so closing it without
   // applying writes nothing; fetching again is what shows them again.

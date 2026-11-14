@@ -728,8 +728,9 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
 
   /// The scene link field as the form shows it: the StashDB widget is the
   /// widget that field has, so its row is the row the form shows for it, and it
-  /// starts with what the release stores. A pack is not one scene, so no other
-  /// type has this row.
+  /// starts with what the release stores. It is drawn for the types whose field
+  /// list names the field; a pack is not one scene, so it has no row
+  /// (`ai/single_photoset.md` §9).
   Widget _stashRow(AppLocalizations l10n) {
     return StashSection(
       releaseType: _fieldList.releaseType,
@@ -1391,12 +1392,18 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
     final release = _controller.release;
     final fieldList = _fieldList;
 
-    // The Stash section and the video thumbnail belong to a release whose
-    // source is one file, so neither is part of a pack form: a pack is not one
-    // scene and has no single video to take a frame from. The poster belongs to
-    // the release rather than to an item, so every type has it
+    // The Stash row and the video thumbnail belong to a release whose source is
+    // one file, so neither is part of a pack form: a pack is not one scene and
+    // has no single video to take a frame from. The poster belongs to the
+    // release rather than to an item, so every type has it
     // (`ai/release_structure.md` §4, `ai/video_pack.md` §6).
     final isSingleVideo = fieldList.releaseType == ReleaseType.singleVideo;
+    // The row is drawn for the types whose field list names the scene link,
+    // because that widget is the row the field has — the single video and the
+    // single photoset (`ai/single_photoset.md` §9). The video pack has the name
+    // in its per-item list, so it has no row until that form exists
+    // (`ai/release_structure.md` §3).
+    final hasStashRow = fieldList.hasField('sceneUrl');
     // Both photoset types are the same feature: the block that lists what the
     // scan read, and the area that draws the pictures. Only the strings differ
     // (`ai/single_photoset.md` §4).
@@ -1492,7 +1499,7 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
                 // The scene link row is the first one, because it is what the
                 // form is filled from, and the poster box is the top of this
                 // column.
-                if (isSingleVideo) _stashRow(l10n),
+                if (hasStashRow) _stashRow(l10n),
                 for (final field in columns[0]) _fieldWidget(field, l10n),
               ],
               title: titles[0],

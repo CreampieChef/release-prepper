@@ -114,8 +114,8 @@ the Stash section and the message all hardcoded one type's names before it exist
 
 Two things follow from the editor becoming type-driven:
 
-- The Stash section is a video feature — a photoset is not a StashDB scene — so it is not shown
-  for this type.
+- The Stash section is not shown for this type: a pack is not one scene, so there is no scene link to
+  show. The single photoset does have the row, because one set is one scene (`ai/single_photoset.md` §9).
 - The Screenshots section is replaced by the picked-photos section, so the editor's section list
   and its image boxes are per release type. The thumbnail box is a video box, so a pack form has
   the poster box and no second box.

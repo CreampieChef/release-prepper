@@ -260,7 +260,10 @@ What is left unfinished is not a compile error but missing behaviour:
   show the rule as it stands, so an error goes away when the field is filled
   (`ai/description_template.md` §Validation).
 - The StashDB row is the first row of the form's left column, under the poster
-  box: the field for
+  box, for the types whose field list names the scene link field — a single
+  video and a single photoset (`ai/single_photoset.md` §9) — because the row is
+  the widget that field has, so the field list is what decides whether it is
+  drawn: the field for
   the scene URL or ID, with a Fetch button, as the other rows that have one have
   theirs. What a
   fetch gives is not shown in the form but in a popup: each value with a
@@ -310,17 +313,19 @@ What is left unfinished is not a compile error but missing behaviour:
   the framework gives back is whatever had focus before the popup, not the row's
   input. The save key reaches the editor from wherever the focus is, so this is
   not what the key depends on; it is what owning the input's focus means here.
-  The fields it can
-  fill are cast, video title, site number, subsite and site, production date,
-  tags and
-  description, and the poster. The six fields the app reads from the movie file
-  are not StashDB's
-  to fill, and additional information has no StashDB value at all. Cast is the
-  credit as the scene
-  shows it, the alias when the scene uses one; subsite and site is the domain of
-  the studio, and
-  the parent's after it when it has one, the two separated by " / ". The domain
-  is the host of the
+  The values it offers are the names the type's field list has, in the order
+  that list lists them, which is the order the popup shows them in and the order
+  its notes are in (`ai/single_photoset.md` §9). For a single video those are
+  cast, video title, site number, subsite and site, production date, tags and
+  description; for a single photoset the model, the set name, the site, the
+  date, the tags and the description — the same values, written under the names
+  that type has. The poster is offered for both. The fields the app fills are
+  not StashDB's to fill, and additional information has no StashDB value at all.
+  Cast is the credit as the scene shows it, the alias when the scene uses one;
+  subsite and site is the domain of the studio, and the parent's after it when
+  it has one, the two separated by " / ", and the same value is what a single
+  photoset's site field gets, because the two names are one value written under
+  the name the type has. The domain is the host of the
   URL the app reads the studio as being on, without `www.`: the URL recorded
   under a site in the
   "Primary sources" category, because a studio's URL list is not only its own
@@ -1648,7 +1653,9 @@ lib/
                                for a pack and at the end of the block's column
                                for a single set, because that column is the
                                block's (`ai/torrents.md`, `ai/picking.md` §7) —
-                               the Stash row and the Screenshots section are
+                               the Stash row is drawn for the types whose field
+                               list names the scene link, single video and the
+                               single photoset; the Screenshots section is
                                single-video only, the Photosets feature is the
                                two photoset types', the Video pack section is
                                the video pack's and the Image folder section is
@@ -2650,7 +2657,8 @@ lib/
       stash_controller.dart StashController: the scene ID from what the user
   pasted, the
                                   request, which form field each value goes
-  into, the URL the domain
+  into for the type it is given, so the values offered are the names that type's
+  field list has, the URL the domain
                                   is read from and the domain its host gives or
   the bundled mapping
                                   has, the title with the site number cut off
@@ -5676,10 +5684,10 @@ only the four values the scan counts and the words its type uses for the three
 photo names — Images (total), Minimum and Maximum image resolution — with no
 left column, because it has no field the user writes, the section list is per
 type in all five directions — a photoset pack form has the Photosets block and
-its photo area and no Stash or Screenshots section, and a single photoset form
-has
-the same two widgets, with the words its type uses, and no Stash or Screenshots
-section, because the form does not branch on which of the two it is drawing; a
+its photo area and no Stash or Screenshots section; a single photoset shows the
+same two widgets with the words its type uses, and the Stash row as the first
+row of its first column, because its field list names the scene link
+(`ai/single_photoset.md` §9); a
 video
 pack form has the Video
 pack section and neither of the other two, an image folder form has the Image
@@ -6126,11 +6134,16 @@ and a URL with no host is never a candidate) with the name's capitalization when
 the name is the same word as the host and falling back to the name when there is
 no URL with a host, and the title with the site number cut off every occurrence
 of it and the ends of what is left trimmed — that the fields filled from the
-movie file are never filled from StashDB, that a value the import changed is the
+movie file are never filled from StashDB, that the values offered are the names
+the type's field list has, in the order that list gives them, so the same value
+is written under the name another type has (`ai/single_photoset.md` §9), that a
+value the import changed is the
 kind the widget maps to a message plus the parts the app keeps and the parts it
 cut, that a domain read from a URL outside the Primary sources category is a
 note naming the URL it was read from while one read from the URL the rule names
-produces none, that the poster preview is written to a file named after the
+produces none, and that a note names the field the value is written into, which
+for the single photoset is the name that type has, that the poster preview is
+written to a file named after the
 scene and removed when the popup closes, and that a domain the bundled mapping
 has is what the field gets before the rule — including through a URL with
 capitals, `www.` or a path — while a studio with no URL has no domain to look up
@@ -6160,7 +6173,10 @@ the Primary sources category is listed with the URL it was read from, and that
 the two studios of one field each have their own note because the note's key
 includes its place in the list, and that a value it did not change leaves that
 subsection out, that the input has focus again after the popup closes, that the
-popup is capped at 1000 px, and that a failure is shown as a message. Its
+popup is capped at 1000 px, and that a failure is shown as a message; for the
+single photoset, that the rows are the names that type's field list has, said
+with the words that type uses, and that Apply writes those names
+(`ai/single_photoset.md` §9). Its
 settings are a fake `SecretStore` with the values the test puts in it, its
 settings store is a fake too, its `AssetBundle` answers from a map so the
 mapping is what the test gives it rather than the file on disk, and its

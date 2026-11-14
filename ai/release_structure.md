@@ -197,13 +197,13 @@ Rules:
 - Field lists are per release type. Required and optional are per tracker, not per type: for a
   pack PornoLab requires only the screenlist and the video tech data. So the required/optional
   marker belongs to the tracker config, not to the field list.
-- `sceneUrl` is a field name in both lists: the StashDB scene the release is being prepared for,
-  stored as the canonical URL built from the scene id, not as the text the user pasted. For a
-  single video it is the item's URL; for a pack each item has its own, which is why it belongs to
-  the item field list rather than being a key on the item record. It is the one field name with no
-  form row — its widget is the Stash section's scene input, and the Stash section writes it through
-  the editor's write path. It is stored for a pack once the per-item form exists; until then the
-  editor writes it at the release level.
+- `sceneUrl` is a field name in the field lists of the two types that have the Stash row, the single
+  video and the single photoset: the StashDB scene the release is being prepared for, stored as the
+  canonical URL built from the scene id, not as the text the user pasted. For a single video it is the
+  item's URL; for a pack each item has its own, which is why it belongs to the item field list rather
+  than being a key on the item record. It is the one field name with no form row — its widget is the
+  Stash section's scene input, and the Stash section writes it through the editor's write path. It is
+  stored for a pack once the per-item form exists; until then the editor writes it at the release level.
 - The fields filled from the media are a property of the video field list only. A photoset has
   no probe-derived fields; its fields are the image count, the minimum and maximum resolution,
   and the formats.

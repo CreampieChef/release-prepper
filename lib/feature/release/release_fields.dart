@@ -348,6 +348,10 @@ const videoPackFieldList = FieldList(
 /// `photosetCount` is not here: with one item it is always 1, and a field the
 /// app cannot answer differently from its own definition is not a field.
 ///
+/// `sceneUrl` is here, as it is for a single video: a set is one scene on
+/// StashDB, so the same widget writes the same value for this type
+/// (`ai/single_photoset.md` §9).
+///
 /// The two resolutions are two fields and the post shows them as one line, so
 /// the value the template reads for that line is not a field: it is built when
 /// the message is rendered (`ai/description_template.md` §Variables).
@@ -357,6 +361,11 @@ const singlePhotosetFieldList = FieldList(
   itemBoundary: ItemBoundary.source,
   itemType: itemTypePhotoset,
   fields: [
+    // The same name Single video has, because the scene the set is from is the
+    // same value. Its row is the Stash row, which the form places at the top of
+    // its first column, so the editor builds no text controller for it, and it
+    // is optional, as it is there: no template reads it.
+    FieldSpec(name: 'sceneUrl', hasFormRow: false, isRequired: false),
     FieldSpec(name: 'siteOrJournal'),
     FieldSpec(name: 'cast'),
     FieldSpec(name: 'videoTitle'),
