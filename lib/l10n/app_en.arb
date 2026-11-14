@@ -86,6 +86,7 @@
     "periodLabel": "Period",
     "photosetCountLabel": "Photosets",
     "totalPhotoCountLabel": "Photos (total)",
+    "pickedPhotoCountLabel": "Photos (picked)",
     "minResolutionLabel": "Minimum photo resolution",
     "maxResolutionLabel": "Maximum photo resolution",
     "imageFormatsLabel": "Image formats",
@@ -95,26 +96,11 @@
     "columnTitleReleaseInfo": "Release Info",
     "columnTitleVideo": "Video",
     "columnTitleSourceFolder": "Source folder",
-    "columnTitlePhotosets": "Photosets",
     "columnTitleImages": "Images",
     "photosetPackSectionTitle": "Photosets",
-    "photosetListSectionTitle": "Photoset List",
-    "photosetListNameHeader": "Set name",
-    "photosetListCountHeader": "Photos (picked / total)",
     "singlePhotosetSectionTitle": "Photoset",
     "scanPhotosets": "Scan",
     "pickPhotosets": "Pick",
-    "photosetPickedOfTotal": "{picked} / {total}",
-    "@photosetPickedOfTotal": {
-        "placeholders": {
-            "picked": {
-                "type": "int"
-            },
-            "total": {
-                "type": "String"
-            }
-        }
-    },
     "photosetScanProgress": "Photosets scanned: {done} / {total}",
     "@photosetScanProgress": {
         "placeholders": {
@@ -142,8 +128,6 @@
     "pickCountLabel": "Number of photos",
     "pickStrategyPerSet": "In proportion to each set's size",
     "pickStrategyWholePack": "Evenly across all the photos as one set",
-    "photosetPackNoPhotosets": "There are no photosets. Pick the folder and scan it.",
-    "singlePhotosetNoPhotosets": "There are no photos. Pick the folder and scan it.",
     "photosetSkippedEntries": "Not photosets: {entries}",
     "@photosetSkippedEntries": {
         "placeholders": {

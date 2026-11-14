@@ -261,21 +261,25 @@ class MessageController {
   }
 
   /// The values the template reads: the fields as `release.json` writes them,
-  /// the release record, the image variables, `appVersion`, and the app
-  /// signature block (`ai/description_template.md` §App signature). A local path
-  /// is not something a post shows, so the source is not a value.
+  /// the release record, the image variables, `appVersion`, the two values the
+  /// render builds from the fields — the resolution line, and the formats
+  /// as the post lists them — and the app signature block
+  /// (`ai/description_template.md` §Variables, §App signature). A local path is
+  /// not something a post shows, so the source is not a value.
   ///
   /// Only the release's own fields are here. A per-item value is not one a
   /// template can read, because the renderer has no iteration; showing items
   /// needs the block grouping rule that decides how they would be shown
   /// (`ai/release_structure.md` §3, `ai/video_pack.md` §8).
   ///
-  /// Only the fields a template reads are here, which is what the field list says
-  /// with `readByTemplate`. The two draft names are stored but no template reads
-  /// them, so they are not part of what a render would produce, and writing one
-  /// must not make the content the Message section shows stale
+  /// Only the fields a template reads are here, which is what the field list
+  /// says with `readByTemplate`. The two draft names are stored but no template
+  /// reads them, so they are not part of what a render would produce, and
+  /// writing one must not make the content the Message section shows stale
   /// (`ai/uploading_draft.md` §4). A key the field list does not know is not a
-  /// value a template can read either, so it is not here.
+  /// value a template can read either — except the values the app builds from
+  /// the ones it does know, which no field list can state and which the
+  /// paragraph above names.
   Map<String, String> values(ImagesManifest manifest) {
     final read = {
       for (final field in fieldListFor(release.releaseType).fields)
@@ -292,11 +296,60 @@ class MessageController {
       'appVersion': appVersion,
     };
 
-    // The signature is rendered from the values above, so it cannot be one of
-    // them while they are being built: a block variable is not something a
-    // template can read from itself.
-    return {...read, 'appSignature': _appSignature(read)};
+    // The values a render reads that no field list can state: a block variable
+    // is not something a template can read from itself; the two resolutions are
+    // one line of the post, so the value for that line is built here; and the
+    // formats are the one field value a post lists differently from the way the
+    // app shows it (`ai/description_template.md` §Variables).
+    return {
+      ...read,
+      'resolutionMinMax': _resolutionMinMax(
+        read['minResolution'],
+        read['maxResolution'],
+      ),
+      'imageFormats': _messageFormats(read['imageFormats']),
+      'appSignature': _appSignature(read),
+    };
   }
+
+  /// The two resolutions as one line of the post says them: `min-max`, or the
+  /// value once when the smallest and the largest photo are the same photo —
+  /// a set with one photo cannot be described as a range — or nothing when
+  /// neither has been written, so a title line that shows the pair does not
+  /// say an empty half (`ai/description_template.md` §Variables).
+  String _resolutionMinMax(String? min, String? max) {
+    final lower = min ?? '';
+    final upper = max ?? '';
+
+    if (lower.isEmpty) {
+      return upper;
+    }
+
+    if (upper.isEmpty || lower == upper) {
+      return lower;
+    }
+
+    return '$lower-$upper';
+  }
+
+  /// The formats as the post lists them: the value as the field stores it, and
+  /// nothing when every format in it is jpg or jpeg, because the site does not
+  /// write a line for a post whose images are all jpg
+  /// (`ai/description_template.md` §Variables). The field, its row and
+  /// `release.json` keep what the scan counted, so the app still shows an
+  /// all-jpg set as `jpg`; only what a render reads is the empty one, and that
+  /// is what makes the line the site wants dropped stay dropped. A mixed set
+  /// still lists jpg with the others.
+  String _messageFormats(String? stored) {
+    final value = stored ?? '';
+
+    return value.split(', ').every(_isJpeg) ? '' : value;
+  }
+
+  /// Whether a format is the one the site does not list. `jpg` and `jpeg` are
+  /// the same format, and both are in the photo extension list, so the pair is
+  /// what the rule has to name.
+  bool _isJpeg(String format) => format == 'jpg' || format == 'jpeg';
 
   /// The app signature block (`ai/description_template.md` §App signature): the
   /// app signature file rendered with the values above, or nothing when the

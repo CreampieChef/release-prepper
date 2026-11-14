@@ -86,6 +86,7 @@
     "periodLabel": "Период",
     "photosetCountLabel": "Фотосеты",
     "totalPhotoCountLabel": "Фотографии (всего)",
+    "pickedPhotoCountLabel": "Фотографии (выбрано)",
     "minResolutionLabel": "Минимальное разрешение фото",
     "maxResolutionLabel": "Максимальное разрешение фото",
     "imageFormatsLabel": "Форматы изображений",
@@ -95,26 +96,11 @@
     "columnTitleReleaseInfo": "Информация о релизе",
     "columnTitleVideo": "Видео",
     "columnTitleSourceFolder": "Исходная папка",
-    "columnTitlePhotosets": "Фотосеты",
     "columnTitleImages": "Изображения",
     "photosetPackSectionTitle": "Фотосеты",
-    "photosetListSectionTitle": "Список фотосетов",
-    "photosetListNameHeader": "Название сета",
-    "photosetListCountHeader": "Фото (выбрано / всего)",
     "singlePhotosetSectionTitle": "Фотосет",
     "scanPhotosets": "Сканировать",
     "pickPhotosets": "Выбрать",
-    "photosetPickedOfTotal": "{picked} / {total}",
-    "@photosetPickedOfTotal": {
-        "placeholders": {
-            "picked": {
-                "type": "int"
-            },
-            "total": {
-                "type": "String"
-            }
-        }
-    },
     "photosetScanProgress": "Просканировано фотосетов: {done} / {total}",
     "@photosetScanProgress": {
         "placeholders": {
@@ -142,8 +128,6 @@
     "pickCountLabel": "Количество фото",
     "pickStrategyPerSet": "Пропорционально размеру каждого набора",
     "pickStrategyWholePack": "Равномерно по всем фото как по одному набору",
-    "photosetPackNoPhotosets": "Фотосетов нет. Выберите папку и сканируйте её.",
-    "singlePhotosetNoPhotosets": "Фото нет. Выберите папку и сканируйте её.",
     "photosetSkippedEntries": "Не фотосеты: {entries}",
     "@photosetSkippedEntries": {
         "placeholders": {

@@ -47,15 +47,19 @@ User-provided, at the release level:
 | `productionDate` | the date — the existing name, reused, with the date picker |
 | `genreTags` | the tags — the existing name, reused |
 | `description` | the description — the existing name, reused |
+| `additionalInfo` | the additional information — the existing name, reused |
 
-`additionalInfo` is not in this list: the type's fields are the ones above, and a field with no row
-and no value would be stored but never written.
+`additionalInfo` is on the list because the template reads it as an optional line, so the type has
+the field and the row the other types have (`ai/description_template.md` §Variables). A field with
+no row and no value would be stored but never written, which is why it was not on this list while
+no template read it.
 
 App-generated, at the release level:
 
 | Field | Meaning |
 | --- | --- |
 | `totalPhotoCount` | the number of photos in the set |
+| `pickedPhotoCount` | the number of photos the picking rule wrote |
 | `totalSize` | the size the counted photos have in the source, summed |
 | `minResolution` | the smallest photo by pixel area |
 | `maxResolution` | the largest photo by pixel area |
@@ -68,8 +72,13 @@ App-generated, at the item level:
 | `photoCount` | the number of photos in this set |
 
 `photoCount` and `totalPhotoCount` are the same number here, and both are kept on purpose: the scan
-writes the item's value, the section shows the count per set, and the aggregate is the name the pack
-already has. Dropping either would make one of the two read the other.
+writes the item's value, and the aggregate is the name the pack already has. Nothing shows the item's
+value for this type, because the block draws no list of sets, so a per-item count is written and read by
+the model rather than by the form (`ai/picking.md` §7). `pickedPhotoCount` is not what the scan counts:
+it is what the pick run wrote, so it is filled by the run rather than by the scan, and it is handed to
+the editor's write path at the end of the run, as the scan's values are. It is the same name and the
+same value as the pack's, because for this type the item is the folder the run wrote into, so the
+release-level count and the item's are the same number.
 
 Resolution is compared by pixel area, as for a pack, including the tie that decides which of two
 equal photos is reported (`ai/photoset_pack.md` §3), and a resolution value is written as
@@ -80,14 +89,31 @@ alphabetically, joined with `, ` — the same rule as `videoFormats` (`ai/video_
 whose header cannot be read is still counted, because the extension list is what decides what a
 photo is, and it is reported.
 
+The field's value is what the scan counted, so an all-jpg set is a `jpg` value and its row says so.
+The post lists no formats for such a set, because the site does not write a line for a post whose
+images are all jpg (`ai/description_template.md` §Variables): the value a render reads is the empty
+one, which is what drops the line, while the field, its row and `release.json` keep the value. The
+rule is the site's rather than this type's, so it applies to the other two types the same way, and a
+mixed set still lists jpg with the others.
+
+The two resolutions are two fields, and the title shows them on one line, so the value the title
+reads is not a field: it is built when the message is rendered, as the image variables are
+(`ai/description_template.md` §Variables). Nothing can edit it, so it is not stored and not in this
+list.
+
 The derived values describe **the source as scanned**, not the photos the picking rule chose: the post
 reports the set's stats, and the sample is what the post shows, not what it measures.
 
 The poster is not a field. It is the poster box every type has (`ai/doc.md` §5).
 
-The form is the two columns the other types have: the user fields on the left with the poster box
-above them, the derived values on the right. There is no second image box, because there is no video
-to take a frame from.
+The form has the first column the other types have: the user fields with the poster box above them. The
+derived values are not a second column of rows: they are the rows the Photosets block draws, as they are
+for the pack, so the form's second column is the block and what the row has left is the photo area
+(`ai/picking.md` §7). They are drawn in the order the field list gives them, so the count the pick wrote
+is the row after the count the scan took. Because the block is this type's second column, the Torrent
+section is at the end of it, below the block (`ai/torrents.md`). There is no second image box, because
+there is no video to take a frame from, and the form titles only its first column, because the block
+titles itself and the area titles itself.
 
 ## 4. Labels become per type
 
@@ -98,15 +124,19 @@ the Video pack section, so its signature took the type; what it returns for the 
 change. The Stash section has no release to ask, so the type is passed to it — it is only ever rendered
 for a single video.
 
-The same applies to the strings the Photosets block shows. "Photo packs", "There are no photosets" and
-"Pick the folder with the photosets" read wrong for one set, so the strings are resolved per type as
+The same applies to the strings the Photosets block shows. "Photo packs" and "Pick the folder with the
+photosets" read wrong for one set, so the strings are resolved per type as
 well, by `photosetStrings()` in `photoset_group.dart` — one switch over the type, no table, the same
 shape as `_sourceLabel` in the editor. The three keys that were named for the pack were given pack names, because they are no
 longer the only ones. The Scan and Pick buttons, the count line and the report lines keep their existing
 wording, because they say the same thing for one set as for many. The words a run's progress is said with
 are part of the same switch: the pick counts photos, which is the same measure for one set as for many,
 so it is one set of words; the scan counts the sets it found, and that reads wrong for one item, so it is
-null for this type and the block draws nothing (`ai/picking.md` §7).
+null for this type and the block draws nothing (`ai/picking.md` §7). The title of the photo area is not
+one of these: what the area shows is the pictures, so it says the word the other area that shows the same
+pictures says, for both types. And there is no title for the block's column, because the block titles
+itself rather than being titled by the form, so the key that named that column is gone (`ai/picking.md`
+§7).
 
 The source row needs its own key: *Folder with the photos*, distinct from *Folder with the
 photosets* — the row label is per type today (`ai/doc.md` §2), and this is one more arm of it.
@@ -162,35 +192,39 @@ not changed for this type, and its tests already cover the single-set case as a 
 
 The picked photos are copied into the release, mirroring the structure the user picked, and recorded as
 `kind: photo` with `item` set to the item path — the Upload section's progress bars count them
-unchanged. No preview thumbnail is written for this type, so the tile that draws one shows the photo
-itself: the fallback of `ai/picking.md` §8, which is what this type did before the pack's run started
-writing them.
+unchanged. The run writes the preview thumbnails here as it does for a pack, because nothing in that rule
+branches on the type (`ai/picking.md` §8): a tile shows the thumbnail when the file is there, and the
+photo itself when the run skipped the photo, could not write the thumbnail, or the tool is not installed.
 
 ## 7. The block
 
-For a single photoset the block is the whole feature, because there is no space beside it for its
-  pictures: Scan and Pick in its heading row, the set with its count, and the picked photos with the
-  same grid drawing the pack uses, at the whole width, at the same two widths the feature gives it
-  (`ai/picking.md` §7). There is no header naming a list above the line, and no row naming its
-  columns, because one item is not a list (`ai/picking.md` §7). It is not split by kind, because
-  with one item the grid holds one set and there is nothing to group, so its photos are in the order
-  the source gives them, and a tile there labels itself with its file name only: the block names the
-  set above the photos, so there is nothing for a tile to say about which set it is from. The band
-  rule for the lines (`ai/picking.md` §7) shows nothing here: there is one line, and the first is
-  not tinted.
+For a single photoset the block is the page's second column, at the most the width this feature
+gives it, and the picked photos are the photo area beside it — the same two widgets the pack has,
+with the same drawing (`ai/picking.md` §7). The block is its heading with the Scan and Pick buttons
+at its right, the rows the editor gives it, and nothing below them, as it is for the pack: there is
+no header naming a list and no row naming its columns, because no type draws a list, so the words a
+list would need are not in the strings for either type (`ai/picking.md` §7). Its tiles keep one
+label line: the line naming the set is drawn only where the grid mixes sets, and here there is one
+set, so a tile has nothing to say about which set its photo is from. The grid is split by kind, as
+it is for the pack, and the columns are capped at the same width, because the drawing is one
+implementation for both types (`ai/picking.md` §7). Nothing here is tinted, because nothing in this
+feature is a table (`ai/picking.md` §7).
 
-Re-picking writes the same names, so the block needs the cache eviction and a key that changes on each
-run, as `AGENTS.md` §5 requires — the rule the feature already follows. Here that key can be the
-block's own counter, because the block is the widget that shows the pictures; for a pack it cannot be,
-because the pictures are in another widget (`ai/picking.md` §7). The block is one implementation, so both
-types use the state the editor holds, and the key moves on each photo the run writes rather than once per
-run, as `ai/picking.md` §7 says.
+The block titles itself with the word for one folder of photos, while the area titles itself with the word
+the picture area has for both types, so the only title the form has is the first column's
+(`ai/picking.md` §7, `ai/single_photoset.md` §4).
 
-A row for a run going now is drawn here only for the pick, for the reason §4 gives: the scan counts the
-items, and here the item is the folder the user picked, so a row counting items says nothing. The pick
-row is the shared one, and the photos shown are the ones the run has copied so far, so a tile appears when
-its file is written rather than when the run ends, and the count on the line is the count of what is
-shown (`ai/picking.md` §7).
+Re-picking writes the same names, so the cache has to be evicted and the tiles keyed with a key that
+changes on each run, as `AGENTS.md` §5 requires. The key cannot be a widget's counter here, because the
+pictures are in another widget, so the generation is the state the editor holds and it moves on each photo
+the run writes rather than once per run, as `ai/picking.md` §7 says — the same rule the poster follows.
+
+A row for a run going now is drawn here only for the pick, for the reason §4 gives: the scan counts
+the items, and here the item is the folder the user picked, so a row counting items says nothing.
+The pick row is the shared one, and the photos shown are the ones the run has copied so far, so a
+tile appears when its file is written rather than when the run ends. The count the run answers with
+is what it copied, and it is handed to the editor's write path at the end of the run, where the
+field's row reads it (`ai/picking.md` §7).
 
 ## 8. The message
 
@@ -208,8 +242,14 @@ the tracker's `title.txt` as the fallback for a type that has none. That is a ch
 `TemplateStore` and to `ai/description_template.md`.
 
 ```
-[{{siteOrJournal}}] {{cast}} - {{videoTitle}} [{{productionDate}}, {{genreTags}}]
+[{{siteOrJournal}}] {{productionDate}} {{cast}} - {{videoTitle}} [{{genreTags}}] [{{resolutionMinMax}}, {{totalPhotoCount}} фото]
 ```
+
+The count in the title reads `totalPhotoCount` rather than the item's `photoCount`, because a
+per-item value is not one a template can read (`ai/release_structure.md` §3); for this type the two
+are the same number. `{{resolutionMinMax}}` is the value the render builds from the two resolution
+fields (§3), and `{{additionalInfo}}` is the optional line §3 lists. A template with a variable the
+render does not provide produces nothing, which is what the title would have done for both.
 
 The block titles stay as they are: the code writes *Скриншоты*, and a photoset post uses the same
 word. That is the decision `ai/description_template.md` §Open items names, and it is taken here as "no
@@ -220,25 +260,33 @@ change".
 1. `release_type.dart` — the enum value, and the `releaseTypeLabel` arm.
 2. `release_fields.dart` — `singlePhotosetFieldList`, the `imageFormats` label, `hasField`, and
    `fieldLabel` taking the release type (§4).
-3. `release_editor.dart` — the column layout, the source row label and the section arm. All three are
-   exhaustive switches over `ReleaseType`, so the compiler named the places a new type had to be
-   handled.
+3. `release_editor.dart` — the source row label, and the arms of the switches for the field list, the
+   column titles and the section list. The placement is one arm for both photoset types: the block is the
+   page's second column and the pictures are the space after it (`ai/picking.md` §7), so there is nothing
+   here that says which of the two it is drawing. All of these are exhaustive switches over `ReleaseType`,
+   so the compiler named the places a new type had to be handled.
 4. `lib/service/photosets/photoset_scanner.dart` — the item-boundary rule per type (§5), carried on the
    field list as `itemBoundary`, and `SourceEntry.readPath`, so a picked file is not joined to the
    source twice. The readers and the header reader do not change.
-5. `lib/feature/photosets/` — the controller writes the formats field and keeps the values it returns
-   to the names the type has, and the block shows the set with the per-type strings.
+5. `lib/feature/photosets/` — the controller writes the formats field, keeps the values it returns to
+   the names the type has, and writes the preview thumbnails with the same rule the pack's run has; the
+   block shows the set with the per-type strings, and the pictures are drawn by the same area the pack
+   uses (`ai/picking.md` §7, §8).
 6. l10n keys in both arb files: the type label, the source row label, the two field labels, and the
    block's strings for this type. The pack's own keys were renamed to say they are the pack's,
-   because they are no longer the only ones.
+   because they are no longer the only ones. The key that named the block's column was taken out,
+   because the block is not a column the form titles (§4).
 7. `assets/templates/pornolab/singlePhotoset.txt`, and `TemplateStore` reading the title per type with
    the tracker's file as the fallback.
 8. Tests: the form for the type, the scan with the source as the item, the formats field, the
-   block's strings, and the title template of the type with the tracker's as the fallback.
+   block's strings, the drawing that is the same as the pack's, the placement of the block and the photo
+   area, and the title template of the type with the tracker's as the fallback.
 
 The picking rule does not change for this type, and its tests already cover a single set as a pack of
-one. The grid the block draws with does change — the two widths, and the split by kind — but one set is
-never split, so the grid here is the one zone that is the whole space (`ai/picking.md` §7).
+one. The drawing is one implementation for both types, so nothing in it knows which type it is drawing:
+the two widths, the split by kind and the cap on the share are the same here as for a pack
+(`ai/picking.md` §7). What differs is what a tile says, because a grid with one set does not name the set
+on its tiles (§7).
 
 ## 10. Open questions
 

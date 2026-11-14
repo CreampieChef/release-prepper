@@ -2,9 +2,10 @@
 
 **Implemented.** The rule is `lib/service/photosets/photoset_picker.dart`; the writing is the
 photosets controller and the showing is the block and the photo area (§7), with the preview
-thumbnails the pack's run writes (§8). `ai/photoset_pack.md` §6 is the seam this fills, and the
-places in `ai/doc.md` that describe the feature — §2, the two inventory entries in §3, the runtime
-flow in §5, and the key list in §6 — were updated in the same change, as the project rule requires.
+thumbnails the run writes for both photoset types (§8). `ai/photoset_pack.md` §6 is the seam this
+fills, and the places in `ai/doc.md` that describe the feature — §2, the two inventory entries in §3,
+the runtime flow in §5, and the key list in §6 — were updated in the same change, as the project rule
+requires.
 
 ## 1. How many
 
@@ -200,7 +201,7 @@ Only a pack has the choice of strategy. For the type with one set the whole pack
 two answers are the same and there is nothing to choose, so the strings for the choice are null for
 that type and the popup draws no row for it (`ai/single_photoset.md` §6). The popup is one
 implementation for both types, and what a type does not have is what is not drawn: null in the strings
-resolved per type, as the header naming a list and the row counting items are here. The answer for
+resolved per type, as the words for a scan row counting items are. The answer for
 that type carries the strategy the popup opens with, which is what both answers give for one set.
 
 The values open at the rule's, on every open rather than remembered from the last popup: the count the
@@ -214,19 +215,21 @@ runs nothing, the same rule as the close popup (`ai/doc.md` §2). A widget test 
 popup answers it with the extremes off, because the fixtures those tests build carry no dimensions and
 the extremes are the only part of the rule that reads them (§4).
 
-For a pack it is two widgets, because it is in two grid cells. The block is the page's second
-column, at the most the width this feature gives it: its heading with the Scan and Pick buttons at
-its right, the rows the editor gives it, the header naming the list of sets, the row naming the two
-columns of that list, and the line naming each set the scan found. What the row has left after the
-fields' column and the block's column is the photo area. One widget cannot be two cells, so the two
-are two widgets, and what they have to share — the controller, and the generation the pictures are
-keyed with — is held by the editor, the widget that places them (`AGENTS.md` §5). The sections that
-need a column's width — the Upload section, the Message section, the draft — stay stacked below the
-fields in the fields' column, because the block's column is too narrow for their rows, and the
-Torrent section is drawn at the top of that stack, above the Upload section (`ai/torrents.md`). A
-single photoset has no space beside its block for its pictures, so there is no area beside it: its
-block is the whole feature and draws the photos with the same grid the pack draws, but not split by
-kind, because with one set there is nothing to group (`ai/single_photoset.md` §7).
+For a photoset it is two widgets, because it is in two grid cells, and it is the same two widgets for
+both types: the block is the page's second column, at the most the width this feature gives it, and
+what the row has left after the fields' column and the block's column is the photo area. Nothing in
+the placement branches on the type. The block is its heading with the Scan and Pick buttons at its
+right and the rows the editor gives it, and it draws nothing below those rows, for either type. One
+widget cannot be two cells, so the two are two widgets, and what they have to share — the controller,
+and the generation the pictures are keyed with — is held by the editor, the widget that places them
+(`AGENTS.md` §5). The sections that need a column's width — the Upload section, the Message section,
+the draft — stay stacked below the fields in the fields' column, because the block's column is too
+narrow for their rows. The Torrent section is at the end of the block's column, because for this type
+the block is the form's second column; a pack keeps it at the top of the fields' column, above the
+Upload section, because its block is what takes the second column and its fields are the first
+(`ai/torrents.md`). What differs between the types is only what the rows are: a pack's include a count
+of sets, and a single set's do not, because the count of one item is the item
+(`ai/single_photoset.md` §3).
 
 - Scan and Pick are two buttons in the block's heading row. Pick is disabled until a scan has run,
   because what the popup opens with is what the scan read: the slider's value is the number the curve
@@ -243,9 +246,9 @@ kind, because with one set there is nothing to group (`ai/single_photoset.md` §
   shared `ProgressRow` (`lib/feature/progress_row.dart`), the same shape as the bar the Upload
   section draws for each hoster (`ai/upload_images.md`). The row is drawn only while a run is going,
   as the Torrent section's progress is (`ai/torrents.md`): before a run there is nothing to show, and
-  after one the results the run produced are what the block shows. The words around the two numbers
-  name what the run counts, so they are resolved per type and the row is given what they say
-  (`ai/doc.md` §6).
+  after one the block draws nothing, because the pictures a pick wrote are what the area shows. The
+  words around the two numbers name what the run counts, so they are resolved per type and the row is
+  given what they say (`ai/doc.md` §6).
 
 - Both counts are known before the run has done anything, because both are what the run can know
   first: the scan decides which entries are items before it reads any of them, and the pick is the
@@ -254,48 +257,63 @@ kind, because with one set there is nothing to group (`ai/single_photoset.md` §
   the item count is one, so a row counting items says nothing, its words for a scan row are null, and
   nothing is drawn for that type (`ai/image_folder_upload.md` §5).
 
-- What the block shows while a run is going is what the run has done so far, not what it will do.
-  A set's line is drawn when that set is read, so a root with many sets shows what it has found as it
-  finds it; the items are replaced at the report that only gives the total — the point the scan has
-  decided what the source contains — so a scan that cannot read the folder replaces nothing. A pick
-  shows the photos as it copies them, and the count on a line is the records that exist, so a photo
-  the run could not write does not move it, which is the rule the Upload section's bars follow.
-  Because the block and the photo area are two widgets in two grid cells, the block records what its
-  run wrote in the state the editor holds and tells the editor for each photo, so the area builds as
-  each photo is written rather than after the run — the generation cannot be the block's own counter
-  here for the same reason it is not a widget's counter in `AGENTS.md` §5.
+- What a run shows while it is going is what it has done so far, not what it will do. While a scan
+  reads the folder the block draws nothing but its progress row, because a scan is a read and what it
+  finds is not shown anywhere; the items are replaced at the report that only gives the total — the
+  point the scan has decided what the source contains — so a scan that cannot read the folder replaces
+  nothing. A pick shows the photos in the area as it copies them, and the count the run answers with is
+  what it wrote, so a photo it could not copy is not in it, which is the rule the Upload section's bars
+  follow. Because the block and the photo area are two widgets in two grid cells, the block records
+  what its run wrote in the state the editor holds and tells the editor for each photo, so the area
+  builds as each photo is written rather than after the run — the generation cannot be the block's own
+  counter here for the same reason it is not a widget's counter in `AGENTS.md` §5.
 
 - The picked photos are one grid, not one column per set.
-  For a pack the grid is split by kind instead of being one set of columns: the portraits are drawn
+  For both types the grid is split by kind instead of being one set of columns: the portraits are drawn
   in columns of the portrait width and the landscapes in columns of the landscape width, and the two
   never share a column. Within each kind the order is the order the source gives the sets and,
   within a set, the order it gives the photos, so the order across the whole grid is not the order
-  the source gives — that is what grouping by kind means. A single photoset is not split, so its
-  photos are in the order the source gives them (`ai/single_photoset.md` §7). Nothing groups them by
-  set, so each tile says which set its photo is from as well as its file name. The line naming the
-  set is drawn only where the grid mixes sets, which is the pack's; a single photoset has one set,
-  which its block names above the photos, so its tiles keep the file name alone. The message still
-  groups them by set (`ai/photoset_pack.md` §7), because that is a list rather than a grid.
+  the source gives — that is what grouping by kind means. Nothing groups them by set, so each tile says
+  which set its photo is from as well as its file name. The line naming the set is drawn only where the
+  grid mixes sets, which is what a pack's grid does; a grid with one set — a single photoset's — labels
+  its tiles with the file name alone, because there is no other set to tell its photos from. The
+  message still groups them by set (`ai/photoset_pack.md` §7), because that is a list rather than a
+  grid.
 
-- The rows the block draws — the path the user picked and the counts the scan took from it — are
-  built by the editor, because they are form rows. For a pack they belong to the block; every other
-  type keeps them as rows of the form.
+- The rows the block draws — the path the user picked, the counts the scan took from the folder, and
+  the count the pick wrote — are built by the editor, because they are form rows. For both photoset
+  types they belong to the block; every other type keeps them as rows of the form.
 
-- For a pack the area is titled Screenshots, because what it shows is the pictures rather than the
-list of sets, and it uses the title the Screenshots section titles itself with, so the two areas
-that show the same files the same way say the same word. The line naming a set is drawn once, in the
-block, which is what lists the sets: the grid no longer names a set above its photos, because the
-tile says which set its photo is from. For a single photoset the block's heading is the title and it
-draws the photos under its line.
+- The count of what a pick wrote is a field value, so the block does not write it: it hands it to the
+  editor's single write path at the end of the run, as the scan's counts are handed there, for the same
+  reason — the count is what the whole run did, not what it has done so far. It is the count of the run
+  rather than of one set, because the field is the release's total of what was picked; for the type
+  whose item is the folder the two are the same number. It is what the run wrote, so a run that copied
+  nothing answers 0: a run replaces the photo records it wrote, so the count after it is the count that
+  run wrote. The name is in both types' field lists, next to the count the scan took, because the value
+  is the same for either (`ai/photoset_pack.md` §3, `ai/single_photoset.md` §3), and it is an app-filled
+  field like those: the row shows what is on disk, so it shows nothing until a run has written it. The count of what the scan read for one set is still recorded for each item, because that
+  is what the model writes and what a per-item field is (`ai/photoset_pack.md` §3), although nothing in
+  this feature shows it any more.
 
-- The word Photosets is the block's heading and the label of the count field it draws, so it is said
-  twice for a pack, and the word Screenshots once, as the title of the area. Only one column of the
-  page is titled by the editor (`ai/doc.md` §2).
+- The area is titled Screenshots for both types, because what it shows is the pictures rather than a
+  list of sets, and it uses the title the Screenshots section titles itself with, so the two areas that
+  show the same files the same way say the same word. Nothing names a set above its photos: the tile
+  says which set its photo is from where the grid mixes sets, and a grid with one set has nothing to
+  tell apart. The block titles itself, with the word the type reads right for one folder or for
+  several, so the area's title is the same for both types while the block's is not
+  (`ai/single_photoset.md` §4).
+
+- For a photoset only one column of the page is titled by the editor: the fields' column, because the
+  block titles itself as a section does and the area titles itself too (`ai/doc.md` §2). For a pack the
+  word Photosets is the block's heading and the label of the count field it draws, so it is said twice;
+  for a single photoset the count of one item is the item rather than a field, so the word for one
+  folder is said once.
 
 - The grid is the same for both types, at the three numbers `photoset_group.dart` gives it:
   as many columns of `photosetColumnWidth` as fit in the space the area is given, and what those
   columns cannot use is shared out rather than left as a strip at the right, so a column is that
-  width or a little more — except where the pack bounds it, below. A landscape takes the number of
+  width or a little more — except where the cap below bounds it. A landscape takes the number of
   those columns that makes it `photosetLandscapeWidth` wide, worked out by `photoSpanCount`, because
   a grid can only be a whole number of columns wide. The columns have no gap of their own, because a
   spanned column must be exactly as many of them as the two numbers say: the space between two tiles
@@ -303,7 +321,7 @@ draws the photos under its line.
   it does not use is the area's, so the cap does not leave an empty strip beside the block. The
   fitting is in `lib/service/images/masonry.dart` with the rest of the placement.
 
-- Only the pack splits the columns by kind, and the counts decide the split.
+- The grid splits the columns by kind, for both types, and the counts decide the split.
   A kind with no photos has no columns; a kind with photos has at least one column — for a landscape
   that is one of its own, so the span — and never more than its photos need, which is one column per
   photo. What the two minimums do not take is shared in proportion to the counts, and a kind already
@@ -318,15 +336,15 @@ draws the photos under its line.
   column is empty for the whole height of the grid. A zone capped at its photos cannot always use
   the space it is given, so this is the one place the share is bounded: `photosetColumnMaxWidth` is
   the widest a column is drawn at, twice the portrait width, and the width past it is left at the
-  right rather than a column being made wider. A single photoset is not capped, so its columns keep
-  using the whole space. The two counts are a pure function, `photoZoneColumnCounts`, for the same
-  reason the assignment is one.
+  right rather than a column being made wider. It bounds the share for both types, because both are
+  split, and a zone capped at its photos cannot always use the whole space. The two counts are a pure
+  function, `photoZoneColumnCounts`, for the same reason the assignment is one.
 
 - The two zones are drawn side by side, portraits first, each starting at the top of the area,
   and each kind is packed inside its own columns. When the space cannot hold one column of both
-  kinds — that is the least either can be given — the grid is not split at all and every photo is
-  laid out as one grid with spans, as it was before. That is also what a single photoset does, and
-  what a pack does when only one kind of photo is present.
+  kinds — that is the least either can be given — or when only one kind of photo is present, the grid
+  is not split at all and every photo is laid out as one grid with spans, as it was before. That is the
+  case either type can be in.
 
 - The block's column is the cap when the page's column is wider, and the page's column width when it
 is narrower, so the cap only ever makes the block smaller. When what the row has left cannot hold
@@ -376,65 +394,19 @@ the window, so it is not taken.
   show these files the same way can all reach a narrow column. Only what is painted is cut, not the
   text: a tile whose label is cut still says the whole name to a test that looks for it.
 
-- The block has a heading row, which is the title row a section titles itself with, and the list
-  of sets has a header of its own below the rows the editor gave the block: the heading names the
-  block, the header names the list. Only a pack has that header, because only a pack has a list — a
-  single photoset has one set, and a header naming a list reads wrong for one item — so the strings
-  are resolved per type, and the type without a list has null there and draws nothing. The header is
-  not drawn above the placeholder that says the list is empty, because a header naming a list is not
-  drawn above an empty one. It has no action: the buttons belong to the whole block, and they are in
-  its heading row.
+- The block has a heading row, which is the title row a section titles itself with, and nothing
+  below the rows the editor gave it, for either type: the heading names the block, and there is
+  no header naming a list of sets, because the block draws no list.
 
-- The list also names the two columns its lines draw, as the two tables name theirs
-  (`ai/video_pack.md` §5): a row above the first line, with the name and the pair of numbers, in the
-  style a table header is drawn in. Each header sits where its column's values sit — the name at the
-  left edge, the count at the right edge, where the numbers are — and the row has the lines'
-  horizontal padding, so its text is above the values rather than beside them. The row is built the
-  way a line is, so the two agree on where the columns are: the name cell takes the space the value
-  cell does not need, and the widest thing in the count column is the header itself, because a count
-  is a few digits. It is drawn only for the type that has a list, as the header naming the list is,
-  and the words for the name are the ones the same feature's field label already has, because a name
-  shown in a column is the same value the form's field names.
+- Nothing in this feature is tinted, because nothing in it is a table: the rule that tints alternate
+  rows is the two tables' (`ai/video_pack.md` §5), and this feature has no table, so the rule does not
+  reach it.
 
-- The row fits on one line in both languages the app has, and that is measured rather than assumed:
-  at the style a table header is drawn in, the two strings measure 182 px in English and 228 px in
-  Russian, the longer of the two, against the 392 px inside the padding at the width this feature
-  caps the block at. So it is one line at every width the page builds a column at, and it would wrap
-  only on a block narrower than 236 px, which the page never builds. Nothing is cut: a name in the
-  list wraps rather than being cut, as it always does.
-
-- Every other line of the list is tinted, because a list read as bands of text is followed with the
-  eye — the same rule the Video pack section follows (`ai/video_pack.md` §5), with the same vertical
-  padding that makes a tinted line read as a band rather than as a line of text with a colour behind
-  it. The horizontal padding is this list's own, 4 px, so a name or a count is not drawn against the
-  edge of the band it is on; the tables have none, so this is the one place the two shapes differ,
-  and it is a difference inside a line, never in how wide a band is. The parity is the position in
-  the order the items are stored, so a re-scan of the same folder does not change a line's colour.
-  The header naming the list and the row naming the columns are not lines, so neither is tinted. The
-  band is the line's, not the set's: the photos of a set are what the grid shows, and a band round
-  them would be a band around a set rather than a line of the list. The tint is on the line's own
-  `Material`, as the table rows' are, so a line is the same shape whether or not it is tinted and
-  keeps a hover highlight if it ever becomes clickable — a plain container paints its colour over
-  the highlight, which is painted on the canvas of the nearest `Material` ancestor. Nothing in this
-  list is clickable today, so the reason is the shape the tables have, not a highlight the list
-  shows.
-
-- The line naming a set shows two numbers, `picked / total`: what the rule picked for that set,
-  and what the scan counted for it. Before a pick the first number is 0, because nothing has been
-  picked and the feature shows what is on disk. The second is the value the scan wrote for the item,
-  kept as the model stores it, so a count a user edited in `release.json` is shown as it is — the
-  same rule as the size field showing a value it cannot format.
-
-- A set with no photos shows its count in the block and is reported, as the scan reports what it
-cannot take, and the rule gives it nothing. It is shown rather than left out, because the list is what
-the scan found. With no grouping there is no column for such a set to take: the grid has nothing for
-it, and it is only the line in the block.
-
-Since the rule no longer gives a photo to every set that has photos, a line showing 0 picked after a
-run is not one message: it is a set the scan could not read, or a set the chosen count did not reach —
-a share below one photo under strategy one, no position inside it under strategy two. The line says the
-same number for both, because the number it shows is the records that exist, and which of the two it
-is is not something the block knows.
+- A set with no photos is reported, as the scan reports what it cannot take, and the rule gives it
+  nothing. It is not shown anywhere: the block draws no list, and a grid has no column for a set with
+  no photos in it. A run that reaches no set is not a silent failure: the set is reported as what it is,
+  and the count the run hands to the write path is 0 — a share below one photo under strategy one, no
+  position inside it under strategy two, or a set the scan could not read.
 
 - Re—picking writes the same names, so the feature needs the cache eviction and a key that changes
   on each run, as `AGENTS.md` §5 requires. This is the case the poster does not have and the picked
@@ -455,8 +427,9 @@ drawn at the width of a column. For a pack with dozens of high-res photos that i
 area slow to build. The run therefore writes a small copy of each photo it copies, next to it, and
 the tile draws that copy. Nothing here is a new kind of state: the tile still reads what is on disk.
 
-- Only the pack writes them, for now. A single photoset and an image folder show the same tiles, so
-  they take the fallback path, which is what they do today.
+- Both photoset types write them: nothing in the rule branches on the type, so a run for one set asks
+  the tool for the same copies, with the same names and the same cap. An image folder has no run of its
+  own, so its tiles take the fallback path, which is what it does today.
 - The file lives in the same folder as the photo it is a copy of. Its name is `_rp_thumb_` followed
   by the photo's own name with the extension `.jpg`, and the extension is not added to a name that
   is already a JPEG: `001.jpg` gives `_rp_thumb_001.jpg` and `001.png` gives

@@ -10,7 +10,12 @@ column is its data block and the first column is the one that stacks the
 sections below the fields. For the pack the section is drawn in that first
 column, directly above the Upload section; where the pack's form is one column,
 there is no second column, so the rule is the same one — directly above the
-Upload section. In every other type the rule above stands.
+Upload section. In every other type the rule above stands, including the single
+photoset: its second column is its block, so the section is the last thing in
+that column, below the rows the block draws — the section follows the block the
+run it belongs to is a run of. When the form is one column for that type, the
+block is stacked in the single column, and the section stays with it rather than
+moving to the other sections.
 
 ## What it does
 

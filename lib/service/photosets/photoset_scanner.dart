@@ -302,6 +302,11 @@ final class ScanSuccess extends ScanResult {
   /// (`ai/single_photoset.md` §6). Every counted photo has an extension,
   /// because the extension list is what decided it is a photo, so none is
   /// empty.
+  ///
+  /// This is what the source contains, and the field value is written with it,
+  /// so a set whose photos are all jpg is reported as `jpg`. What the post
+  /// lists is a rule of the post, so it is applied to the value a render
+  /// reads, not to this (`ai/description_template.md` §Variables).
   List<String> get imageFormats => ([
     for (final set in sets)
       for (final photo in set.photos) photo.extension,

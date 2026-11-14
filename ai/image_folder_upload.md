@@ -74,6 +74,12 @@ App-generated, at the release level:
 | `maxResolution` | the largest image by pixel area |
 | `imageFormats` | the distinct formats among the counted images |
 
+The value is what the scan counted, so an all-jpg folder is a `jpg` value and its row says so. The
+site does not write a line for a post whose images are all jpg, so the value a render reads is the
+empty one (`ai/description_template.md` §Variables, `ai/single_photoset.md` §3); the rule is the
+site's, so it applies here as it does to the other two types. This type's template writes no formats
+line, so nothing it shows changes.
+
 There are no item fields: the item is the picked folder and the counts describe it as a whole, so an
 item-level count would be the release-level count under another name.
 

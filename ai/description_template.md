@@ -86,12 +86,29 @@ Field names are the names `release.json` writes.
 | `posterUrl`, `screenshotSection` | `images.json` |
 | `appVersion` | the app's own version, from `lib/app/app_info.dart` |
 | `appSignature` | the app signature file, when the checkbox is on (see App signature) |
+| `resolutionMinMax` | built from the two resolution fields, as one value |
 
 `tracker` and `releaseType` are the technical names, not the display names. A template is written
 in the language the tracker publishes in and writes its own words, so the app can only provide the
 ID; a template that needs the words a post shows writes them itself.
 
 `movieFilePath` is not available: a local path is not something a post shows.
+
+`resolutionMinMax` is not a field, so it is not in `release.json` and not in any field list: it is
+the same information as `minResolution` and `maxResolution`, and nothing can edit it. The values the
+app builds itself — the image variables, `appVersion`, the signature, this one — are the values no
+field list can state, so they are what `MessageController.values()` adds to the fields it reads.
+
+It is `min-max`, or the value once when the smallest and the largest photo are the same photo, and
+nothing when neither has been written.
+
+`imageFormats` is a field like any other, and its value is what the scan counted. What a post lists
+is empty when every counted photo is jpg or jpeg, because the site does not write a line for a post
+whose images are all jpg. This is a site rule rather than a rule of one type, so it applies to the
+three types that have the field, and it is a rule about the post rather than about the value: the
+field, its row and `release.json` hold what the scan counted, and only what a render reads is the
+empty one, because a conditional line is dropped by an empty value. A mixed set still lists jpg with
+the others.
 
 Image variables read the hoster and the URL type from constants in `message_controller.dart`
 (`realPosterHoster`, `mockPosterHoster`, `posterUrlType`, `imageUrlType`, `thumbUrlType`). For the

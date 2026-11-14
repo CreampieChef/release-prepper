@@ -1,1 +1,1 @@
-[{{siteOrJournal}}] {{cast}} - {{videoTitle}} [{{productionDate}}, {{genreTags}}]
+[{{siteOrJournal}}] {{productionDate}} {{cast}} - {{videoTitle}} [{{genreTags}}] [{{resolutionMinMax}}, {{totalPhotoCount}} фото]

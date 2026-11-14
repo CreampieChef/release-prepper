@@ -1856,6 +1856,92 @@ void main() {
     },
   );
 
+  // The same placement, because nothing in the form branches on the type: the
+  // block is the second column and the pictures are the space after it for one
+  // set as for several (`ai/picking.md` §7). What is different is only what the
+  // block's rows are, because the count of one item is the item rather than a
+  // field (`ai/single_photoset.md` §3).
+  testWidgets(
+    'a single photoset puts its block in the second column like the pack does',
+    (tester) async {
+      tester.view.physicalSize = const Size(2000, 2000);
+      tester.view.devicePixelRatio = 1.0;
+
+      await openEditor(tester, testSinglePhotosetRelease('/tmp/x'));
+
+      // The first field of the first column, which for this type is the model
+      // row, is what the page's column width is read from.
+      final field = tester.getRect(find.byKey(const ValueKey('cast')));
+      final columnWidth = field.width;
+
+      // A page column is wider than the block's cap here, so the block is drawn
+      // at the cap, and the width it does not use is the photo area's rather
+      // than empty space beside it.
+      expect(columnWidth, greaterThan(photosetBlockMaxWidth));
+
+      final block = tester.getRect(find.byKey(const ValueKey('photosetBlock')));
+      expect(block.width, closeTo(photosetBlockMaxWidth, 0.5));
+      expect(block.left, closeTo(field.right + columnGap, 0.5));
+
+      // The block is a section, so it starts at the top of its column the way a
+      // titled column does.
+      final title = tester.getRect(find.byKey(const ValueKey('columnTitle')));
+      expect(block.top, closeTo(title.top, 0.5));
+
+      // The rows inside it are the ones the editor built, because they are
+      // form rows: the path the user picked and the values the scan took from
+      // it. The count of sets is not one of them, because this type has no
+      // field for a count that is always 1 (`ai/single_photoset.md` §3).
+      for (final key in ['source', 'totalPhotoCount']) {
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('photosetBlock')),
+            matching: find.byKey(ValueKey(key)),
+          ),
+          findsOneWidget,
+        );
+      }
+
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('photosetBlock')),
+          matching: find.byKey(const ValueKey('photosetCount')),
+        ),
+        findsNothing,
+      );
+
+      // What the row has left is the area, and the three widths with the two
+      // gaps make the page, as they do for the pack.
+      final pageWidth =
+          tester.getSize(find.byType(SingleChildScrollView)).width -
+          2 * field.left;
+
+      final gallery = tester.getRect(
+        find.byKey(const ValueKey('photosetGallery')),
+      );
+
+      expect(
+        columnWidth + block.width + gallery.width + 2 * columnGap,
+        closeTo(pageWidth, 0.5),
+      );
+      expect(gallery.left, closeTo(block.right + columnGap, 0.5));
+      expect(gallery.top, closeTo(block.top, 0.5));
+
+      // The space it was given holds more than one column of the grid, which is what
+      // puts it beside the row rather than below it.
+      expect(
+        photoColumnCount(width: gallery.width, min: photosetColumnWidth),
+        greaterThan(1),
+      );
+
+      // The block titles itself with the word it is called by for this type, so
+      // that word is said once, and the area is called by the word the picture
+      // area has for both types.
+      expect(find.text('Photoset'), findsOneWidget);
+      expect(find.text('Screenshots'), findsOneWidget);
+    },
+  );
+
   // The same rule at a width where the row cannot hold one column of the grid:
   // the area is below the row at the whole width, and the space beside the
   // capped block is empty, which is what a strict maximum costs at a narrow
@@ -2144,6 +2230,74 @@ void main() {
     },
   );
 
+  // For the single set the rule is the general one: the block is the form's
+  // second column, so the section is at the end of it, under the rows the block
+  // draws (`ai/torrents.md`). It is a section rather than a row, so the gap
+  // before it is the one between sections, and it is as wide as the column it
+  // is in — the block's capped one, not the fields' one.
+  testWidgets(
+    'a single photoset draws the torrent section at the end of its block column',
+    (tester) async {
+      tester.view.physicalSize = const Size(2000, 2000);
+      tester.view.devicePixelRatio = 1.0;
+
+      await openEditor(tester, testSinglePhotosetRelease('/tmp/x'));
+
+      final block = tester.getRect(find.byKey(const ValueKey('photosetBlock')));
+      final section = tester.getRect(
+        find.byKey(const ValueKey('torrentSection')),
+      );
+
+      expect(
+        section.width,
+        closeTo(block.width, 0.5),
+        reason: 'the width of the block column, at its cap',
+      );
+      expect(section.left, closeTo(block.left, 0.5));
+      expect(section.top - block.bottom, closeTo(24, 0.5));
+
+      // It is not in the column that stacks the sections: that one is the
+      // first, so the Upload section is to the left of this one, and the
+      // section is not followed by it in the same column.
+      final upload = tester.getRect(
+        find.byKey(const ValueKey('uploadSection')),
+      );
+
+      expect(section.left, greaterThan(upload.right));
+      expect(section.top, lessThan(upload.top));
+    },
+  );
+
+  // And the same when the form is one column: there is one column, and the
+  // section stays with the block it follows rather than moving to the stack of
+  // the other sections.
+  testWidgets(
+    'a single photoset keeps the section with its block when the form is one column',
+    (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+
+      await openEditor(tester, testSinglePhotosetRelease('/tmp/x'));
+
+      final block = tester.getRect(find.byKey(const ValueKey('photosetBlock')));
+      final section = tester.getRect(
+        find.byKey(const ValueKey('torrentSection')),
+      );
+      final upload = tester.getRect(
+        find.byKey(const ValueKey('uploadSection')),
+      );
+
+      // The block is capped here too, so the section is at the block's width
+      // rather than at the width of the column it is stacked in.
+      expect(block.width, closeTo(photosetBlockMaxWidth, 0.5));
+      expect(section.width, closeTo(block.width, 0.5));
+      expect(section.left, closeTo(block.left, 0.5));
+
+      expect(section.top, greaterThan(block.bottom));
+      expect(upload.top, greaterThan(section.bottom));
+    },
+  );
+
   // The tracker and release-type badges follow the name, because they say what
   // the name is for, rather than being pushed to the right edge of the heading.
   testWidgets('the badges come after the release name', (tester) async {
@@ -2303,16 +2457,23 @@ void main() {
     ]);
   });
 
-  testWidgets('a single photoset titles its right column Photosets', (
-    tester,
-  ) async {
+  // The block is the second column, and it titles itself as a section does, so
+  // the form has one title: the first column's, as the pack's form has
+  // (`ai/picking.md` §7, `ai/design_system.md` §3).
+  testWidgets('a single photoset titles only its first column', (tester) async {
     tester.view.physicalSize = const Size(2000, 2000);
     tester.view.devicePixelRatio = 1.0;
 
     expect(await titlesOf(tester, testSinglePhotosetRelease('/tmp/x')), [
       'Release Info',
-      'Photosets',
     ]);
+
+    // The word is the block's own title, said once: the word for one folder of
+    // photos, which is what the block is called for this type. The photo area
+    // titles itself with the Screenshots word, which is what the picture area
+    // is called for both types.
+    expect(find.text('Photoset'), findsOneWidget);
+    expect(find.text('Screenshots'), findsOneWidget);
   });
 
   testWidgets(
@@ -3016,9 +3177,9 @@ void main() {
     },
   );
 
-  // A manifest that could not be written is not reported, the same rule as the stamp:
-  // the file the run changed is the thing the flag describes, and the next write puts
-  // the record right.
+  // A manifest that could not be written is not reported, the same rule as
+  // the stamp: the file the run changed is the thing the flag describes, and
+  // the next write puts the record right.
   test('a manifest that cannot be written is not reported', () async {
     final directory = Directory.systemTemp.createTempSync(
       'release_prepper_test',
@@ -3120,6 +3281,7 @@ void main() {
     for (final name in [
       'photosetCount',
       'totalPhotoCount',
+      'pickedPhotoCount',
       'totalSize',
       'minResolution',
       'maxResolution',
@@ -3133,12 +3295,45 @@ void main() {
     }
   });
 
+  // The count the pick wrote is a field row like the counts the scan took, and
+  // it is drawn after the total, because the two are read together as the pair
+  // the post shows (`ai/picking.md` §7, `ai/single_photoset.md` §3). It is a
+  // row rather than a line in the block, because the block draws nothing below
+  // its rows for either type.
+  testWidgets('the picked count row is drawn after the total count row', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    for (final release in [
+      testPackRelease('/tmp/x'),
+      testSinglePhotosetRelease('/tmp/x'),
+    ]) {
+      await openEditor(tester, release);
+
+      final total = tester.getRect(
+        find.byKey(const ValueKey('totalPhotoCount')),
+      );
+      final picked = tester.getRect(
+        find.byKey(const ValueKey('pickedPhotoCount')),
+      );
+
+      // A row is as wide as the column it is in, so the two are the same width.
+      expect(picked.width, closeTo(total.width, 0.5));
+      expect(picked.left, closeTo(total.left, 0.5));
+
+      // The row after the total, with the gap between the rows of a column.
+      expect(picked.top - total.bottom, closeTo(16, 0.5));
+    }
+  });
+
   // A photoset is not a StashDB scene and a pack has no frames to generate, so
   // the Stash section is not part of its form. The section it does have is the
-  // one that lists the sets, but its title is the Screenshots one, because what
-  // the pack shows is the picked pictures (`ai/picking.md` §7); the first column
-  // has no title of its own, it is titled Release Info. The poster belongs to
-  // the release rather than to an item, so a pack still has it.
+  // area that shows the picked pictures, and its title is the Screenshots one,
+  // because that is the word the picture area has (`ai/picking.md` §7); the
+  // first column has no title of its own, it is titled Release Info. The poster
+  // belongs to the release rather than to an item, so a pack still has it.
   testWidgets(
     'a pack form shows the Photosets block and its photo area, not the video sections',
     (tester) async {
@@ -3334,12 +3529,14 @@ void main() {
       'productionDate',
       'genreTags',
       'description',
+      'additionalInfo',
     ]) {
       expect(fieldOf(tester, name).readOnly, isFalse, reason: name);
     }
 
     for (final name in [
       'totalPhotoCount',
+      'pickedPhotoCount',
       'totalSize',
       'minResolution',
       'maxResolution',
@@ -3359,10 +3556,12 @@ void main() {
     expect(find.text('Video title'), findsNothing);
   });
 
-  // The same section as a pack, because nothing in its layout branches on the
-  // type; only the strings it shows do (`ai/single_photoset.md` §7).
+  // The same two widgets as a pack, because nothing in the layout branches on
+  // the type: the block that draws its rows, and the area that draws the
+  // pictures. Only the words differ, and the block draws nothing below its rows
+  // for either type (`ai/single_photoset.md` §7, `ai/picking.md` §7).
   testWidgets(
-    'a single photoset form shows the Photoset block and not the video sections',
+    'a single photoset form shows the Photoset block and its photo area, not the video sections',
     (tester) async {
       tester.view.physicalSize = const Size(2000, 2000);
       tester.view.devicePixelRatio = 1.0;
@@ -3370,12 +3569,14 @@ void main() {
       await openEditor(tester, testSinglePhotosetRelease('/tmp/x'));
 
       expect(find.byKey(const ValueKey('stashSection')), findsNothing);
-      expect(find.text('Screenshots'), findsNothing);
       expect(find.byKey(const ValueKey('photosetBlock')), findsOneWidget);
+      expect(find.byKey(const ValueKey('photosetGallery')), findsOneWidget);
 
-      // One set has no columns to put its pictures in, so the block draws them
-      // itself and there is no area beside it (`ai/picking.md` §7).
-      expect(find.byKey(const ValueKey('photosetGallery')), findsNothing);
+      // The block's title is the word for one folder of photos, and the area is
+      // titled with the word the picture area has, because what it shows is the
+      // pictures.
+      expect(find.text('Photoset'), findsOneWidget);
+      expect(find.text('Screenshots'), findsOneWidget);
 
       expect(find.text('Poster image'), findsOneWidget);
     },

@@ -9,15 +9,20 @@ import '../release/release_type.dart';
 import '../screenshots/images.dart';
 import 'photosets_controller.dart';
 
-/// The parts the two widgets that show a photoset share (`ai/picking.md` §7): the
-/// state the run and the pictures read, the strings resolved per type, one set as
-/// it is laid out, the row naming the columns of the list, the line naming one
-/// set, and the tile showing one photo the rule picked. `PhotosetBlock` and
-/// `PhotosetGallery` are in two files, so these are package-private: a private
-/// helper in one file cannot be read from the other.
+/// The parts the two widgets that show a photoset share (`ai/picking.md` §7):
+///
+/// the state the run and the pictures read, the strings resolved per type, one
+///
+/// set as it is laid out, and the tile showing one photo the rule picked.
+///
+/// `PhotosetBlock` and `PhotosetGallery` are in two files, so these are
+///
+/// package-private: a private helper in one file cannot be read from the other.
 
 // The name line under a tile, with the gap above it. The packing counts it,
+//
 // because a tile is the image and the name together, and it is a fixed height
+//
 // rather than a share of the column width.
 const photosetLabelHeight = 20.0;
 
@@ -25,71 +30,99 @@ const photosetLabelHeight = 20.0;
 const photosetTileGap = 8.0;
 
 // The line naming the set a tile's photo is from, with the gap above it, at the
+//
 // style the tile draws it in. It is drawn only when the grid shows photos from
-// more than one set, which is the pack's, because with no grouping a tile has
-// to say which set it is from (`ai/picking.md` §7). A single photoset has one
-// set, which its block names above the photos, so its tiles keep one line.
+//
+// more than one set, because a tile is a small area and its label line is the
+//
+// only place that can say which of them it is from, and a tile with one label
+//
+// has room for the file name only when there is nothing to tell apart
+//
+// (`ai/picking.md` §7).
 const photosetSetLineHeight = 24.0;
 
-// The horizontal inset inside a row of the list. It is what makes a tinted line
-// read as a band rather than as a line of text with a colour behind it, and it
-// is this list's own: the two tables have no horizontal padding (`ai/picking.md`
-// §7). The header row naming the columns is drawn with the same inset, so its
-// text sits above its column rather than to the left of it.
-const photosetLinePadding = 4.0;
-
 // The width a portrait photo's column is, and the width a landscape's is
+//
 // (`ai/picking.md` §7): as many columns of the portrait width as fit in the
+//
 // space are drawn, and the space they cannot use is shared out rather than left
+//
 // as a strip at the right. A landscape takes as many of those columns as make
+//
 // it the landscape width, so the two numbers have to stay a whole multiple
+//
 // apart. These are the numbers to change when the grid is being tried at a
+//
 // different density; the columns have no gap of their own, because a spanned
+//
 // column must be exactly as many of them as these two say — the space between
+//
 // two tiles is the padding inside them.
 const photosetColumnWidth = 200.0;
 const photosetLandscapeWidth = 400.0;
 
-// The widest a column of the pack's grid may be stretched to: twice the
-// portrait width. A zone capped at the columns its photos need cannot always
-// use the whole space, and past this the space is left at the right rather than
-// a column being made wider (`ai/picking.md` §7). Only the pack bounds the
-// share, because only the pack caps a zone at its photos: a single photoset
-// uses the whole space as it is (`ai/single_photoset.md` §7).
+// The widest a column of this grid may be stretched to: twice the portrait
+//
+// width. A zone capped at the columns its photos need cannot always use the
+//
+// whole space, and past this the space is left at the right rather than a
+//
+// column being made wider (`ai/picking.md` §7). The share is bounded because
+//
+// the grid is split by kind, and both photoset types split it, so both are
+//
+// bounded the same way.
 const photosetColumnMaxWidth = 2 * photosetColumnWidth;
 
 // The widest the block's column is. The width it does not use is the photo
+//
 // area's, so the cap does not leave an empty strip beside the block
+//
 // (`ai/picking.md` §7).
 const photosetBlockMaxWidth = 400.0;
 
 /// The state the block and the gallery read: the controller both use, the
+///
 /// generation the pictures are keyed with, and the records the run in progress
-/// has written. For a pack the two are separate widgets in two grid cells, so
-/// the run that writes the files and the pictures that show them cannot be one
-/// widget's state, and neither the generation nor what a run has written can be
-/// one widget's counter — the editor, which places both, holds this
-/// (`AGENTS.md` §5).
+///
+/// has written. The two are separate widgets in two grid cells for both
+///
+/// photoset types, so the run that writes the files and the pictures that show
+///
+/// them cannot be one widget's state, and neither the generation nor what a run
+///
+/// has written can be one widget's counter — the editor, which places both,
+///
+/// holds this (`AGENTS.md` §5).
 class PhotosetState {
   PhotosetState({required this.controller});
 
   final PhotosetController controller;
 
-  /// Changes on each run that wrote files, so a photo written under the same name
-  /// is re-resolved against the emptied cache — `AGENTS.md` §5. Re-picking writes
-  /// the same names, which is the case the poster does not have.
+  /// Changes on each run that wrote files, so a photo written under the same
+  ///
+  /// name is re-resolved against the emptied cache — `AGENTS.md` §5. Re-picking
+  ///
+  /// writes the same names, which is the case the poster does not have.
   int generation = 0;
 
-  /// What the run in progress has written. A photo is shown as it is written, so
-  /// the cache entry for its path is dropped and the generation moves at that
-  /// moment rather than at the end of the run — the same rule the Screenshots
-  /// section follows. It is cleared when the run ends, because from then on the
-  /// manifest is what the two widgets read.
+  /// What the run in progress has written. A photo is shown as it is written,
+  ///
+  /// so the cache entry for its path is dropped and the generation moves at
+  ///
+  /// that moment rather than at the end of the run — the same rule the
+  ///
+  /// Screenshots section follows. It is cleared when the run ends, because from
+  ///
+  /// then on the manifest is what the two widgets read.
   final List<ImageRecord> running = [];
 
   void recordCopy(ImageRecord record) {
     // The thumbnail is rewritten under the same name too, so the rule covers it
+    //
     // as well: both paths are emptied, and the picture is keyed with this
+    //
     // generation so it resolves against the empty cache (`AGENTS.md` §5).
     final photo = controller.absolutePath(record);
 
@@ -100,6 +133,7 @@ class PhotosetState {
   }
 
   /// The run is over: what it wrote is in `images.json`, so the records the two
+  ///
   /// widgets read are the manifest's again.
   void endRun() {
     running.clear();
@@ -107,18 +141,18 @@ class PhotosetState {
 }
 
 /// The strings this feature shows for the release type it is showing
-/// (`ai/single_photoset.md` §4). They assume several sets, so they read wrong for
-/// one, and they are resolved per type as `fieldLabel` is. The Scan and Pick
-/// buttons, the count line and the report lines are not here: they say the same
-/// thing for one set as for many.
+///
+/// (`ai/single_photoset.md` §4). They assume several sets, so they read wrong
+///
+/// for one, and they are resolved per type as `fieldLabel` is. The Scan and
+///
+/// Pick buttons, the count line and the report lines are not here: they say the
+///
+/// same thing for one set as for many.
 class PhotosetStrings {
   const PhotosetStrings({
     required this.blockTitle,
-    required this.listTitle,
-    required this.nameHeader,
-    required this.countHeader,
     required this.photosTitle,
-    required this.emptyText,
     required this.pickHint,
     required this.pickProgress,
     this.scanProgress,
@@ -126,56 +160,57 @@ class PhotosetStrings {
   });
 
   /// The heading of the data block: the line that names the folder the user
+  ///
   /// picked and the counts the scan took from it.
   final String blockTitle;
 
-  /// The header above the list of sets. Only a pack has a list: a single
-  /// photoset has one set, and a header naming a list reads wrong for one item,
-  /// so it is null for that type and the block draws nothing (`ai/picking.md`
-  /// §7).
-  final String? listTitle;
-
-  /// The two headers naming the columns the lines of the list draw. They are null
-  /// for the same type `listTitle` is, for the same reason: the type with one set
-  /// has no list, so it has no columns either, and the block draws nothing
-  /// (`ai/picking.md` §7). The words for the name are the ones the same feature's
-  /// field label has, because it is the same value shown in a column.
-  final String? nameHeader;
-  final String? countHeader;
-
-  /// The title of the area that shows the picked photos. For a pack it is the key
-  /// the Screenshots section titles itself with, because what a pack shows is the
-  /// pictures rather than the list of sets, and the two areas show the same files
-  /// the same way, so they use the same word. For a single photoset there is no
-  /// area apart from the block, so it is the same word as the block's
-  /// (`ai/picking.md` §7).
+  /// The title of the area that shows the picked photos. It is the key the
+  ///
+  /// Screenshots section titles itself with, for both photoset types: what the
+  ///
+  /// area shows is the pictures rather than what the block names, and the two
+  ///
+  /// areas show the same files the same way, so they say the same word. The
+  ///
+  /// heading of the block names the block, so it stays the word each type reads
+  ///
+  /// right for one set or for several (`ai/picking.md` §7).
   final String photosTitle;
 
-  final String emptyText;
-
-  /// What the block says when the user asks it to pick before the source has been
-  /// picked.
+  /// What the block says when the user asks it to pick before the source has
+  ///
+  /// been picked.
   final String pickHint;
 
-  /// The words for a run's progress, with the two numbers it reports.
+  /// The words for a run's progress, with the two numbers it reports. The pick
   ///
-  /// The pick counts photos, which is the same measure for one set as for many,
-  /// so it is one set of words. The scan counts the sets the scan found, and that
-  /// is only a count for the type that has a list: for the type whose item is one
-  /// folder the scan has one item, so a row counting it says nothing and is null
-  /// there, and the block draws nothing (`ai/picking.md` §7).
+  /// counts photos, which is the same measure for one set as for many, so it is
+  ///
+  /// one set of words. The scan counts the sets the scan found, and that is
+  ///
+  /// only a count for the type that has a list: for the type whose item is one
+  ///
+  /// folder the scan has one item, so a row counting it says nothing and is
+  ///
+  /// null there, and the block draws nothing (`ai/picking.md` §7).
   final String Function(int done, int total) pickProgress;
   final String Function(int done, int total)? scanProgress;
 
   /// The choices the strategy row offers, each with the label it has, in the
-  /// order the row lists them.
   ///
-  /// Only a pack has a choice: the two strategies differ in what the count is
-  /// divided across, and for the type with one set the whole pack is that set, so
-  /// the two answers are the same and there is nothing to choose. It is null for
-  /// that type and the popup draws nothing (`ai/picking.md` §7,
-  /// `ai/single_photoset.md` §6); the answer then carries the strategy the popup
-  /// opens with, which is what both answers give for one set.
+  /// order the row lists them. Only a pack has a choice: the two strategies
+  ///
+  /// differ in what the count is divided across, and for the type with one set
+  ///
+  /// the whole pack is that set, so the two answers are the same and there is
+  ///
+  /// nothing to choose. It is null for that type and the popup draws nothing
+  ///
+  /// (`ai/picking.md` §7, `ai/single_photoset.md` §6); the answer then carries
+  ///
+  /// the strategy the popup opens with, which is what both answers give for one
+  ///
+  /// set.
   final Map<PickStrategy, String>? strategyChoices;
 }
 
@@ -185,18 +220,15 @@ PhotosetStrings photosetStrings(
 ) => switch (releaseType) {
   ReleaseType.photosetPack => PhotosetStrings(
     blockTitle: l10n.photosetPackSectionTitle,
-    listTitle: l10n.photosetListSectionTitle,
-    // The type with a list has columns, so it has the headers naming them.
-    nameHeader: l10n.photosetListNameHeader,
-    countHeader: l10n.photosetListCountHeader,
     photosTitle: l10n.screenshotsSectionTitle,
-    emptyText: l10n.photosetPackNoPhotosets,
     pickHint: l10n.photosetPackSourceEmpty,
     pickProgress: l10n.photosetPickProgress,
     scanProgress: l10n.photosetScanProgress,
-    // Several sets, so the choice is a real one: the count can be divided across
-    // them or over the whole pack as one set, and the two give different picks.
-    // The order here is the order the row lists them.
+    // Several sets, so the choice is a real one: the count can be divided
+    //
+    // across them or over the whole pack as one set, and the two give different
+    //
+    // picks. The order here is the order the row lists them.
     strategyChoices: {
       PickStrategy.perSet: l10n.pickStrategyPerSet,
       PickStrategy.wholePack: l10n.pickStrategyWholePack,
@@ -204,35 +236,37 @@ PhotosetStrings photosetStrings(
   ),
   ReleaseType.singlePhotoset => PhotosetStrings(
     blockTitle: l10n.singlePhotosetSectionTitle,
-    listTitle: null,
-    // One set, so no list and no columns to name (`ai/picking.md` §7).
-    nameHeader: null,
-    countHeader: null,
-    photosTitle: l10n.singlePhotosetSectionTitle,
-    emptyText: l10n.singlePhotosetNoPhotosets,
+    // The area shows the pictures, so it says the word the other area that
+    //
+    // shows the same files says (`ai/picking.md` §7).
+    photosTitle: l10n.screenshotsSectionTitle,
     pickHint: l10n.singlePhotosetSourceEmpty,
     pickProgress: l10n.photosetPickProgress,
     // One item, so a row counting the items says nothing and the strings that
+    //
     // assume several sets are not used here (`ai/picking.md` §7).
     scanProgress: null,
-    // One set, so the whole pack is that set and the two strategies give the same
-    // picks: there is nothing to choose, so nothing is drawn (`ai/picking.md` §7,
-    // `ai/single_photoset.md` §6). The answer carries the strategy the popup opens
-    // with, which is what both answers give for one set.
+    // One set, so the whole pack is that set and the two strategies give the
+    //
+    // same picks: there is nothing to choose, so nothing is drawn
+    //
+    // (`ai/picking.md` §7, `ai/single_photoset.md` §6). The answer carries the
+    //
+    // strategy the popup opens with, which is what both answers give for one
+    //
+    // set.
     strategyChoices: null,
   ),
-  // Only here because a switch over the release types has to be exhaustive: these
-  // have the Screenshots section, the Video pack section and the Image folder
-  // section, so they never reach it.
+  // Only here because a switch over the release types has to be exhaustive:
+  //
+  // these have the Screenshots section, the Video pack section and the Image
+  //
+  // folder section, so they never reach it.
   ReleaseType.singleVideo ||
   ReleaseType.videoPack ||
   ReleaseType.imageFolderUpload => PhotosetStrings(
     blockTitle: l10n.photosetPackSectionTitle,
-    listTitle: null,
-    nameHeader: null,
-    countHeader: null,
     photosTitle: l10n.photosetPackSectionTitle,
-    emptyText: l10n.photosetPackNoPhotosets,
     pickHint: l10n.photosetPackSourceEmpty,
     pickProgress: l10n.photosetPickProgress,
     scanProgress: null,
@@ -240,8 +274,11 @@ PhotosetStrings photosetStrings(
   ),
 };
 
-/// One photoset as the feature lays it out: the item, the photos the rule picked
-/// for it in the order the source gives them, and the ratio each of those has.
+/// One photoset as the feature lays it out: the item, the photos the rule
+///
+/// picked for it in the order the source gives them, and the ratio each of
+///
+/// those has.
 class PhotosetGroup {
   const PhotosetGroup({
     required this.item,
@@ -255,7 +292,9 @@ class PhotosetGroup {
 }
 
 /// Reads the sets as the feature lays them out, in the order the scan wrote
+///
 /// them. The manifest is read once for the whole list rather than once per set,
+///
 /// because a run rebuilds the list for every set it has already read.
 List<PhotosetGroup> photosetGroups(
   PhotosetState state,
@@ -269,16 +308,22 @@ List<PhotosetGroup> photosetGroups(
 }
 
 /// Reads one set as the feature lays it out: the photos the rule picked for it
-/// in the order the source gives them, and the ratio each of those has. A photo
-/// whose header cannot be read is the null that lays out as a square
-/// (`ai/picking.md` §7).
 ///
-/// The records are the manifest's plus the ones the run in progress has written.
-/// A run replaces the records it writes, so the two are the same set at the end
-/// of it; while it runs what is already on disk stays shown and each new photo
-/// is added as it is written, so a re-pick does not blank the list while it
-/// works. They are keyed by the record path, because that is the record ID and
-/// the same photo cannot be counted twice.
+/// in the order the source gives them, and the ratio each of those has. A photo
+///
+/// whose header cannot be read is the null that lays out as a square
+///
+/// (`ai/picking.md` §7). The records are the manifest's plus the ones the run
+///
+/// in progress has written. A run replaces the records it writes, so the two
+///
+/// are the same set at the end of it; while it runs what is already on disk
+///
+/// stays shown and each new photo is added as it is written, so a re-pick does
+///
+/// not blank the list while it works. They are keyed by the record path,
+///
+/// because that is the record ID and the same photo cannot be counted twice.
 PhotosetGroup photosetGroup(
   PhotosetState state,
   ReleaseItem item,
@@ -305,112 +350,25 @@ PhotosetGroup photosetGroup(
   );
 }
 
-/// The count a line shows: what the rule picked for this set, then what the
-/// scan counted for it, the two numbers as the feature has them. The picked part
-/// is what the records say, so before a pick the line says 0 — the feature shows
-/// what is on disk. The model stores the count as a string, so a value that is
-/// not a number — a manifest edited by the user — is shown as it is, the same
-/// way the size field shows a value it cannot format.
-String photosetCountText(AppLocalizations l10n, PhotosetGroup group) {
-  final value = group.item.fields.value('photoCount');
-
-  return l10n.photosetPickedOfTotal(group.paths.length, value);
-}
-
-/// The line naming one set: its name and the two counts. It is drawn once, in
-/// the block, because the grid no longer names a set above its photos — the tile
-/// says which set its photo is from instead (`ai/picking.md` §7).
-///
-/// Every other line is tinted, because a list read as bands of text is followed
-/// with the eye (`ai/picking.md` §7), as the two tables the app has are
-/// (`ai/video_pack.md` §5). The parity is the position in the order the items are
-/// stored, so a re-scan of the same folder does not change a line's colour. The
-/// header naming the list and the row naming the columns are not lines, so they
-/// are not tinted.
-///
-/// The tint is on a `Material` for the same reason the tables' is: a line is the
-/// same shape whether or not it is tinted, and a plain container paints its colour
-/// over the hover highlight, which is painted on the canvas of the nearest
-/// `Material` ancestor. Nothing here is clickable today, so the reason is the shape
-/// the tables have and what a line would need if it ever became clickable.
-Widget photosetLine(
-  BuildContext context,
-  AppLocalizations l10n,
-  PhotosetState state,
-  PhotosetGroup group,
-  int index,
-) {
-  final theme = Theme.of(context);
-
-  return Material(
-    color: index.isOdd
-        ? theme.colorScheme.surfaceContainerHigh
-        : Colors.transparent,
-    child: Padding(
-      // The padding is what makes a tinted line read as a band rather than as a
-      // line of text with a colour behind it; the vertical value is the one the
-      // two tables use, the horizontal one is this list's own (`ai/picking.md`
-      // §7).
-      padding: const EdgeInsets.symmetric(
-        horizontal: photosetLinePadding,
-        vertical: 4,
-      ),
-      child: Row(
-        // The key is the item's path, not the name it is shown under: two items whose
-        // display names collide are still two sets (§5.3).
-        key: ValueKey(('groupHeader', group.item.path)),
-        children: [
-          Expanded(
-            child: Text(
-              state.controller.displayName(group.item.path),
-              style: theme.textTheme.bodyMedium,
-            ),
-          ),
-          Text(
-            photosetCountText(l10n, group),
-            style: theme.textTheme.bodySmall,
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-/// The row naming the two columns the lines of the list draw (`ai/picking.md`
-/// §7): the name, and the pair of numbers. It is drawn only for the type that has
-/// a list, as `listTitle` is, and it is not a line, so it is not tinted.
-///
-/// Each header sits where its column's values sit: the name at the left edge, the
-/// count at the right edge. The row is the shape a line is, so the two agree on
-/// where the columns are, and it has the lines' horizontal padding so the header
-/// text is above the values rather than beside them.
-Widget photosetListHeader(BuildContext context, PhotosetStrings strings) {
-  final heading = Theme.of(context).textTheme.labelMedium;
-
-  return Padding(
-    key: const ValueKey('photosetListHeader'),
-    padding: const EdgeInsets.symmetric(horizontal: photosetLinePadding),
-    child: Row(
-      children: [
-        Expanded(child: Text(strings.nameHeader!, style: heading)),
-        Text(strings.countHeader!, style: heading),
-      ],
-    ),
-  );
-}
-
 /// One picked photo as the app shows it, in the box the packing worked out for
-/// it, which is its own ratio, so nothing is cropped. `setName` is the line
-/// naming the set the photo is from, which only a grid mixing sets draws
-/// (`ai/picking.md` §7).
 ///
-/// The picture is the run's thumbnail when that file is on disk, and the photo
-/// itself when it is not (`ai/picking.md` §8). The tile is still the photo's:
-/// its key and the name under it are the photo's, not the thumbnail's, because
-/// the tile is the record and the thumbnail is only how the record is drawn. A
-/// tile that takes the fallback path is a photo the run skipped or could not
-/// write, and the same rule as the image boxes applies: only a file that is
-/// there is shown.
+/// it, which is its own ratio, so nothing is cropped. `setName` is the line
+///
+/// naming the set the photo is from, which only a grid mixing sets draws
+///
+/// (`ai/picking.md` §7). The picture is the run's thumbnail when that file is
+///
+/// on disk, and the photo itself when it is not (`ai/picking.md` §8). The tile
+///
+/// is still the photo's: its key and the name under it are the photo's, not the
+///
+/// thumbnail's, because the tile is the record and the thumbnail is only how
+///
+/// the record is drawn. A tile that takes the fallback path is a photo the run
+///
+/// skipped or could not write, and the same rule as the image boxes applies:
+///
+/// only a file that is there is shown.
 Widget photosetTile(
   PhotosetState state,
   String path,
@@ -431,8 +389,11 @@ Widget photosetTile(
 }
 
 /// One photo in the grid: the set it is from and which of that set's photos it
+///
 /// is. The grid is the photos of every set together, in the order the source
+///
 /// gives the sets and, within a set, the order it gives the photos, so a tile
+///
 /// is not part of one set's stack (`ai/picking.md` §7).
 class _GridPhoto {
   const _GridPhoto({required this.group, required this.index});
@@ -444,7 +405,9 @@ class _GridPhoto {
 }
 
 /// One zone of the grid: the photos of one kind and the columns that zone has,
+///
 /// counted from the column the zone starts at, so the drawing places the zones
+///
 /// side by side (`ai/picking.md` §7).
 class _PhotoZone {
   const _PhotoZone({
@@ -471,14 +434,13 @@ class _PhotoZone {
 /// a landscape read as a landscape; a photo whose header could not be read
 /// takes a square tile.
 ///
-/// For a pack the grid is split by kind (`ai/picking.md` §7): the counts decide
-/// the columns each kind gets, a kind with no photos has none, and a zone is
-/// not given more than its photos need. The zones are drawn side by side,
-/// portraits first, each starting at the top of the area, and a kind is packed
-/// inside its own zone, so a tile cannot cross into the other kind's columns. A
-/// single photoset is not split (`ai/single_photoset.md` §7), so its photos are
-/// the one zone that is the whole grid, and for a pack the grid is one zone too
-/// when the space cannot hold a column of both kinds.
+/// The grid is split by kind (`ai/picking.md` §7): the counts decide the
+/// columns each kind gets, a kind with no photos has none, and a zone is not
+/// given more than its photos need. The zones are drawn side by side, portraits
+/// first, each starting at the top of the area, and a kind is packed inside its
+/// own zone, so a tile cannot cross into the other kind's columns. The grid is
+/// the one zone that is the whole space when the space cannot hold a column of
+/// both kinds, or when only one kind of photo is present.
 ///
 /// The columns have no gap of their own, because a spanned column must be
 /// exactly as many of them as the two widths say: the space between two tiles
@@ -507,54 +469,54 @@ Widget photosetPhotoGrid(PhotosetState state, List<PhotosetGroup> groups) {
             _GridPhoto(group: group, index: index),
       ];
 
-      // The set line is only drawn where the grid mixes sets, which is the
-      // pack's: a single photoset's block names the one set above its photos.
+      // The set line is only drawn where the grid mixes sets: a grid with one
+      //
+      // set has nothing to tell apart, so its tiles keep one label line.
       final showSet = groups.length > 1;
       final labelHeight =
           photosetLabelHeight + (showSet ? photosetSetLineHeight : 0);
 
-      final isPack =
-          state.controller.release.releaseType == ReleaseType.photosetPack;
-
       // The zones, in the order they are drawn: portraits first, then
+      //
       // landscapes, which is what `ai/picking.md` §7 says. With one kind, or
+      //
       // with a space that cannot hold a column of both, there is no split and
+      //
       // the grid is the one zone that is the whole space.
       final zones = <_PhotoZone>[];
       final fit = photoColumnCount(width: width, min: photosetColumnWidth);
 
-      if (isPack) {
-        final portrait = [
-          for (final photo in photos)
-            if (!isLandscape(photo.group.ratios[photo.index])) photo,
-        ];
-        final landscape = [
-          for (final photo in photos)
-            if (isLandscape(photo.group.ratios[photo.index])) photo,
-        ];
-        final split = photoZoneColumnCounts(
-          portraitPhotos: portrait.length,
-          landscapePhotos: landscape.length,
-          columnCount: fit,
-          landscapeSpan: span,
-        );
+      final portrait = [
+        for (final photo in photos)
+          if (!isLandscape(photo.group.ratios[photo.index])) photo,
+      ];
+      final landscape = [
+        for (final photo in photos)
+          if (isLandscape(photo.group.ratios[photo.index])) photo,
+      ];
 
-        if (split != null) {
-          zones.add(
-            _PhotoZone(
-              photos: portrait,
-              columns: split.portraitColumns,
-              start: 0,
-            ),
-          );
-          zones.add(
-            _PhotoZone(
-              photos: landscape,
-              columns: split.landscapeColumns,
-              start: split.portraitColumns,
-            ),
-          );
-        }
+      final split = photoZoneColumnCounts(
+        portraitPhotos: portrait.length,
+        landscapePhotos: landscape.length,
+        columnCount: fit,
+        landscapeSpan: span,
+      );
+
+      if (split != null) {
+        zones.add(
+          _PhotoZone(
+            photos: portrait,
+            columns: split.portraitColumns,
+            start: 0,
+          ),
+        );
+        zones.add(
+          _PhotoZone(
+            photos: landscape,
+            columns: split.landscapeColumns,
+            start: split.portraitColumns,
+          ),
+        );
       }
 
       if (zones.isEmpty) {
@@ -570,11 +532,13 @@ Widget photosetPhotoGrid(PhotosetState state, List<PhotosetGroup> groups) {
       final columnWidth = photoColumnWidth(
         width: width,
         columnCount: used,
-        maxWidth: isPack ? photosetColumnMaxWidth : null,
+        maxWidth: photosetColumnMaxWidth,
       );
 
       // Each kind is packed inside its own zone, so a tile is never placed in
+      //
       // the other kind's columns, and the height the grid takes is the tallest
+      //
       // of the zones, because they are drawn side by side.
       final grid = <Widget>[];
       var gridHeight = 0.0;

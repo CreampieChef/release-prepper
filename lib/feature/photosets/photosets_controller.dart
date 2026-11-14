@@ -10,7 +10,6 @@ import '../../service/photosets/photoset_scanner.dart';
 import '../release/release.dart';
 import '../release/release_fields.dart';
 import '../release/release_store.dart';
-import '../release/release_type.dart';
 import '../screenshots/images.dart';
 import '../screenshots/images_store.dart';
 import '../tab/tab_manager.dart';
@@ -35,10 +34,10 @@ import '../tab/tab_manager.dart';
 /// That is why the run reports as it goes: the report is what lets the widget
 /// build between two sets.
 ///
-/// For a pack the run also writes a preview thumbnail next to each photo it
-/// copies (`ai/picking.md` §8). That is the only place those files come from,
-/// and nothing is recorded for them, so the path is derived here, from the
-/// photo's record.
+/// For both photoset types the run writes a preview thumbnail next to each
+/// photo it copies (`ai/picking.md` §8). That is the only place those files
+/// come from, and nothing is recorded for them, so the path is derived here,
+/// from the photo's record.
 class PhotosetController {
   PhotosetController({
     required this.release,
@@ -53,9 +52,9 @@ class PhotosetController {
   final Release release;
   final PhotosetScanner scanner;
 
-  /// The tool the run writes a preview thumbnail with. Only the pack's run asks
-  /// for one, and a call that cannot run is not reported: the photo the tile
-  /// shows is the one the run wrote, whatever the thumbnail did.
+  /// The tool the run writes a preview thumbnail with. A call that cannot
+  /// run is not reported: the photo the tile shows is the one the run wrote,
+  /// whatever the thumbnail did.
   final Ffmpeg ffmpeg;
 
   final ImagesStore store;
@@ -92,16 +91,15 @@ class PhotosetController {
     return '$thumbnailPrefix$name.jpg';
   }
 
-  /// Whether a run writes a thumbnail for a photo (`ai/picking.md` §8). Only
-  /// the pack has them, for now. A photo already within the cap is not written,
-  /// because the tool would write the same picture again and the only thing
-  /// gained is a process. A photo whose header could not be read has no
-  /// dimensions, so the rule cannot know it is within the cap and writes one:
-  /// the rule skips what it can know, never what it guesses.
+  /// Whether a run writes a thumbnail for a photo (`ai/picking.md` §8). A photo
+  /// already within the cap is not written, because the tool would write the same
+  /// picture again and the only thing gained is a process. A photo whose header
+  /// could not be read has no dimensions, so the rule cannot know it is within
+  /// the cap and writes one: the rule skips what it can know, never what it
+  /// guesses.
   bool writesThumbnail(ImageDimensions? dimensions) =>
-      release.releaseType == ReleaseType.photosetPack &&
-      (dimensions == null ||
-          math.max(dimensions.width, dimensions.height) > thumbnailMaxSize);
+      dimensions == null ||
+      math.max(dimensions.width, dimensions.height) > thumbnailMaxSize;
 
   /// A photo's thumbnail, as an absolute path, derived from the photo. Nothing
   /// is stored for it, as nothing is stored for the video thumbnail.
@@ -218,7 +216,15 @@ class PhotosetController {
   /// decided are passed in too: the popup owns them as widget state, and the
   /// controller runs the rule with what it chose.
   ///
-  /// For a pack the run writes a preview thumbnail beside each photo it copies
+  /// The count of what the run wrote is a field value, so it is returned for
+  /// the editor's single write path rather than written here, as the scan's
+  /// counts are. It is the count for the whole run, not for one set, because
+  /// the field is the release's total of what was picked; for the type whose
+  /// item is the folder the two are the same number. It is what the run wrote,
+  /// so a run that copied nothing answers 0: a run replaces the photo records
+  /// it wrote, so the count after it is the count this run wrote.
+  ///
+  /// The run writes a preview thumbnail beside each photo it copies
   /// (`ai/picking.md` §8). It is not recorded, so nothing here returns it: the
   /// file is the photo's, and its path is derived from the record. A thumbnail
   /// that could not be written is not reported — the photo it is a copy of is
@@ -331,7 +337,14 @@ class PhotosetController {
     // are written here, so the tab is marked dirty here.
     tabManager.setUnsavedChanges(tabId, true);
 
+    // Kept to the names this type has, as the scan's counts are
+    // (`ai/picking.md` §7, `ai/single_photoset.md` §3).
+    final fieldList = fieldListFor(release.releaseType);
+
     return PhotosetPickResult(
+      values: fieldList.hasField('pickedPhotoCount')
+          ? {'pickedPhotoCount': '${written.length}'}
+          : const {},
       written: written,
       notCopied: notCopied,
       emptySets: [
@@ -453,15 +466,23 @@ final class PhotosetFailure extends PhotosetResult {
   final PhotosetFailureKind kind;
 }
 
-/// What a pick wrote: the records it wrote, the photos it could not copy, and
-/// the sets with no photos. All three are reported rather than guessed at
-/// (`ai/picking.md` §2).
+/// What a pick wrote: the values its count is, the records it wrote, the photos
+/// it could not copy, and the sets with no photos. The values are for the
+/// editor's single write path, as the scan's are, and the rest are reported
+/// rather than guessed at (`ai/picking.md` §2).
 class PhotosetPickResult {
   const PhotosetPickResult({
+    required this.values,
     required this.written,
     required this.notCopied,
     required this.emptySets,
   });
+
+  /// What the run wrote, as the field value the type's field list has. The
+  /// widget writes it through the editor's single write path, as the scan's
+  /// values are written, so a result that wrote nothing has none for a type
+  /// without the name.
+  final Map<String, String> values;
 
   /// The records this run wrote, in the order the source gives them. The widget
   /// evicts the cache for these before it builds again, as the Screenshots

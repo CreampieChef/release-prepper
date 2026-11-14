@@ -35,8 +35,10 @@ can re-derive it from the filesystem. This is the same reasoning as "provenance 
 - **The item path is the real relative path** — `set01` for a folder, `set01.zip` for an archive.
   It is the ID the image records link to (`ai/release_structure.md` §2), so it keeps the extension.
 - **The name without the extension is derived for display, not stored.** Storing it would make
-  `set01.zip` and `set01/` collide on one ID. The list of photosets the app shows is the item
-  list with the display name derived from each path.
+  `set01.zip` and `set01/` collide on one ID. The app shows no list of photosets: the item list is
+  what the scan wrote, and the display name derived from each path is what a tile in a grid that mixes
+  sets names its set with, and what the path the copies are written to is built from
+  (`ai/picking.md` §7).
 - The two namespaces stay as they are: item paths are paths in the source, image record paths are
   paths inside the release. A mirrored folder in the release carries the display name; that is not
   a conflict, it is the two namespaces working as designed.
@@ -63,6 +65,7 @@ App-generated, at the release level:
 | --- | --- |
 | `photosetCount` | the number of items |
 | `totalPhotoCount` | the number of photos across all items |
+| `pickedPhotoCount` | the number of photos the picking rule wrote |
 | `totalSize` | the size the counted photos have in the source, summed |
 | `minResolution` | the smallest photo by pixel area, across all photos |
 | `maxResolution` | the largest photo by pixel area, across all photos |
@@ -72,6 +75,13 @@ App-generated, at the item level:
 | Field | Meaning |
 | --- | --- |
 | `photoCount` | the number of photos in this set |
+
+`pickedPhotoCount` is not what the scan counts: it is what the pick run wrote, so the run fills it and
+hands it to the editor's write path at its end, as the values above are handed there (`ai/picking.md`
+§7). The name is in both photoset types' field lists, because the value is the same for either, and the
+row it is drawn at is the one after `totalPhotoCount`, as the field lists are read in order. The
+item-level count is still recorded by the scan, although nothing shows it now that the block draws no
+list, because an item's field is what the model writes for a post to read.
 
 Resolution is compared by pixel area, not by a side, and it is aggregated at the release level
 only — there is no per-set min/max. A resolution value is written as `WIDTHxHEIGHT`.
@@ -91,7 +101,7 @@ for a file in a folder, and the size the archive states for an entry, which is i
 length — the same kind of number, so the two sources give one field. A photo whose header cannot be
 read is still counted, and the size the source gives it is still known, so the total is the whole
 counted set rather than only the photos that could be measured. It is the order of this list that
-decides where the row is: below `totalPhotoCount`, as the field lists are read in order.
+decides where the row is: after `pickedPhotoCount`, as the field lists are read in order.
 
 The scan also counts the distinct extensions among the photos it counted, lowercased and sorted.
 That is the value the single photoset has (`ai/single_photoset.md` §6); this type's field list does
@@ -201,15 +211,16 @@ Implemented. The rule is `ai/picking.md`; the seam defined here is what the code
   (`ai/release_structure.md` §4), and recorded as `kind: photo`.
 - Each photo the run copies gets a preview thumbnail beside it, capped at 800 px on the biggest side
   and not recorded: its name is derived from the photo's, as the video thumbnail's is
-  (`ai/picking.md` §8), so there is no record for the Upload section to send. This is the only type
-  that writes them, and the tile draws the thumbnail when its file is on disk and the photo when it
-  is not.
+  (`ai/picking.md` §8), so there is no record for the Upload section to send. Both photoset types write
+  them, because nothing in the rule branches on the type, and the tile draws the thumbnail when its file
+  is on disk and the photo when it is not.
 - The section shows them in place of the screenshots as one grid of tiles, where each tile names the
-  set its photo is from as well as its file name, because nothing groups them (`ai/picking.md` §7).
-- For a pack that grid is split by kind: the portraits in the columns of the portrait width,
+  set its photo is from as well as its file name, because the grid mixes sets (`ai/picking.md` §7).
+- That grid is split by kind, for both types: the portraits in the columns of the portrait width,
   the landscapes in the columns of the landscape width, never mixed, and the counts of the photos
-  decide how many columns each kind gets. A single photoset is not split, because with one set there
-  is nothing to group (`ai/picking.md` §7, `ai/single_photoset.md` §7).
+  decide how many columns each kind gets. Only the tiles of a grid that mixes sets name the set; a grid
+  with one set keeps the file name alone, because there is no other set to tell its photos from
+  (`ai/picking.md` §7, `ai/single_photoset.md` §7).
 - The scan runs before the picker, because the picking reads the counts, and because the popup's
   slider opens at the number the curve gives for the total the scan read. The resolutions are not part
   of the rule except for the extremes the popup can ask for, which is the one case the rule reads them
@@ -255,12 +266,13 @@ Done:
 6. `lib/service/photosets/` — the scan behind the reader interface, and one file per reader:
    `directory_reader.dart` and `zip_reader.dart`. The scan reports what it reads as it reads it, and
    it calls each reader on another isolate (`ai/photoset_pack.md` §4).
-7. `lib/feature/photosets/` — the controller, the block that lists the photosets with their counts,
-   the header naming that list, the area that draws the picked photos as the grid the feature
-   fits from the two widths it gives, split by kind for a pack, and the state and the drawing
-   helpers the two share. The block shows a set as the scan reads it and a photo as the pick writes
-   it, and draws the progress row while a run is going with the shared `ProgressRow`
-   (`lib/feature/progress_row.dart`, `ai/picking.md` §7).
+7. `lib/feature/photosets/` — the controller, the block that draws its heading and the rows the editor
+   gives it and nothing below them, the area that draws the picked photos as the grid the feature fits
+   from the two widths it gives, split by kind, and the state and the drawing helpers the two share.
+   The block is the page's second column for both photoset types, and the area is the space after it
+   (`ai/picking.md` §7). The block draws the progress row while a run is going with the shared
+   `ProgressRow` (`lib/feature/progress_row.dart`, `ai/picking.md` §7), and hands the counts its runs
+   counted to the editor's write path at the end of a run.
 8. l10n keys in both arb files, and the tests for the pack form, the header reader, the scan, the
    block, the area and the shared tile.
 9. `zip_reader.dart` — the ZIP reader through the `archive` package, and `pubspec.yaml` with it;
@@ -271,8 +283,9 @@ Done:
     call in the copy loop, the tile drawing the thumbnail when its file is there, and the cache
     eviction for both paths (`AGENTS.md` §5). The tests are the name rule, what a run writes and
     skips, a tool that is not installed, a call that fails, and the tile resolving to the thumbnail
-    or to the photo (`test/photosets_test.dart`). The other two types that show these tiles take
-    the fallback path, because nothing is generated for them.
+    or to the photo (`test/photosets_test.dart`). The image folder shows the same tiles without a run, so
+    it takes the fallback path; a single photoset writes them as the pack does, because the rule does not
+    branch on the type.
 
 Left:
 

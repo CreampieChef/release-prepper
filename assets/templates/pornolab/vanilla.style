@@ -4,3 +4,4 @@ poster = [img=right]{content}[/img]
 label  = [b]{content}[/b]
 # text style does not have bbcode here
 text   =
+title  = [size=24]{content}[/size]

@@ -68,7 +68,8 @@ level) is on branch `borked` (commit `93550ca`); it was removed from `main`.
 
 What is left unfinished is not a compile error but missing behaviour:
 
-- The main menu is File (`New Release`, `Open Release`, `Clone Release`, `Save`, `Close tab`,
+- The main menu is File (`New Release`, `Open Release`, `Clone Release`, `Save`,
+  `Close tab`,
   `Settings`, `Recent releases`) and Help (`About`, `System Check`). The four
   that have a keybinding show hotkey
   hints (Ctrl+N, Ctrl+O, Ctrl+S, Ctrl+W), drawn by `MainMenu` itself — gray,
@@ -77,7 +78,8 @@ What is left unfinished is not a compile error but missing behaviour:
   a fixed spacing that cannot be styled from outside, and it only shows a hint:
   the keys are handled by `AppShortcuts`, and the items and the keys call the
   same callbacks. `Settings`, `Recent releases` and `System Check` show no hint,
-  because there is no key for any of them, and `Clone Release` shows none for the same reason.
+  because there is no key for any of them, and `Clone Release` shows none for
+  the same reason.
   Save writes the selected tab through
   the same path the close
   popup uses; it is disabled when the selected tab is not an editor tab, because
@@ -108,21 +110,35 @@ What is left unfinished is not a compile error but missing behaviour:
   focusable in it, such as the recent list, has no node below it to be asked
   from — and it is not a stop for traversal, so Tab still reaches the first
   field.
-- Open Release covers the happy path and the invalid-folder error (error popup with
-  `Close` / `Choose another folder`, which repeats the pick). Cancel is not treated
-  as an error. There is no busy/disabled state on the menu item, and the folder is
-  not validated beyond `ReleaseStore.load()` finding `release.json` — a missing or
+- Open Release covers the happy path and the invalid-folder error (error popup
+  with
+  `Close` / `Choose another folder`, which repeats the pick). Cancel is not
+  treated
+  as an error. There is no busy/disabled state on the menu item, and the folder
+  is
+  not validated beyond `ReleaseStore.load()` finding `release.json` — a missing
+  or
   unreadable folder currently reports `releaseManifestNotFound`.
-- Clone Release (`Icons.content_copy` in the tab strip) is the wizard for making a second
-  release out of one that is already open, for the case where the user publishes the same scene
-  at another resolution: the same description and tags, a different video. It is a tab of its
-  own kind, and several of them may be open at once, two of them for the same source, because
-  one release per resolution means cloning the same source more than once. The form asks for
-  the name the clone is created under and the folder it goes in, prefilled with the source's
-  name and the folder the source is in, so the clone is its neighbour unless the user picks
-  another one. The name must differ from the source's, because two releases with the same name
-  are two rows of the recent list that cannot be told apart; the folder-name rules are the
-  new-release wizard's. The tracker and the type are the source's and are not chosen here,
+- Clone Release (`Icons.content_copy` in the tab strip) is the wizard for making
+  a second
+  release out of one that is already open, for the case where the user publishes
+  the same scene
+  at another resolution: the same description and tags, a different video. It is
+  a tab of its
+  own kind, and several of them may be open at once, two of them for the same
+  source, because
+  one release per resolution means cloning the same source more than once. The
+  form asks for
+  the name the clone is created under and the folder it goes in, prefilled with
+  the source's
+  name and the folder the source is in, so the clone is its neighbour unless the
+  user picks
+  another one. The name must differ from the source's, because two releases with
+  the same name
+  are two rows of the recent list that cannot be told apart; the folder-name
+  rules are the
+  new-release wizard's. The tracker and the type are the source's and are not
+  chosen here,
   because a clone is the same release with a different video; the same is true
   of the two flags, so the clone is created with the source's Private flag and
   the source's signature line rather than with the settings' defaults, because
@@ -144,316 +160,577 @@ What is left unfinished is not a compile error but missing behaviour:
   release-type badge after it at a gap, because they say what the name is for.
   The heading has 12 px below it before the form: the gap a section title has
   before its content, because the heading titles the page and not a column. The
-  form is as many columns of at least 430 px as the window has room for — the form's own columns plus the sections' columns for the
-  types that can be one of them, so four columns appear at about 1792 px. The page uses the whole window width with the margins it
-  has always had, so a wide window can really be four columns; there is no maximum width, because a form capped at 1000 px could not
-  be. The minimum column width and the gap between columns are constants in `lib/service/images/masonry.dart`, so that a section
-  drawn as the page's columns draws exactly those columns rather than its own — the photoset grid is the exception, because it lays
-  its own columns out from the two widths `photoset_group.dart` gives it (§7). The columns after the form's are only ever the
-  sections' columns, and only for the types `release_editor.dart` says can be one of them — the two video types, because the page is
-  the same shape for them, and the photoset pack, whose page is the fields' column, then the Photosets block's column at the most
-  the width this feature gives it, then the photo area for what the row has left; the Upload section, the Message section and the
-  draft are stacked below the fields in the fields' column, because the block's column is too narrow for their rows. A masonry
-  cannot be read at one column width, so the single photoset and the image folder keep the whole width below the form, and a single
-  photoset draws its photos in its own block because there is no space beside it for them. Any type's section goes below the form
-  too, left-aligned at one column width, when there is no room for it as a column; for a pack the photo area goes below the row at
-  the whole width when what the row has left cannot hold one column of its grid, and the space beside the capped block is left empty
+  form is as many columns of at least 430 px as the window has room for — the
+  form's own columns plus the sections' columns for the
+  types that can be one of them, so four columns appear at about 1792 px. The
+  page uses the whole window width with the margins it
+  has always had, so a wide window can really be four columns; there is no
+  maximum width, because a form capped at 1000 px could not
+  be. The minimum column width and the gap between columns are constants in
+  `lib/service/images/masonry.dart`, so that a section
+  drawn as the page's columns draws exactly those columns rather than its own —
+  the photoset grid is the exception, because it lays
+  its own columns out from the two widths `photoset_group.dart` gives it (§7).
+  The columns after the form's are only ever the
+  sections' columns, and only for the types `release_editor.dart` says can be
+  one of them — the two video types, because the page is
+  the same shape for them, and the two photoset types, whose page is the fields'
+  column, then the Photosets block's
+  column at the most the width this feature gives it, then the photo area for
+  what the row has left; the Upload
+  section, the Message section and the draft are stacked below the fields in the
+  fields' column, because the block's
+  column is too narrow for their rows. The Torrent section is at the top of that
+  stack for a pack, and at the end of the block's column for a single
+  photoset, below the block, as it is for the other types (`ai/torrents.md`).
+  Nothing in this placement branches on the
+  type. A masonry cannot be read at
+  one column width, so the image folder keeps the whole width below the form.
+  Any type's section goes below the form
+  too, left-aligned at one column width, when there is no room for it as a
+  column; for a photoset the
+  photo area goes below the row at
+  the whole width when what the row has left cannot hold one column of its grid,
+  and the space beside the capped block is left empty
   (§7). The Message
-  section is the whole width below everything unless it is one of those columns, which for a pack it is never, being part of the
-  form's column. Each column is titled by what it holds, with the same title style the sections use: "Release Info" for the column
-  of fields the user writes, and for the column of values the scan or the probe read the name of what that type holds — Video for a
-  single video, Photosets for the two photoset types, Images for the image folder. A photoset pack is the exception: the only column
-  the editor titles is the one with its fields, because its Photosets block titles itself as a section does, in its own column, and
-  so does the photo area. So for a pack the word Photosets
-  is said twice — as the block's heading and as the label of the count row inside it — and the word Screenshots once, as the title
-  of the area, because what the area shows is the pictures rather than the list of sets (`ai/picking.md` §7). A video pack's second
-  column is the folder the user picked and the values the scan took from it, so it is titled by the folder rather than by one value
-  inside it. The image folder type has no column of fields, so the column that is the poster box and nothing else has no title. A
-  section titles itself with `lib/feature/section_title.dart`: the title at the left and the button that runs in that section at the
-  right, because the button is the action of the whole section and not of one row inside it. The action is drawn at least
-  `SectionTitle.actionMinWidth` wide, so a short label is the same shape as a longer one; that is the width of the action, not of
-  each button inside it. A form column has no such button, so it draws its title without that row. The gap a title has to the first
-  row of its column is 4 px, not the 12 px a section uses, because the first row of a form column is an image box whose label row
-  has its own space above its label, so the same gap reads as a bigger one here than in a section whose first content is plain text.
-  The poster box shows the image the user chose; the video thumbnail shows the frame ffmpeg writes for the video, and clicking that
-  box picks the video, as clicking the poster box picks an image. Neither is recorded in `release.json`. The poster is a record in
-  `images.json`, so its path comes from that record; the video thumbnail is not recorded at all, and its path is derived from the
-  release directory and the item path. Both boxes show the file itself rather than a separate smaller copy of it, and the frame is
-  written at the source resolution. The path the user picked is its own row, not a field, because the item is the file
-  (`ai/release_structure.md` §2). release directory. The poster box also takes a link from the clipboard and processes the image it
-  points at the same way as a picked file; pasting the image itself is not implemented (see §10). Fields are editable text boxes
-  except the six the app fills from the movie file (items 8, 9, 11, 12, 13, 16), which are read-only, and except `sceneUrl`, whose
-  row is the Stash row at the top of the form's left column, under the poster box, and `parentForum`, whose row is the Upload draft
-  section's, because a field is where the action that uses it is. Field state lives in `ReleaseEditorController`; the form is filled
-  from `release.json` on open, Ctrl+S saves it back — a handler nearer in the focus chain is asked first, so this one wins while
-  focus is inside the editor and the app-level `AppShortcuts` is the fallback for the rest — and a change marks the tab with an
-  unsaved-changes dot in the tab strip. The form does not validate a field before the user asks for a message; the fields a message
-  reads are checked when they ask, for the type whose rules are known, and after a generation is refused the rows the user can fill
-  show the rule as it stands, so an error goes away when the field is filled (`ai/description_template.md` §Validation).
-- The StashDB row is the first row of the form's left column, under the poster box: the field for
-  the scene URL or ID, with a Fetch button, as the other rows that have one have theirs. What a
-  fetch gives is not shown in the form but in a popup: each value with a checkbox — checked when
-  there is something to apply — and Cancel and Apply. Applying writes through the editor's single
-  write path, so the tab becomes dirty and Ctrl+S saves it; the row has no write path of its own.
-  The popup owns the selection while it is open, so closing it without applying — by Cancel or by
-  any other means — discards what it offered, and fetching again is what shows it again. Its title
-  is "Import from Stash DB" and it is capped at 1000 px. The poster row shows its link and the
-  image below it, at the width the row has and 240 px tall, fitted and kept at the left rather
-  than centred, so a landscape poster fills the box and a portrait one does not sit in the middle
-  of it: the app shows no image it has not read from a file, so the popup asks the controller to
-  fetch the poster into a temporary file named after the scene, which is what makes an `Image`
-  resolve it again (`AGENTS.md` rule 5), and removes the file when the popup closes. A poster
-  that cannot be fetched shows its link only. Below the poster the popup has its "Import notes"
-  subsection: the values the import changed rather than copied, each one the message that says
-  what was done to it followed by the value as the scene reported it, with the part it cut
-  struck through. A value it copied as it came is not listed, and a note has no checkbox,
-  because it is not something to apply. The subsection titles itself with `SectionTitle`, the
-  row every section uses. There are two kinds: the title rule, whose message says the title
-  contained the site number so it was stripped from it, and a domain read from a URL outside the
-  Primary sources category, whose message says the domain was read from another link and is
-  followed by that link. The second kind can appear twice for the one field, once for each of
-  the two studios, so a note's key includes its place in the list rather than the field alone.
+  section is the whole width below everything unless it is one of those columns,
+  which for a photoset
+  it is never, being part of the
+  form's column. Each column is titled by what it holds, with the same title
+  style the sections use: "Release Info" for the column
+  of fields the user writes, and for the column of values the scan or the probe
+  read the name of what that type holds — Video for a
+  single video, Images for the image folder. A photoset is the exception: the
+  only column the editor titles is the one with its
+  fields, because its Photosets block titles itself as a section does, in its
+  own column, and so does the photo area, for both
+  photoset types. The word the block titles itself with is per type, because one
+  folder of photos and a folder of sets are said
+  differently, while the area says the same word for both: what it shows is the
+  pictures, and no type has a list of sets to name any more. So the word
+  the block is called is said twice for a pack, as its heading and as the label
+  of the count row inside it, and once for a single
+  photoset, where the count of one item is the item rather than a field
+  (`ai/picking.md` §7).
+  A video pack's second column is the folder the user picked and the values the
+  scan took
+  from it, so it is titled by the folder rather than by one value
+  inside it. The image folder type has no column of fields, so the column that
+  is the poster box and nothing else has no title. A
+  section titles itself with `lib/feature/section_title.dart`: the title at the
+  left and the button that runs in that section at the
+  right, because the button is the action of the whole section and not of one
+  row inside it. The action is drawn at least
+  `SectionTitle.actionMinWidth` wide, so a short label is the same shape as a
+  longer one; that is the width of the action, not of
+  each button inside it. A form column has no such button, so it draws its title
+  without that row. The gap a title has to the first
+  row of its column is 4 px, not the 12 px a section uses, because the first row
+  of a form column is an image box whose label row
+  has its own space above its label, so the same gap reads as a bigger one here
+  than in a section whose first content is plain text.
+  The poster box shows the image the user chose; the video thumbnail shows the
+  frame ffmpeg writes for the video, and clicking that
+  box picks the video, as clicking the poster box picks an image. Neither is
+  recorded in `release.json`. The poster is a record in
+  `images.json`, so its path comes from that record; the video thumbnail is not
+  recorded at all, and its path is derived from the
+  release directory and the item path. Both boxes show the file itself rather
+  than a separate smaller copy of it, and the frame is
+  written at the source resolution. The path the user picked is its own row, not
+  a field, because the item is the file
+  (`ai/release_structure.md` §2). release directory. The poster box also takes a
+  link from the clipboard and processes the image it
+  points at the same way as a picked file; pasting the image itself is not
+  implemented (see §10). Fields are editable text boxes
+  except the six the app fills from the movie file (items 8, 9, 11, 12, 13, 16),
+  which are read-only, and except `sceneUrl`, whose
+  row is the Stash row at the top of the form's left column, under the poster
+  box, and `parentForum`, whose row is the Upload draft
+  section's, because a field is where the action that uses it is. Field state
+  lives in `ReleaseEditorController`; the form is filled
+  from `release.json` on open, Ctrl+S saves it back — a handler nearer in the
+  focus chain is asked first, so this one wins while
+  focus is inside the editor and the app-level `AppShortcuts` is the fallback
+  for the rest — and a change marks the tab with an
+  unsaved-changes dot in the tab strip. The form does not validate a field
+  before the user asks for a message; the fields a message
+  reads are checked when they ask, for the type whose rules are known, and after
+  a generation is refused the rows the user can fill
+  show the rule as it stands, so an error goes away when the field is filled
+  (`ai/description_template.md` §Validation).
+- The StashDB row is the first row of the form's left column, under the poster
+  box: the field for
+  the scene URL or ID, with a Fetch button, as the other rows that have one have
+  theirs. What a
+  fetch gives is not shown in the form but in a popup: each value with a
+  checkbox — checked when
+  there is something to apply — and Cancel and Apply. Applying writes through
+  the editor's single
+  write path, so the tab becomes dirty and Ctrl+S saves it; the row has no write
+  path of its own.
+  The popup owns the selection while it is open, so closing it without applying
+  — by Cancel or by
+  any other means — discards what it offered, and fetching again is what shows
+  it again. Its title
+  is "Import from Stash DB" and it is capped at 1000 px. The poster row shows
+  its link and the
+  image below it, at the width the row has and 240 px tall, fitted and kept at
+  the left rather
+  than centred, so a landscape poster fills the box and a portrait one does not
+  sit in the middle
+  of it: the app shows no image it has not read from a file, so the popup asks
+  the controller to
+  fetch the poster into a temporary file named after the scene, which is what
+  makes an `Image`
+  resolve it again (`AGENTS.md` rule 5), and removes the file when the popup
+  closes. A poster
+  that cannot be fetched shows its link only. Below the poster the popup has its
+  "Import notes"
+  subsection: the values the import changed rather than copied, each one the
+  message that says
+  what was done to it followed by the value as the scene reported it, with the
+  part it cut
+  struck through. A value it copied as it came is not listed, and a note has no
+  checkbox,
+  because it is not something to apply. The subsection titles itself with
+  `SectionTitle`, the
+  row every section uses. There are two kinds: the title rule, whose message
+  says the title
+  contained the site number so it was stripped from it, and a domain read from a
+  URL outside the
+  Primary sources category, whose message says the domain was read from another
+  link and is
+  followed by that link. The second kind can appear twice for the one field,
+  once for each of
+  the two studios, so a note's key includes its place in the list rather than
+  the field alone.
   The row owns the focus of its input and takes it back when the popup closes,
   because the popup is a route and its focus scope is outside the row's: what
   the framework gives back is whatever had focus before the popup, not the row's
   input. The save key reaches the editor from wherever the focus is, so this is
   not what the key depends on; it is what owning the input's focus means here.
   The fields it can
-  fill are cast, video title, site number, subsite and site, production date, tags and
-  description, and the poster. The six fields the app reads from the movie file are not StashDB's
-  to fill, and additional information has no StashDB value at all. Cast is the credit as the scene
-  shows it, the alias when the scene uses one; subsite and site is the domain of the studio, and
-  the parent's after it when it has one, the two separated by " / ". The domain is the host of the
-  URL the app reads the studio as being on, without `www.`: the URL recorded under a site in the
-  "Primary sources" category, because a studio's URL list is not only its own site and the links
-  to other databases are often listed first; then the URL recorded under the site named "Studio",
-  which is what a studio URL is put under when it does not match a site StashDB knows; and when
-  there is neither, the first URL with a host. A URL with no host is not a domain, so it is not a
-  candidate at any step. A host is lowercase, so the brand part keeps the studio name's
-  capitalization when the name is the same word as the host, and otherwise the host is written as
-  the URL gives it. A domain that `assets/stashdb/domain_map.json` has is what the field gets
-  before any of this, because the file is the list of the domains the app writes in a form the
-  rule cannot give — a host is lowercase, so the capitals a studio uses for its own domain are not
-  something it can recover — and the value is used exactly as the file writes it. The file is read
-  from the bundle when the values are built, which is why building them is the one async part of
-  the feature. A studio with no URL with a host has no domain to read, so the name as StashDB
-  reports it is what the field gets — nothing is invented; a domain read from a URL outside the
-  Primary sources category is what the popup lists as an import note, with the URL it was read
-  from; tags are the names as StashDB holds them, which are always in English; the date field is
-  the scene's release date, because StashDB has a production date only when someone entered one,
-  so the production date is the fallback; the poster is the first image the scene has, the same
-  rule as `images.json`. The scene itself is stored as field `sceneUrl`, the canonical URL built
-  from the scene id — never the text the user pasted — and the input shows that stored URL when
-  the scene was not fetched in this session. `sceneUrl` is one of the two field names whose row is
-  another widget's — the other is `parentForum`, the Upload draft section's — and neither is a
-  value a template reads. It is applied on its own without a checkbox, so Apply works for any
+  fill are cast, video title, site number, subsite and site, production date,
+  tags and
+  description, and the poster. The six fields the app reads from the movie file
+  are not StashDB's
+  to fill, and additional information has no StashDB value at all. Cast is the
+  credit as the scene
+  shows it, the alias when the scene uses one; subsite and site is the domain of
+  the studio, and
+  the parent's after it when it has one, the two separated by " / ". The domain
+  is the host of the
+  URL the app reads the studio as being on, without `www.`: the URL recorded
+  under a site in the
+  "Primary sources" category, because a studio's URL list is not only its own
+  site and the links
+  to other databases are often listed first; then the URL recorded under the
+  site named "Studio",
+  which is what a studio URL is put under when it does not match a site StashDB
+  knows; and when
+  there is neither, the first URL with a host. A URL with no host is not a
+  domain, so it is not a
+  candidate at any step. A host is lowercase, so the brand part keeps the studio
+  name's
+  capitalization when the name is the same word as the host, and otherwise the
+  host is written as
+  the URL gives it. A domain that `assets/stashdb/domain_map.json` has is what
+  the field gets
+  before any of this, because the file is the list of the domains the app writes
+  in a form the
+  rule cannot give — a host is lowercase, so the capitals a studio uses for its
+  own domain are not
+  something it can recover — and the value is used exactly as the file writes
+  it. The file is read
+  from the bundle when the values are built, which is why building them is the
+  one async part of
+  the feature. A studio with no URL with a host has no domain to read, so the
+  name as StashDB
+  reports it is what the field gets — nothing is invented; a domain read from a
+  URL outside the
+  Primary sources category is what the popup lists as an import note, with the
+  URL it was read
+  from; tags are the names as StashDB holds them, which are always in English;
+  the date field is
+  the scene's release date, because StashDB has a production date only when
+  someone entered one,
+  so the production date is the fallback; the poster is the first image the
+  scene has, the same
+  rule as `images.json`. The scene itself is stored as field `sceneUrl`, the
+  canonical URL built
+  from the scene id — never the text the user pasted — and the input shows that
+  stored URL when
+  the scene was not fetched in this session. `sceneUrl` is one of the two field
+  names whose row is
+  another widget's — the other is `parentForum`, the Upload draft section's —
+  and neither is a
+  value a template reads. It is applied on its own without a checkbox, so Apply
+  works for any
   scene the popup is showing even when none of its values are selected.
   The poster
-  is not a field, so it does not go through the field write path: it goes through the editor's
-  poster path, the same one a pasted link uses. The app asks for one scene by ID over
-  `https://stashdb.org/graphql` with the key from the Integration section. There is no GraphQL
-  package: a GraphQL call is one POST with a JSON body, and the `HttpClient` the image downloader
-  already uses is the client. The key is not a dependency of the client — the widget reads it from
-  `SettingsController` and passes it to the call, so the client does not hold a value that can
+  is not a field, so it does not go through the field write path: it goes
+  through the editor's
+  poster path, the same one a pasted link uses. The app asks for one scene by ID
+  over
+  `https://stashdb.org/graphql` with the key from the Integration section. There
+  is no GraphQL
+  package: a GraphQL call is one POST with a JSON body, and the `HttpClient` the
+  image downloader
+  already uses is the client. The key is not a dependency of the client — the
+  widget reads it from
+  `SettingsController` and passes it to the call, so the client does not hold a
+  value that can
   change while the app is open.
 - The Screenshots section is the width of one form column,
-  which is what lets it be one of the form's columns; when there is no room for it as a
-  column it is below the form instead (§2). Its title row is the title with the Generate button at the
-  right. The row below it is the label, the slider and the count on one line, the same shape the Video
-  pack section has: with the button in the title row, they fit in one column width. The count
-  text has a fixed width so the row does not move while a run goes. On click the app runs
+  which is what lets it be one of the form's columns; when there is no room for
+  it as a
+  column it is below the form instead (§2). Its title row is the title with the
+  Generate button at the
+  right. The row below it is the label, the slider and the count on one line,
+  the same shape the Video
+  pack section has: with the button in the title row, they fit in one column
+  width. The count
+  text has a fixed width so the row does not move while a run goes. On click the
+  app runs
   ffmpeg once per screenshot, each at a key frame, at the
-  original resolution, as a JPEG, evenly spread along the duration (the centre of
-  each equal segment), then one `mtn` call for the screenlist: 4 columns, one frame
-  per minute of video, at least 16 and at most 96 frames, so the row count is that
-  frame count rounded up to a whole row, and with blank skipping off so every cell of
-  the grid is a frame rather than an empty space. Files are named `_rp_screenshotNN.jpg`
-  and `_rp_screenlist.jpg` in `images/<item path>/`, the same folder the thumbnail
-  uses, and the section shows them in two equal columns of its own, packed as a masonry
-  (§7), with the screenlist first so it is the top of the left column. Nothing spans in that
-  grid: every frame is above the span ratio, so spans would make every tile as wide as the
-  grid and the grid would be one column. With no video picked the section shows the
-  placeholder saying what has to happen first, rather than controls that cannot run, and its title row
+  original resolution, as a JPEG, evenly spread along the duration (the centre
+  of
+  each equal segment), then one `mtn` call for the screenlist: 4 columns, one
+  frame
+  per minute of video, at least 16 and at most 96 frames, so the row count is
+  that
+  frame count rounded up to a whole row, and with blank skipping off so every
+  cell of
+  the grid is a frame rather than an empty space. Files are named
+  `_rp_screenshotNN.jpg`
+  and `_rp_screenlist.jpg` in `images/<item path>/`, the same folder the
+  thumbnail
+  uses, and the section shows them in two equal columns of its own, packed as a
+  masonry
+  (§7), with the screenlist first so it is the top of the left column. Nothing
+  spans in that
+  grid: every frame is above the span ratio, so spans would make every tile as
+  wide as the
+  grid and the grid would be one column. With no video picked the section shows
+  the
+  placeholder saying what has to happen first, rather than controls that cannot
+  run, and its title row
   has no button for the same reason. It shows
   them as the run writes them,
-  not only when it ends: the service reports each file as it writes it, the controller turns each
-  report into a record, and the widget adds that record to what it shows while the run is going.
-  A run that does not finish still records what it wrote, so a screenlist that failed does not
-  hide the screenshots that succeeded. The generated images are tracked in `images.json`
+  not only when it ends: the service reports each file as it writes it, the
+  controller turns each
+  report into a record, and the widget adds that record to what it shows while
+  the run is going.
+  A run that does not finish still records what it wrote, so a screenlist that
+  failed does not
+  hide the screenshots that succeeded. The generated images are tracked in
+  `images.json`
   at the release directory root, for their photo-hosting links later.
-  The rules that write the files — the key-frame times, the names, the rows, the tool calls — are the
-  service's (`lib/service/videos/image_generator.dart`), and it reports the files it wrote, as it
-  writes them, rather than records, because a record is a file plus the item it belongs to, which is
+  The rules that write the files — the key-frame times, the names, the rows, the
+  tool calls — are the
+  service's (`lib/service/videos/image_generator.dart`), and it reports the
+  files it wrote, as it
+  writes them, rather than records, because a record is a file plus the item it
+  belongs to, which is
   the feature's. What the
-  controller keeps is the record, the manifest write and the stamp. The slider minimum is the section's,
-  not the generation's: 3 here, because the number is the set of frames a post shows, and 0 for the
-  Video pack section, because a run there can write only the screenlist. Both sections read the images
-  through `imagesFor(item)`, so one rule decides what a section shows: the records of one item whose
-  files are on disk. When a run ends the section calls the function the editor passed it, because the
-  count the Upload section shows is the count the release has and the two sections cannot see each
-  other; the editor is the widget that places them, so it is where they meet (rule 3: a plain
-  callback, not a listener). The editor keeps the rebuilds the sections register with it and calls
-  them when something one of them shows changes: a run that writes images.json, or the source the
-  Torrent section runs on. Writing or removing a poster is such a change, because the poster is a
-  record in that file, so the poster path calls the same notice: without it a poster added after a
-  generation is not an image the Upload section counts, and one removed is still counted. A section
-  that is itself what changes such a state calls the same notice when its run writes something, so
-  there is one path for the notice and one place where the rebuilds happen: at the end of the run for
-  the sections that show their own images, and on each photo it copies for the Photosets block,
-  because a pack's pictures are drawn by another widget in another grid cell and build only when the
+  controller keeps is the record, the manifest write and the stamp. The slider
+  minimum is the section's,
+  not the generation's: 3 here, because the number is the set of frames a post
+  shows, and 0 for the
+  Video pack section, because a run there can write only the screenlist. Both
+  sections read the images
+  through `imagesFor(item)`, so one rule decides what a section shows: the
+  records of one item whose
+  files are on disk. When a run ends the section calls the function the editor
+  passed it, because the
+  count the Upload section shows is the count the release has and the two
+  sections cannot see each
+  other; the editor is the widget that places them, so it is where they meet
+  (rule 3: a plain
+  callback, not a listener). The editor keeps the rebuilds the sections register
+  with it and calls
+  them when something one of them shows changes: a run that writes images.json,
+  or the source the
+  Torrent section runs on. Writing or removing a poster is such a change,
+  because the poster is a
+  record in that file, so the poster path calls the same notice: without it a
+  poster added after a
+  generation is not an image the Upload section counts, and one removed is still
+  counted. A section
+  that is itself what changes such a state calls the same notice when its run
+  writes something, so
+  there is one path for the notice and one place where the rebuilds happen: at
+  the end of the run for
+  the sections that show their own images, and on each photo it copies for the
+  Photosets block,
+  because a photoset's pictures are drawn by another widget in another grid cell
+  and build only when the
   editor does (`ai/picking.md` §7).
-- For a photoset pack the feature is the Photosets block and the photo area, two widgets because
-  they are in two grid cells (`ai/photoset_pack.md`, `ai/picking.md` §7). The block is the page's
-  second column, at the most the width this feature gives it: its heading with the Scan and Pick
-  buttons at the right — Pick opens the popup the picking is asked through: the count, the way it is
-  divided, and whether the extremes must be kept (`ai/picking.md` §1, §4, §7) — the rows the editor
-  gives it, the path the user picked and the counts the scan took, which every other type has as rows
-  of the form, and the line naming each set with the number of photos in it. The area is what the row
-  has left after the fields' column and the block's
-  column, and it draws the grid this feature fits from the two widths it gives: the photos of every
-  set together, grouped by kind — the portraits in the columns of the portrait width and the
-  landscapes in the columns of the landscape width, never mixed, with the counts deciding how many
-  columns each kind gets (`ai/picking.md` §7) — so within a kind the order is the order the source
-  gives and across the grid it is not. Each tile says which set its photo is from as well as its
-  file name, and draws the run's preview thumbnail for that photo when its file is on disk and the
-  photo itself when it is not (`ai/picking.md` §8): the pick run writes one beside each photo it
-  copies, capped at 800 px on the biggest side, skipped for a photo already within the cap, and
-  recorded nowhere, so the Upload section has nothing to send for it. Nothing is shown before the
-  scan, because opening a release is a read and changes nothing, and
-  nothing is drawn for a set before a pick, because the feature shows what is on disk. A set the scan
-  found is named by its line in the block even when nothing was picked for it, because the list is what
-  the scan found: after a run that line can say 0 for a set the scan could not read, or for one the
-  chosen count did not reach — a share below one photo, or no position inside it — and the number it
-  shows does not say which. With nothing grouping the photos there is no column in the grid for such a
-  set. The scan decides which entries under the picked folder are items, counts the
-  photos in each, and reads their dimensions from the file headers rather than by decoding the image;
-  the minimum and the maximum are decided by pixel area across all photos, on the same comparison the
-  picker uses, where an equal area is answered in favour of the landscape (`ai/photoset_pack.md` §3);
-  what the scan could not take is reported rather than guessed at. The values it counts go through the
-  editor's single write path; the items it records are the scan's own output, because an item is what
-  the scan produces.
-  A set's line is drawn as the scan reads that set, and the block draws the shared progress row with
-  the count a run has reached while it is going (`ai/picking.md` §7).
-- A single photoset (`ai/single_photoset.md`) is that same block with one item: the picked folder
-  is the set itself, so the scan reads the photos directly inside it and records one item named by
-  the folder. It is the same feature with no area beside it, because a single set has no columns to
-  put its pictures in, so its block draws them itself (`ai/single_photoset.md` §7). Only the
-  strings are branched on the type, because "photosets" and "the folder with the photosets" read
-  wrong for one set. Its fields are names the other types already have — a model is the same value
-  as a cast, a set name the same value as a title — so only the words differ, and `fieldLabel`
-  resolves those two per type. The one name it has of its own is the list of image formats, built
-  by the same rule as the video formats. A value for a name the type does not have is not written,
+- For a photoset, either type, the feature is the Photosets block and the photo
+  widgets because they are in two grid cells (`ai/photoset_pack.md`,
+  `ai/picking.md` §7). The block is the page's second column, at the most the
+  width this feature gives it: its heading with the Scan and Pick buttons at the
+  right — Pick opens the popup the picking is asked through: the count, the way
+  it is divided, and whether the extremes must be kept (`ai/picking.md` §1, §4,
+  §7) — the rows the editor gives it — the path the user picked, the counts the
+  scan took, and the count the pick wrote — which every other type has as rows
+  of the form, and nothing below them, because the block draws no list of sets
+  for either type (`ai/picking.md` §7). The area is what the row has left after
+  the fields' column and the block's column, and it draws the grid this feature
+  fits from the two widths it gives: the photos of every set together, grouped
+  by kind — the portraits in the columns of the portrait width and the
+  landscapes in the columns of the landscape width, never mixed, with the counts
+  deciding how many columns each kind gets (`ai/picking.md` §7) — so within a
+  kind the order is the order the source gives and across the grid it is not.
+  Each tile says which set its photo is from as well as its file name, except in
+  a grid with one set, which has no other set to tell its photos from
+  (`ai/picking.md` §7), and draws the run's preview thumbnail for that photo
+  when its file is on disk and the photo itself when it is not (`ai/picking.md`
+  §8): the pick run writes one beside each photo it copies, capped at 800 px on
+  the biggest side, skipped for a photo already within the cap, and recorded
+  nowhere, so the Upload section has nothing to send for it. Nothing is shown
+  before a run, because opening a release is a read and changes nothing, and the
+  block draws no list of sets for either type, so a scan shows nothing: what it
+  read is said only by the values it writes and by the report lines. A set the
+  scan could not read, or one the chosen count did not reach — a share below one
+  photo, or no position inside it — is reported as what it is, and a run that
+  copied nothing answers 0 for the count the write path is handed. With nothing
+  grouping the photos there is no column in the grid for a set with none in it.
+  The scan decides which entries under the picked folder are items, counts the
+  photos in each, and reads their dimensions from the file headers rather than
+  by decoding the image; the minimum and the maximum are decided by pixel area
+  across all photos, on the same comparison the picker uses, where an equal area
+  is answered in favour of the landscape (`ai/photoset_pack.md` §3); what the
+  scan could not take is reported rather than guessed at. The values it counts
+  go through the editor's single write path; the items it records are the scan's
+  own output, because an item is what the scan produces. The block draws the
+  shared progress row with the count a run has reached while it is going, and
+  nothing else, and hands the count a pick wrote to the editor's write path at
+  the end of the run (`ai/picking.md` §7).
+- A single photoset (`ai/single_photoset.md`) is that same block with one item:
+  the picked folder
+  is the set itself, so the scan reads the photos directly inside it and records
+  one item named by
+  the folder. It is the same feature with the same photo area beside it and the
+  same
+  drawing, because nothing in the widgets or the placement branches on the type
+  (`ai/single_photoset.md` §7). Only the
+  strings are branched on the type, because "photosets" and "the folder with the
+  photosets" read
+  wrong for one set. Its fields are names the other types already have — a model
+  is the same value
+  as a cast, a set name the same value as a title — so only the words differ,
+  and `fieldLabel`
+  resolves those two per type. The one name it has of its own is the list of
+  image formats, built
+  by the same rule as the video formats. A value for a name the type does not
+  have is not written,
   so the controller keeps the values it returns to the names its field list has.
-- For an image folder upload the section below the form is the Image folder section
-  (`ai/image_folder_upload.md`): its title row with the Scan button at the right, the images as a
-  masonry, the count line, and what the run could not take. The picked folder is the item, and the
+- For an image folder upload the section below the form is the Image folder
+  section
+  (`ai/image_folder_upload.md`): its title row with the Scan button at the
+  right, the images as a
+  masonry, the count line, and what the run could not take. The picked folder is
+  the item, and the
   images are copied into the release rather than
-  uploaded from where they were picked, because a record path is relative to the release directory and the
-  Upload section resolves it there. There is no Pick button and no slider, because for this type the scan and
-  the copy are the same action and the number is what the folder contains, not a choice. The field list has no
-  field the user writes, so the form is the poster box and the four values the scan counted, in the right
-  column only; the three photo names are worded as image names for this type, and the source row says
-  *Folder with the images*. The images shown are the ones the run has copied so far, so a tile appears
-  when its file is written, and while a run is going the section draws the shared progress row with the
-  count it has reached (`ai/image_folder_upload.md` §5). A file that is not an image is not counted and is reported by the feature rather
-  than by the scan, because the reader reports nothing it skipped and changing it would change what the
+  uploaded from where they were picked, because a record path is relative to the
+  release directory and the
+  Upload section resolves it there. There is no Pick button and no slider,
+  because for this type the scan and
+  the copy are the same action and the number is what the folder contains, not a
+  choice. The field list has no
+  field the user writes, so the form is the poster box and the four values the
+  scan counted, in the right
+  column only; the three photo names are worded as image names for this type,
+  and the source row says
+  *Folder with the images*. The images shown are the ones the run has copied so
+  far, so a tile appears
+  when its file is written, and while a run is going the section draws the
+  shared progress row with the
+  count it has reached (`ai/image_folder_upload.md` §5). A file that is not an
+  image is not counted and is reported by the feature rather
+  than by the scan, because the reader reports nothing it skipped and changing
+  it would change what the
   photoset types report. The message is the image block alone.
-- For a video pack the Video pack section (`ai/video_pack.md`) is one form column wide, which is
-  what lets it be one of the form's columns for that type; when there is no room for it as a
-  column it is below the form instead (§2). Its title row with the Scan and Generate buttons at
-  the right, the slider, the videos as a table with one row each, and what the two runs could not
-  do, listed by name. Nothing is shown before a scan, for the same reason, but a release opened
-  from a manifest shows the items its file records, because those are what the file holds. The
-  title row fits at one column width only because the generate button's label is the short word,
-  and the value columns are about 48 px each at that width, so a number such as a size wraps
-  inside its cell. The table has a header row and one row per video; a row shows the name, the size,
-  the duration, whether the item has a screenlist and how many screenshots it has, and clicking it shows
-  the values the row does not. The name is the path relative to the source rather than a bare file name,
-  because two files in different subfolders can share a file name and the path is the record ID. The
-  columns are named by the labels their fields have, so the table and the form above it use the same
-  words, and the size in a cell is the human form alone, because a fixed-width cell cannot hold the
-  byte count as well. The value columns are right-aligned so the numbers line up, and a header follows
-  its own column; the name is not a number, so it is not aligned as one. A flag column shows a checkmark
-  or a count, and a count of 0 is shown as nothing, because a flag column that says 0 reads as an error
-  rather than as an absence; the two flag columns read the same records the Single video section shows,
-  so a column and a tile cannot disagree. The detail shows the values the row does not — the resolution,
-  the format and the two stream lines, each with the label its field has, because the stream lines are
-  long and cannot be columns — and does not repeat the ones the row already shows. The images themselves
-  are not shown in the detail yet; when they are, they need the image rule in full. The values are shown
-  as the model holds them, so a value the user corrected shows as corrected, and a value the model does
-  not have is shown as nothing, because a file the probe could not read has none and the report line says
-  which files those are. Which rows are open is widget state, keyed by the item path, because the path is
-  the record ID and stays the same across a re-scan of the same folder. The column for the additional
-  data is not built, because it belongs to the feature that fills it. The section shows these values
-  without editing them: the per-item form that edits them is not implemented yet.
-  The slider here allows 0 to 20 and starts at 0, because a run over many files can be asked to write
-  only the screenlist; the button is disabled while the release has no items, and there is no
+- For a video pack the Video pack section (`ai/video_pack.md`) is one form
+  column wide, which is
+  what lets it be one of the form's columns for that type; when there is no room
+  for it as a
+  column it is below the form instead (§2). Its title row with the Scan and
+  Generate buttons at
+  the right, the slider, the videos as a table with one row each, and what the
+  two runs could not
+  do, listed by name. Nothing is shown before a scan, for the same reason, but a
+  release opened
+  from a manifest shows the items its file records, because those are what the
+  file holds. The
+  title row fits at one column width only because the generate button's label is
+  the short word,
+  and the value columns are about 48 px each at that width, so a number such as
+  a size wraps
+  inside its cell. The table has a header row and one row per video; a row shows
+  the name, the size,
+  the duration, whether the item has a screenlist and how many screenshots it
+  has, and clicking it shows
+  the values the row does not. The name is the path relative to the source
+  rather than a bare file name,
+  because two files in different subfolders can share a file name and the path
+  is the record ID. The
+  columns are named by the labels their fields have, so the table and the form
+  above it use the same
+  words, and the size in a cell is the human form alone, because a fixed-width
+  cell cannot hold the
+  byte count as well. The value columns are right-aligned so the numbers line
+  up, and a header follows
+  its own column; the name is not a number, so it is not aligned as one. A flag
+  column shows a checkmark
+  or a count, and a count of 0 is shown as nothing, because a flag column that
+  says 0 reads as an error
+  rather than as an absence; the two flag columns read the same records the
+  Single video section shows,
+  so a column and a tile cannot disagree. The detail shows the values the row
+  does not — the resolution,
+  the format and the two stream lines, each with the label its field has,
+  because the stream lines are
+  long and cannot be columns — and does not repeat the ones the row already
+  shows. The images themselves
+  are not shown in the detail yet; when they are, they need the image rule in
+  full. The values are shown
+  as the model holds them, so a value the user corrected shows as corrected, and
+  a value the model does
+  not have is shown as nothing, because a file the probe could not read has none
+  and the report line says
+  which files those are. Which rows are open is widget state, keyed by the item
+  path, because the path is
+  the record ID and stays the same across a re-scan of the same folder. The
+  column for the additional
+  data is not built, because it belongs to the feature that fills it. The
+  section shows these values
+  without editing them: the per-item form that edits them is not implemented
+  yet.
+  The slider here allows 0 to 20 and starts at 0, because a run over many files
+  can be asked to write
+  only the screenlist; the button is disabled while the release has no items,
+  and there is no
   "Regenerate" variant, because the run replaces what it writes either way.
-  A run generates for every item, in the order the scan recorded them, and records what it wrote in
-  `images.json` once for the whole run, because a pack is tens of items and one write per item would be
-  tens of writes for one action the user asked for once. A tool that is not available stops the run,
-  because it does not become installed while the app is open; a file that failed does not stop the next
-  one, as one file does not fail the scan. What the run could not do to individual files is a report
-  line, with the scan's lines, because a run that did most of them is not an error; what it could not do
-  as a whole — a tool not installed, a manifest that could not be written — is a message, the same text
-  the Single video section shows. A re-scan replaces the items, so the lines naming files that are no
+  A run generates for every item, in the order the scan recorded them, and
+  records what it wrote in
+  `images.json` once for the whole run, because a pack is tens of items and one
+  write per item would be
+  tens of writes for one action the user asked for once. A tool that is not
+  available stops the run,
+  because it does not become installed while the app is open; a file that failed
+  does not stop the next
+  one, as one file does not fail the scan. What the run could not do to
+  individual files is a report
+  line, with the scan's lines, because a run that did most of them is not an
+  error; what it could not do
+  as a whole — a tool not installed, a manifest that could not be written — is a
+  message, the same text
+  the Single video section shows. A re-scan replaces the items, so the lines
+  naming files that are no
   longer items are cleared with it.
   The scan walks the picked folder and takes every file with one of the video
-  extensions as an item wherever it is, including the ones in subfolders, and probes each one with
-  the existing `Ffprobe`, one call per item; a file it cannot probe is still an item with its fields
-  empty. The files outside the extension list, the files it could not probe, the subfolders with no
-  video in them and the folders the walk could not read are reported rather than guessed at, and the
-  walk continues past a folder it could not read — as the photoset scan does with an unreadable set.
-  Such a folder is not counted as an empty one, because the scan cannot say whether it had a video in
-  it, so the values it counts are known to be incomplete when that list is not empty; only the picked
-  folder itself is a failure, because there is nothing to report when it cannot be read. The three
-  values it counts — the count, the distinct resolutions sorted by height, the distinct extensions —
-  go through the editor's single write path, and the items it records are the scan's own output, as
-  with a photoset pack. Videos are never copied into the release, so a video pack depends on the
-  picked folder staying where it is. The per-item form that edits these values and the message for this
+  extensions as an item wherever it is, including the ones in subfolders, and
+  probes each one with
+  the existing `Ffprobe`, one call per item; a file it cannot probe is still an
+  item with its fields
+  empty. The files outside the extension list, the files it could not probe, the
+  subfolders with no
+  video in them and the folders the walk could not read are reported rather than
+  guessed at, and the
+  walk continues past a folder it could not read — as the photoset scan does
+  with an unreadable set.
+  Such a folder is not counted as an empty one, because the scan cannot say
+  whether it had a video in
+  it, so the values it counts are known to be incomplete when that list is not
+  empty; only the picked
+  folder itself is a failure, because there is nothing to report when it cannot
+  be read. The three
+  values it counts — the count, the distinct resolutions sorted by height, the
+  distinct extensions —
+  go through the editor's single write path, and the items it records are the
+  scan's own output, as
+  with a photoset pack. Videos are never copied into the release, so a video
+  pack depends on the
+  picked folder staying where it is. The per-item form that edits these values
+  and the message for this
   type are not implemented yet (`ai/video_pack.md` §8).
-- In the same column, below the Screenshots section, is the Upload images section
-  (`ai/upload_images.md`): the two sections are the width of one form column for a single
-  video, and the whole width below the form for every other type. With room for four
-  columns the Upload section is the fourth, and without room for it as a column it is below
+- In the same column, below the Screenshots section, is the Upload images
+  section
+  (`ai/upload_images.md`): the two sections are the width of one form column for
+  a single
+  video, and the whole width below the form for every other type. With room for
+  four
+  columns the Upload section is the fourth, and without room for it as a column
+  it is below
   the Screenshots section (§2). The hoster list with
   a checkbox each, every hoster the app has checked at first — the real
-  ones, or the mock ones when the app was started with `--dev` — and the Upload button, in its title
+  ones, or the mock ones when the app was started with `--dev` — and the Upload
+  button, in its title
   row at the right. A
   hoster whose script reads a credential is not
-  selectable while that value is empty: its checkbox is inactive and says where to set it.
+  selectable while that value is empty: its checkbox is inactive and says where
+  to set it.
   It uploads the poster, the screenlist, and every
-  screenshot — not the video thumbnail — through the bundled `uptooda`, one image per call,
-  one image at a time per hoster, several hosters at the same time, no retry. A credential
-  goes to the tool through the environment variable `UPTOODA_HOSTER_API_KEY`, never as an
-  argument, and only for the hosters whose script reads one (`ai/bundled_native_tools.md`).
-  An image already uploaded to a hoster is skipped; one that failed is tried again, and an
-  unselected hoster is never attempted. The work list is in the order `images.json` lists the
+  screenshot — not the video thumbnail — through the bundled `uptooda`, one
+  image per call,
+  one image at a time per hoster, several hosters at the same time, no retry. A
+  credential
+  goes to the tool through the environment variable `UPTOODA_HOSTER_API_KEY`,
+  never as an
+  argument, and only for the hosters whose script reads one
+  (`ai/bundled_native_tools.md`).
+  An image already uploaded to a hoster is skipped; one that failed is tried
+  again, and an
+  unselected hoster is never attempted. The work list is in the order
+  `images.json` lists the
   records, because order is
-data (`ai/release_structure.md` §4). The URLs are stored per image and per hoster in
+data (`ai/release_structure.md` §4). The URLs are stored per image and per
+  hoster in
 `images.json`, under the
-  field names the tool reports. A progress bar is drawn for every hoster in the list,
-  whether or not it can run, and shows the images uploaded to that hoster over the images
-  in the release: the bar is the share of the release's images that hoster has, so a hoster
-  with none of them shows an empty bar while the count next to it reads 0 / 0. Until the
-  release has the poster and an image of the kind its type produces there is nothing it could
-  upload, so the section shows the placeholder saying what has to happen first instead of the list,
-  and its title row has no button for the same reason. The kind is a per-type rule: a screenshot
-  for a single video, a screenlist for a video pack, since a run over a pack can be asked to write
-  only that, and a photo for the two photoset types and the image folder, which record photos rather
-  than screenshots. The words name the kind for a pack; the other types keep the wording that names
-  screenshots, which for the photoset types and the image folder is not what the gate requires.
+  field names the tool reports. A progress bar is drawn for every hoster in the
+  list,
+  whether or not it can run, and shows the images uploaded to that hoster over
+  the images
+  in the release: the bar is the share of the release's images that hoster has,
+  so a hoster
+  with none of them shows an empty bar while the count next to it reads 0 / 0.
+  Until the
+  release has the poster and an image of the kind its type produces there is
+  nothing it could
+  upload, so the section shows the placeholder saying what has to happen first
+  instead of the list,
+  and its title row has no button for the same reason. The kind is a per-type
+  rule: a screenshot
+  for a single video, a screenlist for a video pack, since a run over a pack can
+  be asked to write
+  only that, and a photo for the two photoset types and the image folder, which
+  record photos rather
+  than screenshots. The words name the kind for a pack; the other types keep the
+  wording that names
+  screenshots, which for the photoset types and the image folder is not what the
+  gate requires.
   The state is read
-  from `images.json` when the release is opened, so a release with everything uploaded
+  from `images.json` when the release is opened, so a release with everything
+  uploaded
   shows full bars before anything runs. A run continues from that
-  state rather than starting a new count. The count is the count the release has, so a generation run
-  that adds images changes it, and the counters are read again when such a run ends: the section
-  registers its rebuild with the editor, which calls it, because the two sections cannot see each
-  other (rule 3). A run here is itself such a change, because it writes images.json, so it calls the
-  editor's notice at the end of one too, and that notice rebuilds every registered section, this one
+  state rather than starting a new count. The count is the count the release
+  has, so a generation run
+  that adds images changes it, and the counters are read again when such a run
+  ends: the section
+  registers its rebuild with the editor, which calls it, because the two
+  sections cannot see each
+  other (rule 3). A run here is itself such a change, because it writes
+  images.json, so it calls the
+  editor's notice at the end of one too, and that notice rebuilds every
+  registered section, this one
   included. A bar below full is the only error display: a
-  per-image failure is what the bar shows and the log records, so it is not shown as a
-  message. Only the cases where nothing can happen at all — the tool is not in the bundle,
+  per-image failure is what the bar shows and the log records, so it is not
+  shown as a
+  message. Only the cases where nothing can happen at all — the tool is not in
+  the bundle,
   or `images.json` could not be written — get a message.
 - The tool the Upload section calls is the one the app ships
   (`native/uptooda/`), because its upload scripts are the modified ones;
@@ -472,7 +749,7 @@ data (`ai/release_structure.md` §4). The URLs are stored per image and per host
   `ai/bundled_native_tools.md`).
 - The Torrent section (`ai/torrents.md`) is the last thing in the form's second
   column, under its fields, in every layout branch, rather than one of the
-  columns after the form, except for a photoset pack: for that type the form's
+  columns after the form, except for a photoset, for which the form's
   second column is its data block, so the section is drawn in the column that
   stacks the sections below the fields, directly above the Upload section
   (`ai/torrents.md`). It calls `mkbrr`, the other tool the app ships. It
@@ -489,30 +766,39 @@ data (`ai/release_structure.md` §4). The URLs are stored per image and per host
   the section title, because the flag is what the run is asked for. The file is
   the thing the flag describes, so when one is on disk the row shows what it
   states rather than what the record says; the record is what a run would write,
-  so it is what the row shows when there is no file. The row is drawn only when the
-  flag applies to something (rule 14): a source a run would hash, or a file whose
-  flag it is. With neither the value belongs to no run and no file, so the row is
+  so it is what the row shows when there is no file. The row is drawn only when
+  the
+  flag applies to something (rule 14): a source a run would hash, or a file
+  whose
+  flag it is. With neither the value belongs to no run and no file, so the row
+  is
   not drawn at all rather than shown inactive. Reading the flag is the
   bencode read in `lib/service/torrent/torrent_file.dart`, and it is a read, not
-  a change, so opening a release writes nothing. Changing the flag while a file is
-  there is a run — `mkbrr modify` on that file — so the section asks first with a
+  a change, so opening a release writes nothing. Changing the flag while a file
+  is
+  there is a run — `mkbrr modify` on that file — so the section asks first with
+  a
   popup and runs only on the answer; a dismissed popup is not an agreement, the
-  same rule as the close popup. The row is inactive while a run is going and when
+  same rule as the close popup. The row is inactive while a run is going and
+  when
   the file cannot be read, because a row cannot show a flag it has not read. The
   flag is part of the record, so the write is the editor's and the section
   reports the change to it, as the Message section does with the two flags it
   owns. With no file the value is only what a run would be asked for, so the
-  write is a change and marks the tab dirty like a field does; with a file the run
+  write is a change and marks the tab dirty like a field does; with a file the
+  run
   has already changed the thing the flag describes, so the record is written at
   once and the tab does not become dirty, because there is nothing left to save.
   With no source picked there is nothing to hash, so the title row has no action
   and the section says what has to happen first instead — "Pick a file first" or
   "Pick a folder first", which of the two is the release type's rule
-  (`FieldList.sourceKind`), not something the section can know on its own. What a
+  (`FieldList.sourceKind`), not something the section can know on its own. What
+  a
   file that is already there says is still shown, because picking a source would
   not change it, so the placeholder is only what the section says when it has
   nothing else to say. The source is not state this section holds, and typing in
-  the source row does not rebuild the editor, so the section registers its rebuild
+  the source row does not rebuild the editor, so the section registers its
+  rebuild
   with the editor, which calls it when that row is written to (rule 3).
   The section shows what the tool reports while it works: the percentage, the
   rate in the bracket before it, and the time left in the pair after it, so
@@ -527,121 +813,206 @@ data (`ai/release_structure.md` §4). The URLs are stored per image and per host
   use of `url_launcher`; a failure is shown as a message rather than swallowed.
 - Below the Upload section is the Message section
   (`ai/description_template.md`) — the
-  fourth column when there is room for four, otherwise the whole width below everything
+  fourth column when there is room for four, otherwise the whole width below
+  everything
   (§2): its title row with the Generate button at the right, the app signature
   checkbox, the title line, and a large text box; the last two each have a copy
-  button. The checkbox is on by default and decides whether the message ends with
+  button. The checkbox is on by default and decides whether the message ends
+  with
   the app signature (`ai/description_template.md` §App signature). Its
   state is the release's, as `includeAppSignature` in `release.json`, so a
   release shows the same answer wherever the app is reopened, and changing it
   marks the record dirty like a field does. Only what
-  there is to show is drawn: an empty title draws no row, and while nothing has been generated the
-  section is its title row and the placeholder — the same shape the Screenshots section
+  there is to show is drawn: an empty title draws no row, and while nothing has
+  been generated the
+  section is its title row and the placeholder — the same shape the Screenshots
+  section
   has when it has no images. The two flag rows are not drawn in that state
   (rule 14): before any image the message reads is uploaded there is no render,
   so the signature has nothing to be part of and a shape nothing to shape. They
   appear with the gate, and the values they show are unchanged by the rows not
   being drawn. The Generate button is drawn only once every image
-  the message reads has been uploaded to the poster hoster: the message is made of
+  the message reads has been uploaded to the poster hoster: the message is made
+  of
   those URLs, so before any upload there is nothing it could say, and the
-  placeholder says what has to happen first instead. The title row with nothing on
+  placeholder says what has to happen first instead. The title row with nothing
+  on
   its right is the same row as one with an action. The check is per record — a
   record with no entry for the poster hoster is an upload that did not happen —
   and an empty manifest is nothing uploaded rather than all uploaded. It is a
   synchronous method on the controller, like the Upload section's
   `hasUploadableImages()`, because the widget asks while it builds. The run
   that writes images.json is the Upload section, so this one is updated only
-  through the rebuild it registers with the editor (rule 3). The consequence is that a message can only be
-  typed after something has been generated, because while the box is not drawn there is nowhere to type.
-  The copy button for the box is at its top, level with the first line, not in its middle:
-  `InputDecorator` centres a suffix icon in the input area whatever the decoration takes, so the field
+  through the rebuild it registers with the editor (rule 3). The consequence is
+  that a message can only be
+  typed after something has been generated, because while the box is not drawn
+  there is nowhere to type.
+  The copy button for the box is at its top, level with the first line, not in
+  its middle:
+  `InputDecorator` centres a suffix icon in the input area whatever the
+  decoration takes, so the field
   uses the suffix slot with its text aligned to the top instead. Clicking it
-  reads the templates and the style for the tracker from the app bundle, builds the values they
-  read (the fields as `release.json` writes them, the release record, and the image variables),
-  renders the post text and the title, and writes them to `message.txt` and `title.txt` at the
-  release directory root with no trailing newline. The section shows what the files contain when
-  the release is opened. An edit in the box writes the file immediately, so the message is not
-  part of the save and does not take part in the dirty flag. Regenerating replaces what is in the
-  box: the render is the source of truth. The title is read-only, and a tracker without a title
-  template produces an empty title rather than a failure. A type that has no title at all
-  (`hasTitle` in `release_type.dart`) reads no title file, writes no `title.txt`, and the section
-  draws no title line for it, because a row that holds nothing is noise — the same is true for a type
-  that has a title while there is none, so the title line appears only when a title exists; the image folder
-  is such a type (`ai/image_folder_upload.md` §6). A file the bundle does not have is read as absent rather
-  than as a crash: the bundle reports a key it does not have with `FlutterError`, which is an
-  `Error` and not an `Exception`, so `on Exception` alone lets a missing file escape as an
+  reads the templates and the style for the tracker from the app bundle, builds
+  the values they
+  read (the fields as `release.json` writes them, the release record, and the
+  image variables),
+  renders the post text and the title, and writes them to `message.txt` and
+  `title.txt` at the
+  release directory root with no trailing newline. The section shows what the
+  files contain when
+  the release is opened. An edit in the box writes the file immediately, so the
+  message is not
+  part of the save and does not take part in the dirty flag. Regenerating
+  replaces what is in the
+  box: the render is the source of truth. The title is read-only, and a tracker
+  without a title
+  template produces an empty title rather than a failure. A type that has no
+  title at all
+  (`hasTitle` in `release_type.dart`) reads no title file, writes no
+  `title.txt`, and the section
+  draws no title line for it, because a row that holds nothing is noise — the
+  same is true for a type
+  that has a title while there is none, so the title line appears only when a
+  title exists; the image folder
+  is such a type (`ai/image_folder_upload.md` §6). A file the bundle does not
+  have is read as absent rather
+  than as a crash: the bundle reports a key it does not have with
+  `FlutterError`, which is an
+  `Error` and not an `Exception`, so `on Exception` alone lets a missing file
+  escape as an
   unhandled exception in the running app.
-  What the box shows is a render of the values the template reads, so a change to
-  those values makes it no longer what a render would produce, and the section goes
-  back to its placeholder: the title line and the box are cleared, and the two files
-  go with them, because the files always match what the section shows. The two things
-  that change the values are outside this widget — the form and the Upload section —
-  so the editor tells it through a second plain callback the section registers, called
-  from the single write path and from the end of an upload run (rule 3). A field is
-  any field, including the ones the app fills, because the message reads the values
-  and not the rows. The choice of the shape the block has goes through the same notice,
-  because it is part of what a render would produce, the same as a field. An image is a
+  What the box shows is a render of the values the template reads, so a change
+  to
+  those values makes it no longer what a render would produce, and the section
+  goes
+  back to its placeholder: the title line and the box are cleared, and the two
+  files
+  go with them, because the files always match what the section shows. The two
+  things
+  that change the values are outside this widget — the form and the Upload
+  section —
+  so the editor tells it through a second plain callback the section registers,
+  called
+  from the single write path and from the end of an upload run (rule 3). A field
+  is
+  any field, including the ones the app fills, because the message reads the
+  values
+  and not the rows. The choice of the shape the block has goes through the same
+  notice,
+  because it is part of what a render would produce, the same as a field. An
+  image is a
   change only when the run added a URL the message
-  reads: a run that wrote nothing, and a generation run that wrote files without URLs,
-  change what the render would produce by nothing, so neither clears the box. Nothing
-  is cleared when there is nothing to clear, and the reset is silent — it is not an
-  error, and the section is already the thing that shows the message; hand-typed text
-  is lost with it. The rule is about the values a template reads rather than about a
+  reads: a run that wrote nothing, and a generation run that wrote files without
+  URLs,
+  change what the render would produce by nothing, so neither clears the box.
+  Nothing
+  is cleared when there is nothing to clear, and the reset is silent — it is not
+  an
+  error, and the section is already the thing that shows the message; hand-typed
+  text
+  is lost with it. The rule is about the values a template reads rather than
+  about a
   form, so it applies to every release type.
-  The controller holds the values the last render read and says whether the current
-  ones are still those: a generation records them only when the write succeeded, since
-  a failed write leaves the box and the files as they were, and opening a section takes
-  the values as they are then, because nothing says what generated the text it read
-  from the files. `MessageStore.delete` removes one of the two files, and a file that
-  is not there is not an error, because a reset removes files that may already be gone.
-  A reset answers with `MessageCleared`, which reports nothing back because the widget
+  The controller holds the values the last render read and says whether the
+  current
+  ones are still those: a generation records them only when the write succeeded,
+  since
+  a failed write leaves the box and the files as they were, and opening a
+  section takes
+  the values as they are then, because nothing says what generated the text it
+  read
+  from the files. `MessageStore.delete` removes one of the two files, and a file
+  that
+  is not there is not an error, because a reset removes files that may already
+  be gone.
+  A reset answers with `MessageCleared`, which reports nothing back because the
+  widget
   has already cleared the box.
-  The screenshot block is the one part of the message whose shape is not data — the
-  spoiler wrapper, the item tags and the titles are written in `MessageController`: one spoiler
-  per hoster holding the photos, screenshots and screenlist uploaded to it — a photo is an image in
+  The screenshot block is the one part of the message whose shape is not data —
+  the
+  spoiler wrapper, the item tags and the titles are written in
+  `MessageController`: one spoiler
+  per hoster holding the photos, screenshots and screenlist uploaded to it — a
+  photo is an image in
   the post like a screenshot is — then the backup poster for
-  the poster links on the other hosters. The images of a hoster are on one line with nothing
+  the poster links on the other hosters. The images of a hoster are on one line
+  with nothing
   between them, so the site renders them as one block.
-  For the video pack the block groups per item as well, in one of the two shapes the release
-  chooses with a row of radio buttons at the top of the Message section: the hoster's group with
-  one group per item inside it, or the item's group with the hosters inside it. An item's group is
-  titled with the file name, the duration, the resolution and the size, and holds the two stream
-  lines before its images. The shape is stored on the release as `screenshotLayout`, and a file
-  without the key reads as the first shape, so a release written before the choice existed is not
-  an error. The row is drawn only for that type; the other types keep the flat block,
-  because the two shapes name a video and they have no video to name. Choosing a shape is written
+  For the video pack the block groups per item as well, in one of the two shapes
+  the release
+  chooses with a row of radio buttons at the top of the Message section: the
+  hoster's group with
+  one group per item inside it, or the item's group with the hosters inside it.
+  An item's group is
+  titled with the file name, the duration, the resolution and the size, and
+  holds the two stream
+  lines before its images. The shape is stored on the release as
+  `screenshotLayout`, and a file
+  without the key reads as the first shape, so a release written before the
+  choice existed is not
+  an error. The row is drawn only for that type; the other types keep the flat
+  block,
+  because the two shapes name a video and they have no video to name. Choosing a
+  shape is written
   through the editor's single write path,
-  so it marks the tab dirty and sends the notice that clears the box with the two files: the choice
+  so it marks the tab dirty and sends the notice that clears the box with the
+  two files: the choice
   is part of what a render would produce.
-- Below the Message section is the Upload draft section (`ai/uploading_draft.md`),
-  in whichever place that one is: the fourth column when there is room for four, the
-  whole width otherwise (§2). It is the section that sends what the Message section
-  shows, so it is drawn only for the four types whose field list has the parent forum
-  — the single video, the two photoset types and the video pack — and not for the image
-  folder, which has no title to send. Its row is the section's own, as the Stash row is
-  the Stash section's (`ai/release_editor.md`), because the field is where the action is
-  and the row and the button are read together. `parentForum` and `draftUrl` are the two
-  names with no row of the form besides the scene link, and the only two no template
+- Below the Message section is the Upload draft section
+  (`ai/uploading_draft.md`),
+  in whichever place that one is: the fourth column when there is room for four,
+  the
+  whole width otherwise (§2). It is the section that sends what the Message
+  section
+  shows, so it is drawn only for the four types whose field list has the parent
+  forum
+  — the single video, the two photoset types and the video pack — and not for
+  the image
+  folder, which has no title to send. Its row is the section's own, as the Stash
+  row is
+  the Stash section's (`ai/release_editor.md`), because the field is where the
+  action is
+  and the row and the button are read together. `parentForum` and `draftUrl` are
+  the two
+  names with no row of the form besides the scene link, and the only two no
+  template
   reads, so writing one does not make a rendered message stale.
-  What is drawn is what there is: with nothing generated the section says what has to
-  happen first, and the row and the Upload button appear only when a message exists — the
-  subject and the message a run sends are the two files the Message section owns, read with
-  `MessageStore.loadSync`, not the text in the box. Whether a message exists is state that
-  section changes, so this one registers its rebuild with the editor (rule 3). A link the
-  release already holds is shown even when the row is not: it is the result a run wrote, not
+  What is drawn is what there is: with nothing generated the section says what
+  has to
+  happen first, and the row and the Upload button appear only when a message
+  exists — the
+  subject and the message a run sends are the two files the Message section
+  owns, read with
+  `MessageStore.loadSync`, not the text in the box. Whether a message exists is
+  state that
+  section changes, so this one registers its rebuild with the editor (rule 3). A
+  link the
+  release already holds is shown even when the row is not: it is the result a
+  run wrote, not
   something a reset takes away.
-  The button is disabled while a run cannot be made, and its tooltip says which of the
-  three is missing in the order a run needs them: the message first, then the two
-  credentials, then the parent forum. The gate is the credentials rather than the cookie,
-  because a run can obtain the cookie from them (`ai/pornolab_login.md` §1). The value is
-  accepted only as a full URL on the site with an `f` parameter, because the request is
-  built from the id in it; it is stored as the user wrote it, because a forum URL is not
-  one shape — a subsite forum, a mirror, a URL with parameters — and the app cannot know
-  which one was meant. The row shows the shape rule with the same words the form's rows
-  use, and the words for a result are one set shared with the settings row, which is the
-  exception to rule 13 recorded in §4, so the gate and the message cannot disagree.
+  The button is disabled while a run cannot be made, and its tooltip says which
+  of the
+  three is missing in the order a run needs them: the message first, then the
+  two
+  credentials, then the parent forum. The gate is the credentials rather than
+  the cookie,
+  because a run can obtain the cookie from them (`ai/pornolab_login.md` §1). The
+  value is
+  accepted only as a full URL on the site with an `f` parameter, because the
+  request is
+  built from the id in it; it is stored as the user wrote it, because a forum
+  URL is not
+  one shape — a subsite forum, a mirror, a URL with parameters — and the app
+  cannot know
+  which one was meant. The row shows the shape rule with the same words the
+  form's rows
+  use, and the words for a result are one set shared with the settings row,
+  which is the
+  exception to rule 13 recorded in §4, so the gate and the message cannot
+  disagree.
   A run is not retried for a failure it cannot act on, and the app does not make
-  a login from one: a run with nothing stored says where to make the login, and a
+  a login from one: a run with nothing stored says where to make the login, and
+  a
   cookie the site did not accept says what it was and where to log in again
   (`ai/pornolab_login.md` §7). The reason is the captcha: the site asks for one
   after a few login attempts from the same address, a login the app made on its
@@ -649,21 +1020,35 @@ data (`ai/release_structure.md` §4). The URLs are stored per image and per host
   image. The one case a run acts on is a stored draft the site says is gone: the
   answer names what to do, so the run asks for a new draft once and the link it
   stores is the new one's (`ai/uploading_draft.md` §6).
-  A run writes the link it gets back through the editor's single write path, so the tab
-  becomes dirty and Ctrl+S saves it; the link is the result of the run, so there is no
-  "draft saved" string, except the line for the run that had to make a new draft, which
-  says why the link changed. A link the release already has is shown whenever it has one, even
-  after the Message box was reset, following the Torrent section's precedent: a stored link
-  is not something a reset takes away. Its text is the link and it opens the browser
-  through `UrlOpener`; a failure is shown as a message rather than swallowed (rule 13).
-  The copy button next to it copies the text: the same call the Message section's copy
-  buttons make, and nothing is said when it works, as they do. The label above the link
-  says what it is, because the link's text is the link itself. Both labels of this
-  section are the words of the fields it owns, resolved through `fieldLabel` as the
-  form's rows are, and the title names the tracker the draft goes to, because the app
+  A run writes the link it gets back through the editor's single write path, so
+  the tab
+  becomes dirty and Ctrl+S saves it; the link is the result of the run, so there
+  is no
+  "draft saved" string, except the line for the run that had to make a new
+  draft, which
+  says why the link changed. A link the release already has is shown whenever it
+  has one, even
+  after the Message box was reset, following the Torrent section's precedent: a
+  stored link
+  is not something a reset takes away. Its text is the link and it opens the
+  browser
+  through `UrlOpener`; a failure is shown as a message rather than swallowed
+  (rule 13).
+  The copy button next to it copies the text: the same call the Message
+  section's copy
+  buttons make, and nothing is said when it works, as they do. The label above
+  the link
+  says what it is, because the link's text is the link itself. Both labels of
+  this
+  section are the words of the fields it owns, resolved through `fieldLabel` as
+  the
+  form's rows are, and the title names the tracker the draft goes to, because
+  the app
   can talk to more than one.
-- The Settings tab (`File` → `Settings`, `Icons.settings` in the tab strip) is a two-pane page:
-  the section list on the left, the selected section on the right, with every field capped at
+- The Settings tab (`File` → `Settings`, `Icons.settings` in the tab strip) is a
+  two-pane page:
+  the section list on the left, the selected section on the right, with every
+  field capped at
   400 px. General has the app language selector (System language / English /
   Русский). Releases is what the app does with a release it has not made yet:
   the default release directory, which is what the new-release wizard prefills
@@ -751,30 +1136,54 @@ data (`ai/release_structure.md` §4). The URLs are stored per image and per host
   that opens at the remembered size and one that jumps to it. A record that is
   not there is nothing, so a first run takes the size a runner starts with. The
   macOS runner does not read it (`lib/TODO.MD`).
-- The Recent releases tab (`File` → `Recent releases`, `Icons.schedule` in the tab strip) is a table of
-  the releases the app has opened, so the user can go back to one without picking the folder again
-  (`ai/recent_releases.md`). It is opened at startup, as the first tab, and opened once like the
-  settings tab, because the list is app-level and a second tab would show the same table twice. It
-  holds nothing the user edits, so it has no dirty flag, is not part of Ctrl+S, and closes without the
-  unsaved-changes popup. One entry per release directory, keyed by the path; the entry opened least
-  recently leaves when the list reaches 50, and there is no per-row remove, because the cap is what
-  decides what leaves. An entry is recorded by the open, create and save paths, and only when one of
-  them succeeds. The dates are what the app read the last time it touched the release rather than a
-  live read of `release.json`, because a row whose folder is gone still has to show something and the
-  table would otherwise be fifty file reads for one screen. Which column the table is ordered by is
-  widget state, as the Video pack table's open rows are; the order the file lists is data and a sort
-  does not rewrite it. A row whose `release.json` is not there any more is drawn dimmed with the values
-  the index holds and marked, not dropped. Clicking a row opens the release through the shared open
-  flow, or focuses the editor tab already open for that directory: the single-instance rule the settings
-  tab uses, applied per release, which is a change to the open flow — before it the same release could
-  be in two tabs. The popup a failed row click shows has only Close, because the row names a folder the
-  app has already read and there is nothing to choose again. The table also lists the immediate
-  subdirectories of the default release directory that hold a `release.json` (`ai/recent_releases.md` §5).
-  Those are not entries: nothing was read about them, so a row shows the name and the path and nothing
-  else and nothing is written from them, and a folder that is in both is one row with the values the
-  index holds, because the index is the record and the scan only says the folder is there. A directory
-  that is not there reads as nothing found, as a store that cannot be reached, and the scan has no cap,
-  because the 50 is a rule about the stored list rather than about what a folder holds.
+- The Recent releases tab (`File` → `Recent releases`, `Icons.schedule` in the
+  tab strip) is a table of
+  the releases the app has opened, so the user can go back to one without
+  picking the folder again
+  (`ai/recent_releases.md`). It is opened at startup, as the first tab, and
+  opened once like the
+  settings tab, because the list is app-level and a second tab would show the
+  same table twice. It
+  holds nothing the user edits, so it has no dirty flag, is not part of Ctrl+S,
+  and closes without the
+  unsaved-changes popup. One entry per release directory, keyed by the path; the
+  entry opened least
+  recently leaves when the list reaches 50, and there is no per-row remove,
+  because the cap is what
+  decides what leaves. An entry is recorded by the open, create and save paths,
+  and only when one of
+  them succeeds. The dates are what the app read the last time it touched the
+  release rather than a
+  live read of `release.json`, because a row whose folder is gone still has to
+  show something and the
+  table would otherwise be fifty file reads for one screen. Which column the
+  table is ordered by is
+  widget state, as the Video pack table's open rows are; the order the file
+  lists is data and a sort
+  does not rewrite it. A row whose `release.json` is not there any more is drawn
+  dimmed with the values
+  the index holds and marked, not dropped. Clicking a row opens the release
+  through the shared open
+  flow, or focuses the editor tab already open for that directory: the
+  single-instance rule the settings
+  tab uses, applied per release, which is a change to the open flow — before it
+  the same release could
+  be in two tabs. The popup a failed row click shows has only Close, because the
+  row names a folder the
+  app has already read and there is nothing to choose again. The table also
+  lists the immediate
+  subdirectories of the default release directory that hold a `release.json`
+  (`ai/recent_releases.md` §5).
+  Those are not entries: nothing was read about them, so a row shows the name
+  and the path and nothing
+  else and nothing is written from them, and a folder that is in both is one row
+  with the values the
+  index holds, because the index is the record and the scan only says the folder
+  is there. A directory
+  that is not there reads as nothing found, as a store that cannot be reached,
+  and the scan has no cap,
+  because the 50 is a rule about the stored list rather than about what a folder
+  holds.
 - The System Check tab (`Help` → `System Check`, `Icons.monitor_heart` in the
   tab strip) is one row per native tool the app calls — ffmpeg, ffprobe, mtn,
   uptooda-cli, mkbrr — showing the version the tool reported, or the reason it
@@ -815,9 +1224,12 @@ data (`ai/release_structure.md` §4). The URLs are stored per image and per host
   unsaved-changes popup. Its calls are
   logged in the app data directory, because `ToolRunner` needs a directory per
   call and outside a release there is no release directory.
-- The two dropdowns' options are the enum values, `ReleaseType` and `Tracker`, so an option cannot
-  exist without the field list and label behind it. A template is not required to create a release, so
-  a type whose message is not implemented can still be chosen; a video pack is one, and generating its
+- The two dropdowns' options are the enum values, `ReleaseType` and `Tracker`,
+  so an option cannot
+  exist without the field list and label behind it. A template is not required
+  to create a release, so
+  a type whose message is not implemented can still be chosen; a video pack is
+  one, and generating its
   message is what fails, not opening it. The labels are the display names:
   `releaseTypeLabel` for a type, `Tracker.displayName` for a tracker.
 
@@ -827,17 +1239,20 @@ data (`ai/release_structure.md` §4). The URLs are stored per image and per host
 
 ```
 lib/
-  main.dart                     entry point: reads `--dev`, which is what makes the app use
+  main.dart entry point: reads `--dev`, which is what makes the app use
                               the mock hosters instead of the real ones
                               (`ai/upload_images.md`), then runApp(const App())
-  app/app.dart                  App + AppRoot (MaterialApp, the theme, the l10n delegates,
-                              the app locale) + TabsPage. Composition only: installs the
-                              provider scope and places MainMenu + TabStrip + TabView.
-                              AppRoot is the one place app.dart reads from the provider
+  app/app.dart App + AppRoot (MaterialApp, the theme, the l10n delegates,
+                              the app locale) + TabsPage. Composition only:
+  installs the
+                              provider scope and places MainMenu + TabStrip +
+  TabView.
+                              AppRoot is the one place app.dart reads from the
+  provider
                               scope, for the locale (see §4).
   app/app_providers.dart        Composition root: the whole object graph, one
                                 provider entry per feature.
-  app/app_info.dart             appName and appVersion, the single source of truth
+  app/app_info.dart appName and appVersion, the single source of truth
                                  for both, used by main.dart, app.dart and
                                  about.dart. The name is a proper noun and the
                                  version a number, so neither is an l10n key.
@@ -860,7 +1275,8 @@ lib/
                                 button closes a tab; the card icon is a
                                 TrackerIcon for an editor tab, an IconData for a
                                 wizard, which has no release yet — the clone
-                                wizard has a source, but the release it will make
+                                wizard has a source, but the release it will
+  make
                                 does not exist — so `Icons.new_releases` for the
                                 new-release wizard and `Icons.content_copy` for
                                 the clone wizard, `Icons.settings`
@@ -871,16 +1287,22 @@ lib/
                                 state. The page for the active tab is resolved
                                 by switching on `AppTabKind`, including
                                 `SystemCheckPage`. The clone wizard is given the
-                                source its tab carries, which is the only thing a
+                                source its tab carries, which is the only thing
+  a
                                 clone tab holds. Keying the content by tab id is
                                 why state that has to survive a switch is on the
                                 tab record and not in the page: the page for a
                                 tab is built only while that tab is active.
-      tab_close_controller.dart TabCloseController: the side effects of closing a
-                                  tab (select it, save its release, or close it);
-                                  typed result, no listener, no context. A save that wrote the
-                                  manifest also refreshes the recent entry with the date it
-                                  stamped, because that date is what the recent table orders by
+      tab_close_controller.dart TabCloseController: the side effects of closing
+  a
+                                  tab (select it, save its release, or close
+  it);
+                                  typed result, no listener, no context. A save
+  that wrote the
+                                  manifest also refreshes the recent entry with
+  the date it
+                                  stamped, because that date is what the recent
+  table orders by
       tab_close.dart            the shared close flow: the three-option popup
                                 for a dirty tab (Close without saving / Save and
                                 close / Cancel), used by the strip, Ctrl-W, and
@@ -889,7 +1311,8 @@ lib/
                                 shared with the strip, and the system check tab
                                 is named by the `systemCheck` key, as the other
                                 app-level tabs are, and the two wizards by their
-                                menu keys, because a wizard has no release to name
+                                menu keys, because a wizard has no release to
+  name
                                 it
       app_shortcuts.dart        AppShortcuts: the app's Ctrl keys — Ctrl+N
                                 creates a new release, Ctrl-O opens a release
@@ -952,7 +1375,8 @@ lib/
                                 the recent feature's side effect, so this only
                                 puts it and the tab in the order the user sees:
                                 the list first, then the tab. `onCloneRelease()`
-                                asks `TabManager` for a clone tab for the release
+                                asks `TabManager` for a clone tab for the
+  release
                                 the selected editor tab shows, and does nothing
                                 for a tab the feature does not cover, so a call
                                 from anywhere cannot open a wizard for a release
@@ -962,55 +1386,97 @@ lib/
                               TrackerIcon, the widget that draws one at a given
                               size; shared by the wizard, the tab strip and the
                               editor. Renders `.svg` with flutter_svg and any
-                              other extension with Image.asset, so PNG icons work
+                              other extension with Image.asset, so PNG icons
+  work
                               without changing call sites. Presentational only:
                               no state, so no controller.
-    image_tile.dart           ImageTile, the bordered box with a picture and its file name
-                              centered under it, and the line naming the group the file is
-                              from above that when the caller gives one. Shared by the
-                              Screenshots, Photosets and Video pack sections, because they
-                              show the same files the same way. With it `imageFromFile` and
+    image_tile.dart ImageTile, the bordered box with a picture and its file name
+                              centered under it, and the line naming the group
+  the file is
+                              from above that when the caller gives one. Shared
+  by the
+                              Screenshots, Photosets and Video pack sections,
+  because they
+                              show the same files the same way. With it
+  `imageFromFile` and
                               `evictCachedImages`, the two halves of the rule in
-                              AGENTS.md §5: the key that changes on each rewrite, and the
-                              cache entry dropped for the path the app writes. The
-                              generation counter stays each widget's own state, so it is
-                              passed in rather than held here; the box height is a
-                              parameter because the photoset packing sizes the box, not the
-                              picture inside it. `fit` and `alignment` are the caller's,
-                              because nothing is known about the picture before it is
-                              decoded: the box is the caller's and the picture is fitted
-                              into it. Presentational only: no state, so no controller.
-    section_title.dart        SectionTitle, the title row a section begins with: the title at the left
-                              and the action that runs in that section at the right. Shared by the six
-                              sections, because every section titles itself the same way and the button
-                              that belongs to a section is the same shape in all of them. The row is as
-                              tall as the action and the title is centred against it, because a button is
-                              taller than the title text and the two read as one line only when their
-                              centres align. The action is drawn at least `actionMinWidth` wide, so a
-                              short label is the same shape as a longer one; it is the width of the
-                              action, not each button inside it. Presentational only: no state, so no
-                              controller; the gap below the row is the caller's, because the widget is
+                              AGENTS.md §5: the key that changes on each
+  rewrite, and the
+                              cache entry dropped for the path the app writes.
+  The
+                              generation counter stays each widget's own state,
+  so it is
+                              passed in rather than held here; the box height is
+  a
+                              parameter because the photoset packing sizes the
+  box, not the
+                              picture inside it. `fit` and `alignment` are the
+  caller's,
+                              because nothing is known about the picture before
+  it is
+                              decoded: the box is the caller's and the picture
+  is fitted
+                              into it. Presentational only: no state, so no
+  controller.
+    section_title.dart SectionTitle, the title row a section begins with: the
+  title at the left
+                              and the action that runs in that section at the
+  right. Shared by the six
+                              sections, because every section titles itself the
+  same way and the button
+                              that belongs to a section is the same shape in all
+  of them. The row is as
+                              tall as the action and the title is centred
+  against it, because a button is
+                              taller than the title text and the two read as one
+  line only when their
+                              centres align. The action is drawn at least
+  `actionMinWidth` wide, so a
+                              short label is the same shape as a longer one; it
+  is the width of the
+                              action, not each button inside it. Presentational
+  only: no state, so no
+                              controller; the gap below the row is the caller's,
+  because the widget is
                               the row and not the section.
-    progress_row.dart         ProgressRow, the row a section draws while one of its runs
-                              is going: the bar and the count next to it. Shared by the
-                              Photoset block and the Image folder section, because both
-                              show a run the same way, with the same bar the Upload
-                              section draws for each hoster. Drawn only while a run is
-                              going, as the Torrent section's progress is: before a run
-                              there is nothing to show, and after one the results the run
-                              produced are what the section shows. The words for the
-                              count are per release type, so the caller resolves them and
-                              passes what they say. Presentational only: no state, so no
+    progress_row.dart ProgressRow, the row a section draws while one of its runs
+                              is going: the bar and the count next to it. Shared
+  by the
+                              Photoset block and the Image folder section,
+  because both
+                              show a run the same way, with the same bar the
+  Upload
+                              section draws for each hoster. Drawn only while a
+  run is
+                              going, as the Torrent section's progress is:
+  before a run
+                              there is nothing to show, and after one the
+  results the run
+                              produced are what the section shows. The words for
+  the
+                              count are per release type, so the caller resolves
+  them and
+                              passes what they say. Presentational only: no
+  state, so no
                               controller.
-    pornolab_results.dart     pornolabResultText, the words for a result the site gave. It is the
-                              one mapping the settings row and the Upload draft section share, so
-                              the same result cannot be said two ways; this is the exception to
-                              rule 13, with `field_validation.dart` as the precedent for a shared
-                              mapping. It is total over the result kinds, including the two a
-                              field's own rule gives, which are unreachable from the settings page
-                              because a login has no field to fail. The word for a login that
-                              worked is not in this mapping, because only the settings page shows
-                              it — a run has nothing to show for one, its success is the link it
+    pornolab_results.dart pornolabResultText, the words for a result the site
+  gave. It is the
+                              one mapping the settings row and the Upload draft
+  section share, so
+                              the same result cannot be said two ways; this is
+  the exception to
+                              rule 13, with `field_validation.dart` as the
+  precedent for a shared
+                              mapping. It is total over the result kinds,
+  including the two a
+                              field's own rule gives, which are unreachable from
+  the settings page
+                              because a login has no field to fail. The word for
+  a login that
+                              worked is not in this mapping, because only the
+  settings page shows
+                              it — a run has nothing to show for one, its
+  success is the link it
                               was given — so that word is the page's own string
     release/
       release.dart              Release (name, directoryPath, tracker,
@@ -1026,16 +1492,23 @@ lib/
                                 settings' defaults for a release made through
                                 the wizard and the source's own flags for a
                                 clone
-      release_open_controller.dart   sealed ReleaseOpenResult + openRelease(), which opens the
-                                picker at the default release directory the widget gives it,
-                                and openPath(), the same load for a folder the recent list
-                                names with no picker, so a row click reports a failure the
+      release_open_controller.dart sealed ReleaseOpenResult + openRelease(),
+  which opens the
+                                picker at the default release directory the
+  widget gives it,
+                                and openPath(), the same load for a folder the
+  recent list
+                                names with no picker, so a row click reports a
+  failure the
                                 same way the menu item does
       release_open_flow.dart       The shared Open Release flow: pick -> load ->
                                 error popup (Close / Choose another folder),
-                                used by the menu item and by Ctrl-O. For a recent row the
-                                popup has only Close, because the row names a folder the
-                                app has already read and there is nothing to choose again.
+                                used by the menu item and by Ctrl-O. For a
+  recent row the
+                                popup has only Close, because the row names a
+  folder the
+                                app has already read and there is nothing to
+  choose again.
       release_wizard_controller.dart   wizard state, name validation, create().
                                        The default save path and the two flags a
                                        new release is built with are passed in
@@ -1044,374 +1517,568 @@ lib/
                                        created with the values it was given. A
                                        create that succeeded is recorded in the
                                        recent list, as an open is.
-      release_wizard.dart       wizard form UI (selects use DropdownMenuFormField)
+      release_wizard.dart wizard form UI (selects use DropdownMenuFormField)
       clone_wizard_controller.dart   clone state: the fields the copy takes, the
                                      poster state, the default save path, and
-                                     create(). The name rules are the new-release
-                                     wizard's plus one: the name must differ from
+                                     create(). The name rules are the
+  new-release
+                                     wizard's plus one: the name must differ
+  from
                                      the source's, because two releases with the
-                                     same name are two rows of the recent list that
-                                     cannot be told apart. A create that succeeded
-                                     is recorded in the recent list, as an open is;
+                                     same name are two rows of the recent list
+  that
+                                     cannot be told apart. A create that
+  succeeded
+                                     is recorded in the recent list, as an open
+  is;
                                      a copy that failed removes the folder the
-                                     create made, so a half-copied release is not
+                                     create made, so a half-copied release is
+  not
                                      left behind.
-      clone_wizard.dart           clone form UI: the source it names, the name and
+      clone_wizard.dart clone form UI: the source it names, the name and
                                      the folder it prefills, and the warning the
                                      poster state decides
-      release_fields.dart       FieldValues, the field value model keyed by field name, + FieldSpec
-                                 and FieldList, the per-type field lists behind one model + the
-                                 values a new release starts with + the marker for the fields the
-                                 app fills + the item types + the field names with no form row
-                                 (`sceneUrl`, `parentForum`, and a video pack's item fields until
-                                 the per-item form exists) + the marker for a field no template
-                                 reads, which is what decides whether writing one sends the notice
-                                 that clears the Message box + the marker for a field a clone does
-                                 not copy, because a run wrote it + the item boundary the scan is
-                                 given per type + whether a name is in a list, so a value for a
-                                 type that does not have it is not written + whether a field may be
-                                 empty when a message is generated, and which type states its rules
-                                 at all + the labels the widgets resolve through AppLocalizations,
+      release_fields.dart FieldValues, the field value model keyed by field
+  name, + FieldSpec
+                                 and FieldList, the per-type field lists behind
+  one model + the
+                                 values a new release starts with + the marker
+  for the fields the
+                                 app fills + the item types + the field names
+  with no form row
+                                 (`sceneUrl`, `parentForum`, and a video pack's
+  item fields until
+                                 the per-item form exists) + the marker for a
+  field no template
+                                 reads, which is what decides whether writing
+  one sends the notice
+                                 that clears the Message box + the marker for a
+  field a clone does
+                                 not copy, because a run wrote it + the item
+  boundary the scan is
+                                 given per type + whether a name is in a list,
+  so a value for a
+                                 type that does not have it is not written +
+  whether a field may be
+                                 empty when a message is generated, and which
+  type states its rules
+                                 at all + the labels the widgets resolve through
+  AppLocalizations,
                                  per type where a name is worded differently
-      field_validation.dart     the value rules a field list states, as a pure function over the
-                                 list and the values: a required field with no value, and the shape
-                                 a value must have — the date, and the parent forum URL the request
-                                 is built from. Answers with field names rather than text,
-                                 writes nothing and shows nothing. fieldProblemText is the words for
-                                 a problem, from the words fieldLabel gives the name, and both
-                                 widgets that report one use it, so a problem cannot be said two
-                                 ways. fieldProblem is the rule for one field, which is what a
-                                 section that owns its row asks for: the shape is its gate, and the
+      field_validation.dart the value rules a field list states, as a pure
+  function over the
+                                 list and the values: a required field with no
+  value, and the shape
+                                 a value must have — the date, and the parent
+  forum URL the request
+                                 is built from. Answers with field names rather
+  than text,
+                                 writes nothing and shows nothing.
+  fieldProblemText is the words for
+                                 a problem, from the words fieldLabel gives the
+  name, and both
+                                 widgets that report one use it, so a problem
+  cannot be said two
+                                 ways. fieldProblem is the rule for one field,
+  which is what a
+                                 section that owns its row asks for: the shape
+  is its gate, and the
                                  required set of its type is not known
-      release_type.dart         ReleaseType, the release types the app knows: the enum value is the
-                                technical name, so the manifest value, the template file name and
-                                the field list key are the same string + releaseTypeLabel, the one
-                                place a type becomes an AppLocalizations key, as fieldLabel is for
-                                a field name, + hasTitle, the per-type rule for whether a type has
-                                a post title at all + the order, which is the order the wizard
-                                lists the types, because its option list is ReleaseType.values
-      tracker.dart              Tracker, the trackers the app knows: the enum value is the technical
-                                name, so the manifest value and the template folder are the same
-                                string + displayName, what the app shows in every language, so it
+      release_type.dart ReleaseType, the release types the app knows: the enum
+  value is the
+                                technical name, so the manifest value, the
+  template file name and
+                                the field list key are the same string +
+  releaseTypeLabel, the one
+                                place a type becomes an AppLocalizations key, as
+  fieldLabel is for
+                                a field name, + hasTitle, the per-type rule for
+  whether a type has
+                                a post title at all + the order, which is the
+  order the wizard
+                                lists the types, because its option list is
+  ReleaseType.values
+      tracker.dart Tracker, the trackers the app knows: the enum value is the
+  technical
+                                name, so the manifest value and the template
+  folder are the same
+                                string + displayName, what the app shows in
+  every language, so it
                                 is not an AppLocalizations key
       file_size.dart            the size field's display: the stored byte count
-                                as `9.5 GiB (10737418240 bytes)`, and the human form alone
-                                for a fixed-width cell, as the Video pack table's size
+                                as `9.5 GiB (10737418240 bytes)`, and the human
+  form alone
+                                for a fixed-width cell, as the Video pack
+  table's size
                                 column shows it
-      release_editor_controller.dart   editor state: the field values, the shape of the
+      release_editor_controller.dart editor state: the field values, the shape
+  of the
                                 screenshot block, the source and the item it
-                                is, the dirty flag, save(), the flag write paths: the
-                                change path for a value with no file, and the write path for a
-                                flag whose file a run changed, which writes the manifest and does
-                                not mark the tab dirty, probeMovieFile(), the thumbnail
-                                path and writing it, the poster record and its path, the
-                                format check, writing and removing a poster, and a poster
+                                is, the dirty flag, save(), the flag write
+  paths: the
+                                change path for a value with no file, and the
+  write path for a
+                                flag whose file a run changed, which writes the
+  manifest and does
+                                not mark the tab dirty, probeMovieFile(), the
+  thumbnail
+                                path and writing it, the poster record and its
+  path, the
+                                format check, writing and removing a poster, and
+  a poster
                                 from a pasted link
-      release_editor.dart      editor UI: the title with the tracker and release-type badges
-                               after it, the field form built from the release type's field list,
-                               in as many columns of at least 430 px as the window has room for,
-                               each column titled by what its rows are — one column for a
-                               photoset pack, because the only column it titles is the one with
-                               the fields: its Photosets block is stacked below them, and the
-                               columns after it are the photo area, which titles itself too —
-                               with the scene row at the top of the left column, the source row
-                               and the poster box, Ctrl+S saves, the sections the type has — one
-                               form column wide for the two video types, all the columns after
-                               the form for the photoset pack, the whole width for the other
-                               types, and the columns after the form when they fit — the Stash
-                               row and the Screenshots section are single-video only, the
-                               Photosets feature is the two photoset types', the Video pack
-                               section is the video pack's and the Image folder section is the
-                               image folder type's, and the Upload draft section is the four
-                               types whose field list has the parent forum, because it is the
-                               section that sends what the Message section shows — the single
-                               write path the sections use for the values they do not write
-                               themselves, which is how the two draft names are written, the
-                               notice it passes to the section that gates on whether a message
-                               exists, the function the Screenshots and Video pack sections call
-                               when a generation run ends, and the same notice the poster path
-                               calls when a poster is written or removed, because the poster is a
-                               record in images.json and the Upload section shows what that file
-                               holds: without it a poster added after a generation is not
-                               counted, and one removed is still counted. Those sections cannot
-                               see each other and the widget that places both is where they meet,
-                               and the source row label, which is per type because a folder with
-                               videos is a different thing to pick than a folder with photosets.
-                               A row shows the words for a problem the last generation refused,
-                               and only a row the user can type into shows it: the rows the app
-                               fills are not something the user can fix here. The problems reach
-                               this widget from the Message section through a plain callback,
-                               because the section cannot mark a row it does not build (rule 3).
-                               A column is empty for a type with no field the user writes, so the
-                               image folder form is the poster box and the right column.
-    screenshots/
-      images.dart               ImageKind + ImageRecord (the item it belongs to, the kind, the
+      release_editor.dart editor UI: the title with the tracker and release-type
+                               badges after it, the field form built from the
+                               release type's field list, in as many columns of
+                               at least 430 px as the window has room for, each
+                               column titled by what its rows are — one column
+                               for a photoset, because the only column it titles
+                               is the one with the fields: its Photosets block
+                               is its second column and the photo area its
+                               third, and both title themselves — with the scene
+                               row at the top of the left column, the source row
+                               and the poster box, Ctrl+S saves, the sections
+                               the type has — one form column wide for the two
+                               video types, all the columns after the form for
+                               both photoset types, the whole width for the
+                               other types, and the columns after the form when
+                               they fit; for a photoset the sections that need a
+                               column's width are stacked below the fields, and
+                               the Torrent section is at the top of that stack
+                               for a pack and at the end of the block's column
+                               for a single set, because that column is the
+                               block's (`ai/torrents.md`, `ai/picking.md` §7) —
+                               the Stash row and the Screenshots section are
+                               single-video only, the Photosets feature is the
+                               two photoset types', the Video pack section is
+                               the video pack's and the Image folder section is
+                               the image folder type's, and the Upload draft
+                               section is the four types whose field list has
+                               the parent forum, because it is the section that
+                               sends what the Message section shows — the single
+                               write path the sections use for the values they
+                               do not write themselves, which is how the two
+                               draft names are written, the notice it passes to
+                               the section that gates on whether a message
+                               exists, the function the Screenshots and Video
+                               pack sections call when a generation run ends,
+                               and the same notice the poster path calls when a
+                               poster is written or removed, because the poster
+                               is a record in images.json and the Upload section
+                               shows what that file holds: without it a poster
+                               added after a generation is not counted, and one
+                               removed is still counted. Those sections cannot
+                               see each other and the widget that places both is
+                               where they meet, and the source row label, which
+                               is per type because a folder with videos is a
+                               different thing to pick than a folder with
+                               photosets. A row shows the words for a problem
+                               the last generation refused, and only a row the
+                               user can type into shows it: the rows the app
+                               fills are not something the user can fix here.
+                               The problems reach this widget from the Message
+                               section through a plain callback, because the
+                               section cannot mark a row it does not build (rule
+                               3). A column is empty for a type with no field
+                               the user writes, so the image folder form is the
+                               poster box and the right column. screenshots/
+      images.dart ImageKind + ImageRecord (the item it belongs to, the kind, the
                                 file path relative to the release directory, the
-                                photo-hosting urls per hoster and per URL type) +
-                                ImagesManifest, the contents of images.json as one flat
+                                photo-hosting urls per hoster and per URL type)
+  +
+                                ImagesManifest, the contents of images.json as
+  one flat
                                 record list, in the order the file lists them +
-                                generatedImageKinds, the kinds a generation run writes, so a run that
-                                regenerates replaces only those and never a poster or a copied photo,
-                                and primaryPoster(), the first poster record, which is the one with
-                                no item — the rule is the manifest's, because order is data, so the
-                                editor and the clone feature read it through this rather than each
+                                generatedImageKinds, the kinds a generation run
+  writes, so a run that
+                                regenerates replaces only those and never a
+  poster or a copied photo,
+                                and primaryPoster(), the first poster record,
+  which is the one with
+                                no item — the rule is the manifest's, because
+  order is data, so the
+                                editor and the clone feature read it through
+  this rather than each
                                 keeping its own copy
-      images_store.dart         ImagesStore (load/loadSync/save) for images.json at
-                                the release directory root; a missing or unreadable
+      images_store.dart ImagesStore (load/loadSync/save) for images.json at
+                                the release directory root; a missing or
+  unreadable
                                 file reads as an empty manifest
-      screenshots_controller.dart  ScreenshotsController: the item it works on, the records its run's
-                                files become as it writes them — reported through a
-                                callback the widget passes in, so a frame can be shown
-                                before the run ends — writing images.json for that item,
-                                and the stamp. The generation rules are the service's,
-                                so this is the thin half: a service reports files, and a
+      screenshots_controller.dart ScreenshotsController: the item it works on,
+  the records its run's
+                                files become as it writes them — reported
+  through a
+                                callback the widget passes in, so a frame can be
+  shown
+                                before the run ends — writing images.json for
+  that item,
+                                and the stamp. The generation rules are the
+  service's,
+                                so this is the thin half: a service reports
+  files, and a
                                 record is a file plus the item it belongs to.
-                                `imagesFor(item)` is what the section shows: the records
-                                of this item whose files are on disk. `aspectRatio(path)` is the
-                                ratio a tile is laid out at, read from the header of the file the
-                                section shows, or null for one whose header cannot be read. Typed
+                                `imagesFor(item)` is what the section shows: the
+  records
+                                of this item whose files are on disk.
+  `aspectRatio(path)` is the
+                                ratio a tile is laid out at, read from the
+  header of the file the
+                                section shows, or null for one whose header
+  cannot be read. Typed
                                 result, no
                                 listener, no context
-      screenshots_section.dart   ScreenshotsSection: the title row with the Generate button at the right,
-                                the slider (3-20; the minimum is the section's, not
-                                the generation's — the Video pack section allows 0) with the label and the
-                                count on the same row, the shape the Video pack section has, and the
-                                generated images as a masonry in two equal columns, packed by the shared
-                                `masonryPositions` with the screenlist first, so it is the top of the left
-                                column, and with the span capped at 1 because every frame is above the span
-                                ratio and spans would make the grid one column. With no item it shows the
-                                placeholder saying to select a video first and shows no controls. It shows the
-                                records of the item plus the ones the run in progress has reported, so a frame
-                                appears as it is written rather than when the run ends, and it calls the
-                                function the editor passed it when a run ends, because the count the Upload
-                                section shows reads the records. The tiles are the shared `ImageTile`, each at
-                                the shape its file reports, so nothing is cropped, and the gap is
+      screenshots_section.dart ScreenshotsSection: the title row with the
+  Generate button at the right,
+                                the slider (3-20; the minimum is the section's,
+  not
+                                the generation's — the Video pack section allows
+  0) with the label and the
+                                count on the same row, the shape the Video pack
+  section has, and the
+                                generated images as a masonry in two equal
+  columns, packed by the shared
+                                `masonryPositions` with the screenlist first, so
+  it is the top of the left
+                                column, and with the span capped at 1 because
+  every frame is above the span
+                                ratio and spans would make the grid one column.
+  With no item it shows the
+                                placeholder saying to select a video first and
+  shows no controls. It shows the
+                                records of the item plus the ones the run in
+  progress has reported, so a frame
+                                appears as it is written rather than when the
+  run ends, and it calls the
+                                function the editor passed it when a run ends,
+  because the count the Upload
+                                section shows reads the records. The tiles are
+  the shared `ImageTile`, each at
+                                the shape its file reports, so nothing is
+  cropped, and the gap is
                                 between the columns as well as between the rows.
     photosets/
-      photosets_controller.dart  PhotosetController: runs the scan with the item boundary its
-                                 type has, records the items it found and the per-item counts,
-                                 and returns the values the scan counted for the editor's single
-                                 write path, kept to the names the type's field list has; typed
-                                 result, no listener, no context. Copies the photos the rule
-                                 picked into the release and records them as `kind: photo`,
-                                 replacing the records this run writes (`ai/picking.md` §7). The
-                                 display name is derived from the item path here, because the
-                                 stored path is the record ID and is also the folder the copied
-                                 photos go in. `aspectRatio()` is the ratio a tile is laid out at,
-                                 from the header of the file shown. The scan and the pick report what
-                                 they have done through a callback the widget passes, so the controller
-                                 records an item as the scan reads it and reports a photo as it copies
-                                 it (`ScanProgress` from the service, `CopyProgress` here, shared with
-                                 the Image folder controller); the count is what the run wrote, so a
-                                 photo it could not write does not move it (`ai/picking.md` §7). For
-                                 a pack the run also writes a preview thumbnail beside each photo it
-                                 copies, and the name rule, the 800 px cap, the skip for a photo
-                                 already within it, and the path a tile resolves when that file is on
-                                 disk and the photo when it is not are here (`ai/picking.md` §8)
-      photoset_group.dart      PhotosetState: the controller and the generation the two widgets
-                               that show a photoset read. For a pack the run and the pictures are
-                               two grid cells, so neither widget can own them and the generation
-                               cannot be one widget's counter (`AGENTS.md` §5); the editor, which
-                               places both, holds it. What a run wrote is recorded here as the run
-                               reports it, so the cache is emptied for the photo and for its
-                               thumbnail, and the generation moves at that moment rather than at the
-                               end of the run;
-                               the records are cleared when the run ends, because from then on the
-                               manifest is what the two widgets read
-                               (`ai/picking.md` §7). Also the strings resolved per type,
-                               including the two lines a run's progress is said with and
-                               the labels of the strategy choice, which are null for the
-                               type that has no choice to make, one set as the feature
-                               lays it out, the line naming it, the row naming the two columns
-                               of the list, which is null for the type that has no list as the
-                               header naming it is, the padding inside a row of the list, the
-                               tile — which draws the run's thumbnail when its file is on disk and
-                               the photo when it is not, while the key it is placed by and the name
-                               under it stay the photo's (`ai/picking.md` §8) — the one grid shape,
-                               and the four numbers the grid is built from:
-                               the width a portrait's column is, the width a landscape's is —
-                               which is the number of columns a landscape spans — the widest the
-                               block's column is, and the widest a column of the pack's grid may
-                               be stretched to, twice the portrait width, because a zone capped
-                               at the columns its photos need cannot always use the space it is
-                               given. Also the zones the pack's grid is drawn as: the photos of
-                               one kind with the columns that kind gets and the column the zone
-                               starts at, so each kind is packed inside its own columns and the
-                               drawing places the zones side by side (`ai/picking.md` §7). The
-                               numbers are here because a private helper in one file cannot be
-                               read from the other. Reading the sets as the feature lays them out
-                               is `photosetGroups`, which reads the manifest once for the whole
-                               list rather than once per set, because a run rebuilds the list for
-                               every set it has already read, and it merges the records the run in
-                               progress has reported with the manifest's (`ai/picking.md` §7).
+      photosets_controller.dart PhotosetController: runs the scan with the item
+                                boundary its type has, records the items it
+                                found and the per-item counts, and returns the
+                                values the scan counted for the editor's single
+                                write path, kept to the names the type's field
+                                list has; typed result, no listener, no context.
+                                Copies the photos the rule picked into the
+                                release and records them as `kind: photo`,
+                                replacing the records this run writes
+                                (`ai/picking.md` §7), and returns the count it
+                                wrote as a value for the same write path,
+                                because nothing in the feature shows a list of
+                                counts (`ai/picking.md` §7). The display name is
+                                derived from the item path here, because the
+                                stored path is the record ID and is also the
+                                folder the copied photos go in. `aspectRatio()`
+                                is the ratio a tile is laid out at, from the
+                                header of the file shown. The scan and the pick
+                                report what they have done through a callback
+                                the widget passes, so the controller records an
+                                item as the scan reads it and reports a photo as
+                                it copies it (`ScanProgress` from the service,
+                                `CopyProgress` here, shared with the Image
+                                folder controller); the count is what the run
+                                wrote, so a photo it could not write does not
+                                move it, and a run that copied nothing returns 0
+                                (`ai/picking.md` §7). The run writes a preview
+                                thumbnail beside each photo it copies, for both
+                                photoset types, and the name rule, the 800 px
+                                cap, the skip for a photo already within it, and
+                                the path a tile resolves when that file is on
+                                disk and the photo when it is not are here
+                                (`ai/picking.md` §8).
+      photoset_group.dart      PhotosetState: the controller and the generation
+                               the two widgets that show a photoset read. The
+                               run and the pictures are two grid cells for both
+                               photoset types, so neither widget can own them
+                               and the generation cannot be one widget's counter
+                               (`AGENTS.md` §5); the editor, which places both,
+                               holds it. What a run wrote is recorded here as
+                               the run reports it, so the cache is emptied for
+                               the photo and for its thumbnail, and the
+                               generation moves at that moment rather than at
+                               the end of the run; the records are cleared when
+                               the run ends, because from then on the manifest
+                               is what the two widgets read (`ai/picking.md`
+                               §7). Also the strings resolved per type,
+                               including the two lines a run's progress is said
+                               with and the labels of the strategy choice, which
+                               are null for the type that has no choice to make,
+                               and one set as the feature lays it out. Nothing
+                               here names a list of sets, because the block
+                               draws no list for either type, so the strings a
+                               list would need are not in this class. The tile,
+                               which draws the run's thumbnail when its file is
+                               on disk and the photo when it is not, while the
+                               key it is placed by and the name under it stay
+                               the photo's (`ai/picking.md` §8); the one grid
+                               shape, and the four numbers the grid is built
+                               from: the width a portrait's column is, the width
+                               a landscape's is, which is the number of columns
+                               a landscape spans, the widest the block's column
+                               is, and the widest a column of the grid may be
+                               stretched to, twice the portrait width, because a
+                               zone capped at the columns its photos need cannot
+                               always use the space it is given. Also the zones
+                               the grid is drawn as, for both types: the photos
+                               of one kind with the columns that kind gets and
+                               the column the zone starts at, so each kind is
+                               packed inside its own columns and the drawing
+                               places the zones side by side (`ai/picking.md`
+                               §7). The numbers are here because a private
+                               helper in one file cannot be read from the other.
+                               Reading the sets as the feature lays them out is
+                               `photosetGroups`, which reads the manifest once
+                               for the whole list rather than once per set,
+                               because a run rebuilds the list for every set it
+                               has already read, and it merges the records the
+                               run in progress has reported with the manifest's
+                               (`ai/picking.md` §7).
       photoset_block.dart      PhotosetBlock: the data block as the page's
                                second column, at the most the width this feature
                                gives it — its heading with the Scan and Pick
-                               buttons at the right, the header naming the list
-                               of sets, which only a pack has and which is drawn
-                               only when the list is drawn (`ai/picking.md` §7), the row naming
-                               the two columns of that list, which only a pack has for the same
-                               reason, the rows the editor gives it, and the line naming each
-                               set the scan found, every other line tinted so the list reads as
-                               bands, as the two tables the app has do (`ai/picking.md` §7,
-                               `ai/video_pack.md` §5).
-                               Pick is disabled until a
-                               scan has run, because what the popup opens with is
-                               what the scan read: the value is the number the
-                               rule's curve gives for the total, and a block that
-                               has not scanned has no total. Pick opens the popup
-                               (`ai/picking.md` §7) — the extremes checkbox, the
-                               choice of strategy, and the slider for the count —
-                               and the run happens on the popup's answer, so
-                               Cancel and any other dismissal run nothing, as the
-                               close popup is not an agreement (`ai/doc.md` §2).
-                               The values are the popup's own widget state, opened
-                               at the rule's on every open rather than remembered
-                               from the last popup, and the count can only be
-                               raised because its minimum is the value it opens at,
-                               and only as far as the smaller of the cap and what
-                               the pack has. At or below the rule's minimum the two
-                               are the same number, so there is nothing to move and
-                               the count row is not drawn (`ai/picking.md` §1). The
-                               choice of strategy is drawn only for the type
+                               buttons at the right, and the rows the editor
+                               gives it, with nothing below them for either type
+                               (`ai/picking.md` §7). Nothing here is tinted,
+                               because nothing here is a table: the rule that
+                               tints alternate rows is the two tables'
+                               (`ai/video_pack.md` §5). Pick is disabled until a
+                               scan has run, because what the popup opens with
+                               is what the scan read: the value is the number
+                               the rule's curve gives for the total, and a block
+                               that has not scanned has no total. Pick opens the
+                               popup (`ai/picking.md` §7) — the extremes
+                               checkbox, the choice of strategy, and the slider
+                               for the count — and the run happens on the
+                               popup's answer, so Cancel and any other dismissal
+                               run nothing, as the close popup is not an
+                               agreement (`ai/doc.md` §2). The values are the
+                               popup's own widget state, opened at the rule's on
+                               every open rather than remembered from the last
+                               popup, and the count can only be raised because
+                               its minimum is the value it opens at, and only as
+                               far as the smaller of the cap and what the pack
+                               has. At or below the rule's minimum the two are
+                               the same number, so there is nothing to move and
+                               the count row is not drawn (`ai/picking.md` §1).
+                               The choice of strategy is drawn only for the type
                                that has one: for a single photoset both answers
-                               give the same picks, so the strings for the choice
-                               are null there and no row is drawn
+                               give the same picks, so the strings for the
+                               choice are null there and no row is drawn
                                (`ai/single_photoset.md` §6). The popup's strings
                                are resolved per type, as the block's other
-                               strings are. The popup is keyed `pickOptionsDialog`,
-                               `pickExtremesRow`, `pickExtremesCheckbox`,
-                               `pickStrategy` with one radio per strategy,
-                               `pickCountRow`, `pickCountSlider`, `pickCancel` and
-                               `pickConfirmButton`, as the block's other parts are
-                               keyed. Its rows are the path the user picked and
-                               the counts the scan took, which the editor builds
-                               because they are form rows; every other type
-                               keeps those as rows of the form. For a single
-                               photoset it is the whole feature, because there
-                               is no space beside it for the pictures, and it
-                               draws them with the same grid this feature uses
-                               (`ai/single_photoset.md` §7). What the scan or
-                               the pick could not take is reported as a message.
-                               The lines are keyed `groupHeader` by the item's
-                               path rather than the name it is shown under — two
-                               items that would share a display name are still
-                               two sets. While a run is going the block draws the
-                               shared progress row with the count the run has
-                               reached, and a set's line is drawn as the scan
-                               reads that set, so a root with many sets shows what
-                               it has found before the run ends
-                               (`ai/picking.md` §7). The progress is widget state,
-                               and the row is drawn only while a run is going. A
-                               pick records what it writes in the state the two
-                               widgets share and tells the editor for each photo,
-                               because the pictures are drawn by another widget and
-                               build only when the editor does. The two rows are
-                               keyed one per run — `photosetScanProgress` and
-                               `photosetPickProgress` — as the block's other parts
-                               are keyed, so the row for one run is not the row for
-                               the other.
-      photoset_gallery.dart    PhotosetGallery: the area a pack shows its picked photos in — the
-                               title row, and the grid this feature fits from the two widths it
-                               gives, split by kind for a pack, at the space the page has left
-                               after the two columns. No state: a run happens in the block, which
-                               tells the editor as each photo is written, so the pictures here
-                               appear during the run and are resolved against the cache that run
-                               emptied (`AGENTS.md` §5). A tile labels itself
-                               with its file name and with the set it is from, because nothing
-                               groups the photos. The area is keyed `photosetGallery`, the lines
-                               in the block `groupHeader`, and the tiles `photoTile` by the path
-                               each is shown from (`ai/picking.md` §7). The tiles are the shared
-                               `ImageTile`, at the box height the packing worked out for each
-                               photo, with a key that changes on each run because a re-pick
-                               writes the same names (`AGENTS.md` §5).
-      video_pack_controller.dart  VideoPackController: runs the scan, records the items it
-                                  found and the values the probe reported for each,
-                                  returns the values the scan counted for the editor's
-                                  write path, and reads the items back for the section.
-                                  Runs the generation service for every item, reports
-                                  each record as its file is written so the section can
+                               strings are. The popup is keyed
+                               `pickOptionsDialog`, `pickExtremesRow`,
+                               `pickExtremesCheckbox`, `pickStrategy` with one
+                               radio per strategy, `pickCountRow`,
+                               `pickCountSlider`, `pickCancel` and
+                               `pickConfirmButton`, as the block's other parts
+                               are keyed. The block's rows are the path the user
+                               picked, the counts the scan took, and the count
+                               the pick wrote, which the editor builds because
+                               they are form rows; every other type keeps those
+                               as rows of the form. What the scan or the pick
+                               could not take is reported as a message. While a
+                               run is going the block draws the shared progress
+                               row with the count the run has reached, and
+                               nothing else, because a scan is a read and a
+                               pick's results are what the photo area shows
+                               (`ai/picking.md` §7). The progress is widget
+                               state, and the row is drawn only while a run is
+                               going. The values its runs counted are handed to
+                               the editor's write path at the end of a run,
+                               because the block writes no fields itself. A pick
+                               records what it writes in the state the two
+                               widgets share and tells the editor for each
+                               photo, because the pictures are drawn by another
+                               widget and build only when the editor does. The
+                               two rows are keyed one per run —
+                               `photosetScanProgress` and `photosetPickProgress`
+                               — as the block's other parts are keyed, so the
+                               row for one run is not the row for the other.
+      photoset_gallery.dart PhotosetGallery: the area a photoset shows its
+                               picked photos in, for both types — the title row,
+                               and the grid this feature fits from the two
+                               widths it gives, split by kind, at the space the
+                               page has left after the two columns. No state: a
+                               run happens in the block, which tells the editor
+                               as each photo is written, so the pictures here
+                               appear during the run and are resolved against
+                               the cache that run emptied (`AGENTS.md` §5). A
+                               tile labels itself with its file name, and with
+                               the set it is from only where the grid mixes sets
+                               (`ai/picking.md` §7). The area is keyed
+                               `photosetGallery` and the tiles are `photoTile`
+                               by the path each is shown from (`ai/picking.md`
+                               §7); there is no key for a line naming a set,
+                               because the block draws no list for either type.
+                               The tiles are the shared `ImageTile`, at the box
+                               height the packing worked out for each photo,
+                               with a key that changes on each run because a re-
+                               pick writes the same names (`AGENTS.md` §5).
+      video_pack_controller.dart VideoPackController: runs the scan, records the
+  items it
+                                  found and the values the probe reported for
+  each,
+                                  returns the values the scan counted for the
+  editor's
+                                  write path, and reads the items back for the
+  section.
+                                  Runs the generation service for every item,
+  reports
+                                  each record as its file is written so the
+  section can
                                   show a frame before the run ends, and writes
-                                  images.json once for the whole run; `imagesFor(item)`
-                                  is what the table's two flag columns read. Typed
-                                  result, no listener, no context. Copies nothing,
-                                  because a video pack copies nothing into the release
+                                  images.json once for the whole run;
+  `imagesFor(item)`
+                                  is what the table's two flag columns read.
+  Typed
+                                  result, no listener, no context. Copies
+  nothing,
+                                  because a video pack copies nothing into the
+  release
                                   (`ai/video_pack.md` §2); what it writes is the
-                                  manifest and the stamp for the files the run wrote
-      video_pack_section.dart     VideoPackSection: the title row with the Scan and Generate buttons at
-                                  the right, the slider (0-20), the videos as a table
-                                  with one row each, and what the two runs could not do,
-                                  listed by name. Nothing is shown before a scan,
-                                  because opening a release is a read and changes
-                                  nothing; a release opened from a manifest shows the
-                                  items it recorded. A row shows the name, the size, the
-                                  duration, and the two flags the generation writes, and
-                                  clicking it shows the values the row does not, and the
-                                  images the run wrote for that item: the screenlist at
-                                  the detail's width, the screenshots as small tiles in
-                                  a wrap, built only for the row that is open. It shows
-                                  the records of the item plus the ones the run in
-                                  progress has reported, so a frame appears as it is
-                                  written, and it calls the function the editor passed
-                                  it when a run ends, because the count the Upload
-                                  section shows reads the records. The value columns are
-                                  right-aligned and a header follows its own column, and
-                                  every other row is tinted so the table reads as bands,
-                                  with the padding that makes a band read as a band; the
-                                  tint is the row's, so it covers the detail as well,
-                                  and it is on the row's own `Material` because the
-                                  hover highlight is painted on the canvas of the
-                                  nearest `Material` ancestor (`ai/video_pack.md` §5)
+                                  manifest and the stamp for the files the run
+  wrote
+      video_pack_section.dart VideoPackSection: the title row with the Scan and
+  Generate buttons at
+                                  the right, the slider (0-20), the videos as a
+  table
+                                  with one row each, and what the two runs could
+  not do,
+                                  listed by name. Nothing is shown before a
+  scan,
+                                  because opening a release is a read and
+  changes
+                                  nothing; a release opened from a manifest
+  shows the
+                                  items it recorded. A row shows the name, the
+  size, the
+                                  duration, and the two flags the generation
+  writes, and
+                                  clicking it shows the values the row does not,
+  and the
+                                  images the run wrote for that item: the
+  screenlist at
+                                  the detail's width, the screenshots as small
+  tiles in
+                                  a wrap, built only for the row that is open.
+  It shows
+                                  the records of the item plus the ones the run
+  in
+                                  progress has reported, so a frame appears as
+  it is
+                                  written, and it calls the function the editor
+  passed
+                                  it when a run ends, because the count the
+  Upload
+                                  section shows reads the records. The value
+  columns are
+                                  right-aligned and a header follows its own
+  column, and
+                                  every other row is tinted so the table reads
+  as bands,
+                                  with the padding that makes a band read as a
+  band; the
+                                  tint is the row's, so it covers the detail as
+  well,
+                                  and it is on the row's own `Material` because
+  the
+                                  hover highlight is painted on the canvas of
+  the
+                                  nearest `Material` ancestor
+  (`ai/video_pack.md` §5)
     image_folder/
-      image_folder_controller.dart  ImageFolderController: runs the scan with the source as the item,
-                                    copies every image it counted into the release in filename order and
-                                    records them as `kind: photo` for that item, writes images.json, stamps the
-                                    last edit for a run that copied, and returns the values the scan counted for
-                                    the editor's single write path, kept to the names the type's field list has.
-                                    Reports the files it did not count, because the reader reports nothing it
-                                    skipped (`ai/image_folder_upload.md` §3). Typed result, no listener, no
-                                    context. No provider entry: the widget builds its own controller from the
-                                    scope, as the other sections do. The item is recorded as the scan
-                                    reads it, and each image is reported as it is copied through the
-                                    callback the widget passes, so the section shows an image when its
-                                    file is written rather than when the run ends; the count is what the
-                                    run copied, so an image it could not copy does not move it
+      image_folder_controller.dart ImageFolderController: runs the scan with the
+  source as the item,
+                                    copies every image it counted into the
+  release in filename order and
+                                    records them as `kind: photo` for that item,
+  writes images.json, stamps the
+                                    last edit for a run that copied, and returns
+  the values the scan counted for
+                                    the editor's single write path, kept to the
+  names the type's field list has.
+                                    Reports the files it did not count, because
+  the reader reports nothing it
+                                    skipped (`ai/image_folder_upload.md` §3).
+  Typed result, no listener, no
+                                    context. No provider entry: the widget
+  builds its own controller from the
+                                    scope, as the other sections do. The item is
+  recorded as the scan
+                                    reads it, and each image is reported as it
+  is copied through the
+                                    callback the widget passes, so the section
+  shows an image when its
+                                    file is written rather than when the run
+  ends; the count is what the
+                                    run copied, so an image it could not copy
+  does not move it
                                     (`ai/image_folder_upload.md` §5).
-      image_folder_section.dart     ImageFolderSection: the title row with the Scan button at the right, the
-                                    images as a masonry, the count line, and what the run could not take
+      image_folder_section.dart ImageFolderSection: the title row with the Scan
+  button at the right, the
+                                    images as a masonry, the count line, and
+  what the run could not take
                                     reported as a message. No Pick button
-                                    and no slider, because for this type the scan and the copy are the same
-                                    action and the number is what the folder contains. The tiles are the shared
-                                    `ImageTile`, at the box height the packing worked out for each image, with a
-                                    key that changes on each run because a re-scan writes the same names
-                                    (`AGENTS.md` §5). While the run is going the section draws the shared
-                                    progress row with the count it has reached, and the images shown are
-                                    the records it has copied so far, so a tile appears when its file is
-                                    written (`ai/image_folder_upload.md` §5); the row is not drawn after
-                                    the run, and then the manifest is what the section reads. The row
-                                    is keyed `imageFolderCopyProgress`, as the section's other parts
+                                    and no slider, because for this type the
+  scan and the copy are the same
+                                    action and the number is what the folder
+  contains. The tiles are the shared
+                                    `ImageTile`, at the box height the packing
+  worked out for each image, with a
+                                    key that changes on each run because a
+  re-scan writes the same names
+                                    (`AGENTS.md` §5). While the run is going the
+  section draws the shared
+                                    progress row with the count it has reached,
+  and the images shown are
+                                    the records it has copied so far, so a tile
+  appears when its file is
+                                    written (`ai/image_folder_upload.md` §5);
+  the row is not drawn after
+                                    the run, and then the manifest is what the
+  section reads. The row
+                                    is keyed `imageFolderCopyProgress`, as the
+  section's other parts
                                     are keyed.
     upload/
-      hosters.dart              the hoster registry: the names `--server` takes, in the
-                                order the section lists them, each with its icon asset and
-                                the settings service whose value its script reads. Two
-                                lists, the real hosters and the mock ones that call
-                                `test-hoster/rp_test_hoster.py`, chosen between by the
-                                `--dev` flag `main()` sets. The mock hosters have no icon
+      hosters.dart the hoster registry: the names `--server` takes, in the
+                                order the section lists them, each with its icon
+  asset and
+                                the settings service whose value its script
+  reads. Two
+                                lists, the real hosters and the mock ones that
+  call
+                                `test-hoster/rp_test_hoster.py`, chosen between
+  by the
+                                `--dev` flag `main()` sets. The mock hosters
+  have no icon
                                 asset, so they are drawn with the placeholder
-      hoster_icon.dart          the icon for one hoster as `Image.asset`, with a neutral
+      hoster_icon.dart the icon for one hoster as `Image.asset`, with a neutral
                                 placeholder when the asset is not there
-      upload_controller.dart    UploadController: the skip rule, one image at a time per
-                                hoster with the hosters running at the same time, the state
-                                the bars show read from images.json, the progress reports
-                                through a callback the widget passes in, writing images.json
-                                after each upload, and the environment a call gets — only
-                                for a hoster whose script reads a credential; typed result,
+      upload_controller.dart UploadController: the skip rule, one image at a
+  time per
+                                hoster with the hosters running at the same
+  time, the state
+                                the bars show read from images.json, the
+  progress reports
+                                through a callback the widget passes in, writing
+  images.json
+                                after each upload, and the environment a call
+  gets — only
+                                for a hoster whose script reads a credential;
+  typed result,
                                 no listener, no context
-      upload_section.dart       UploadSection: the title row with the Upload button at the right, the
+      upload_section.dart UploadSection: the title row with the Upload button at
+  the right, the
                                 hoster list with checkboxes (every
                                 hoster checked at first, inactive for a hoster
-                                whose credential is missing, with a tooltip saying
+                                whose credential is missing, with a tooltip
+  saying
                                 where to set it), and a
                                 progress bar for every hoster, drawn from the
                                 state read when the section is opened. Until the
@@ -1423,11 +2090,13 @@ lib/
                                 counters are read again when a generation run
                                 ends: the section registers its rebuild with the
                                 editor, which calls it, because the count is the
-                                count the release has and the two sections cannot
+                                count the release has and the two sections
+  cannot
                                 see each other; a run here ends by calling the
                                 editor's notice, which rebuilds every registered
                                 section, this one included
-                                drawn from the state read when the section is opened
+                                drawn from the state read when the section is
+  opened
     torrent/
       torrent_controller.dart   TorrentController: the paths — the
                                 source as the user picked it, and
@@ -1444,8 +2113,10 @@ lib/
                                 poster box asks for its file — and opens the
                                 folder through FolderOpener for the link the
                                 section shows. The flag is read through
-                                service/torrent/torrent_file.dart, and the modify
-                                call is given the file the app writes, so the one
+                                service/torrent/torrent_file.dart, and the
+  modify
+                                call is given the file the app writes, so the
+  one
                                 the run changes is the one the section shows
       torrent_section.dart      TorrentSection: the title row with the Create
                                 button at the right, the Private flag row under
@@ -1465,14 +2136,18 @@ lib/
                                 swallowed. The outcome is said in the section
                                 rather than in a snackbar, because the section
                                 is already the thing that shows the run. With no
-                                source picked the title row has no action and the
+                                source picked the title row has no action and
+  the
                                 section says what has to be picked first, the
-                                wording decided by the release type's sourceKind;
+                                wording decided by the release type's
+  sourceKind;
                                 what a file already on disk says is still shown,
-                                so the placeholder only stands for the case where
+                                so the placeholder only stands for the case
+  where
                                 there is nothing else to say. The source is not
                                 state this section holds, so it registers its
-                                rebuild with the editor, which calls it when that
+                                rebuild with the editor, which calls it when
+  that
                                 row is written to. The flag row shows what the
                                 file states when one is on disk, and the value
                                 in release.json only when there is none, as the
@@ -1492,120 +2167,224 @@ lib/
                                 there: then there is nothing left to save.
                                 No dirty flag of its own, not part of Ctrl+S
     message/
-      message_store.dart        MessageStore (load/loadSync/save/delete) for the two
+      message_store.dart MessageStore (load/loadSync/save/delete) for the two
                                 text files the section owns — message.txt and
-                                title.txt — at the release directory root, with no
-                                trailing newline. A file that is not there is not an
-                                error, because a reset removes files that may already
+                                title.txt — at the release directory root, with
+  no
+                                trailing newline. A file that is not there is
+  not an
+                                error, because a reset removes files that may
+  already
                                 be gone
-      screenshot_layout.dart    ScreenshotLayout: the two shapes the block can have, by
-                                hoster or by item. It is stored on the release, in
-                                `release.json`, because `message.txt` holds a block built
-                                with one of the two, so a release opened again shows the
-                                shape its post was written with. Only the type with more
-                                than one item can choose, and a file without the key reads
+      screenshot_layout.dart ScreenshotLayout: the two shapes the block can
+  have, by
+                                hoster or by item. It is stored on the release,
+  in
+                                `release.json`, because `message.txt` holds a
+  block built
+                                with one of the two, so a release opened again
+  shows the
+                                shape its post was written with. Only the type
+  with more
+                                than one item can choose, and a file without the
+  key reads
                                 as the shape the block has always had
-      message_controller.dart   MessageController: builds the values the template reads, the
-                                screenshot block, in the shape the release chose or the flat block
-                                for the types that cannot group, and the app signature block when
-                                the release asks for it, calls the renderer, writes both
-                                files; typed result, no listener, no context. Says whether every
+      message_controller.dart MessageController: builds the values the template
+  reads, and the values it builds
+                                from them: the resolution line, and the
+  formats as the post lists them,
+                                nothing when every format is jpg, and nothing
+  when neither end was written
+                                (`ai/description_template.md` §Variables), the
+                                screenshot block, in the shape the release chose
+  or the flat block
+                                for the types that cannot group, and the app
+  signature block when
+                                the release asks for it, calls the renderer,
+  writes both
+                                files; typed result, no listener, no context.
+  Says whether every
                                 image the message reads has been uploaded to the
                                 poster hoster — a synchronous check, because the
-                                widget asks while it builds. Validates the fields
-                                before it reads anything, so a release that cannot
-                                say what the template reads is a typed result with
-                                the field names rather than a render. Holds the values
-                                the last render read and says whether the current ones
-                                are still those, which is what a reset is decided from:
-                                a generation records them only when the write succeeded,
-                                and opening a section takes the values as they are then,
-                                because nothing says what generated the text it read from
-                                the files. Removes the two files for a reset and answers
-                                with `MessageCleared`, which reports nothing back
-      message_section.dart      MessageSection: the title row with the Generate button at the right, the
-                                app signature checkbox, the title line, and the large text box showing
-                                the post text, each with a copy button. The checkbox row is drawn first,
-                                and the row of radio buttons that chooses the shape of the block is drawn
-                                before the title line, for the type that can choose, and only while
-                                 the generation gate is open (rule 14): before an upload there is no
-                                 render for either flag to affect, and both show what the
-                                release holds and both are part of `release.json`, so the section reports
-                                them to the editor, which is the widget with the write path. The radio
-                                row is a `RadioGroup` with `Radio` children, because `Radio`'s own `groupValue`
-                                and `onChanged` are deprecated in the Flutter version this project uses.
+                                widget asks while it builds. Validates the
+  fields
+                                before it reads anything, so a release that
+  cannot
+                                say what the template reads is a typed result
+  with
+                                the field names rather than a render. Holds the
+  values
+                                the last render read and says whether the
+  current ones
+                                are still those, which is what a reset is
+  decided from:
+                                a generation records them only when the write
+  succeeded,
+                                and opening a section takes the values as they
+  are then,
+                                because nothing says what generated the text it
+  read from
+                                the files. Removes the two files for a reset and
+  answers
+                                with `MessageCleared`, which reports nothing
+  back
+      message_section.dart MessageSection: the title row with the Generate
+  button at the right, the
+                                app signature checkbox, the title line, and the
+  large text box showing
+                                the post text, each with a copy button. The
+  checkbox row is drawn first,
+                                and the row of radio buttons that chooses the
+  shape of the block is drawn
+                                before the title line, for the type that can
+  choose, and only while
+                                 the generation gate is open (rule 14): before
+  an upload there is no
+                                 render for either flag to affect, and both show
+  what the
+                                release holds and both are part of
+  `release.json`, so the section reports
+                                them to the editor, which is the widget with the
+  write path. The radio
+                                row is a `RadioGroup` with `Radio` children,
+  because `Radio`'s own `groupValue`
+                                and `onChanged` are deprecated in the Flutter
+  version this project uses.
                                 The
-                                button for the box is at its top rather than in its middle, through
-                                the decoration's suffix slot with the text aligned to the top, because
-                                a suffix icon is centred by `InputDecorator`. Only what there is to show
-                                is drawn: no title line while there is no title, and the placeholder
-                                instead of the box while nothing has been generated; the button in the
-                                title row is drawn only when every image the message
+                                button for the box is at its top rather than in
+  its middle, through
+                                the decoration's suffix slot with the text
+  aligned to the top, because
+                                a suffix icon is centred by `InputDecorator`.
+  Only what there is to show
+                                is drawn: no title line while there is no title,
+  and the placeholder
+                                instead of the box while nothing has been
+  generated; the button in the
+                                title row is drawn only when every image the
+  message
                                 reads is uploaded to the poster hoster, and the
-                                placeholder says what has to happen first while it is
-                                not. That is state the Upload section changes, so
-                                this one registers its rebuild with the editor. The
-                                title line is drawn only for a type that has a title
-                                (`hasTitle`). A generation refused by validation is
-                                shown as one line per problem, in the order the field
-                                list lists the fields, with the words the name has,
-                                because the controller answers with names rather than
+                                placeholder says what has to happen first while
+  it is
+                                not. That is state the Upload section changes,
+  so
+                                this one registers its rebuild with the editor.
+  The
+                                title line is drawn only for a type that has a
+  title
+                                (`hasTitle`). A generation refused by validation
+  is
+                                shown as one line per problem, in the order the
+  field
+                                list lists the fields, with the words the name
+  has,
+                                because the controller answers with names rather
+  than
                                 text. The same problems are given to the editor,
                                 which is the widget that builds the rows and
                                 marks the ones the user can type into, because
                                 a section cannot mark a row it does not build
-                                (rule 3). What the box shows is a render of the values
-                                the template reads, so a change to them makes it stale
-                                and the section goes back to its placeholder, taking the
-                                two files with it, because the files always match what the
-                                section shows. The form and the Upload section are outside
-                                this widget, so the notices reach it, and the Upload draft
-                                section that gates on whether a message exists, through plain
-                                callbacks it registers with the editor: the single field
-                                write path and the end of an upload run, and the notice this
-                                widget itself calls when the box changes — a generation, a
+                                (rule 3). What the box shows is a render of the
+  values
+                                the template reads, so a change to them makes it
+  stale
+                                and the section goes back to its placeholder,
+  taking the
+                                two files with it, because the files always
+  match what the
+                                section shows. The form and the Upload section
+  are outside
+                                this widget, so the notices reach it, and the
+  Upload draft
+                                section that gates on whether a message exists,
+  through plain
+                                callbacks it registers with the editor: the
+  single field
+                                write path and the end of an upload run, and the
+  notice this
+                                widget itself calls when the box changes — a
+  generation, a
                                 reset, or an edit the user typed. A field is any
-                                field, including the ones the app fills; an image is a
-                                change only when the run added a URL the message reads.
-                                The reset is silent, and nothing is cleared when there is
+                                field, including the ones the app fills; an
+  image is a
+                                change only when the run added a URL the message
+  reads.
+                                The reset is silent, and nothing is cleared when
+  there is
                                 nothing to clear
     draft/
-      draft_controller.dart     DraftController: the two text files the Message section owns are
-                                what a run sends, so the box is not read; the shape rule for the one
-                                field this feature owns, asked for that field rather than for the
-                                whole list, because the required set of its type is not known and
-                                the URL shape is the gate whatever the type is; and the run, with
-                                the same checks the widget gates the button on, so a run is not
-                                reached with a value they refuse. Typed result, no listener, no
-                                context. It holds nothing that can change while the app is running
-                                except the settings feature it is given: the cookie is read from it
-                                per call, and a run does not log in — the login is the settings
-                                page's action, because the site asks for a captcha after a few
-                                logins and the app cannot read one (`ai/pornolab_login.md` §7)
-      draft_section.dart        DraftSection: the title row with the Upload button at the right, the
-                                parent forum row, and the link the release holds as a link that
-                                opens the browser. Only what there is to show is drawn: the row and
-                                the button only when a message exists, and the placeholder in place
-                                of the row while nothing has been generated; a link the release
-                                already holds is still shown, because it is what a run wrote. The
-                                button is disabled while a run cannot be made and its tooltip says
-                                which of the three is missing, in the order a run needs them: the
-                                message, a stored cookie, the forum. The row shows the shape rule
-                                with the words the form's rows use, and the words for a result are
-                                the mapping the settings page reads them from too (§4), so the gate
-                                and the message cannot disagree. What a run said is shown as text,
-                                including the line for the run that had to make a new draft, because
-                                the link the release holds changed and the user cannot see why
-                                otherwise; a run that updated the stored draft says nothing. The link
-                                the site answered with is written through the editor's
-                                single write path, because this section has the field and the editor
-                                is the widget with the write path (rule 3). The link is also copied:
-                                the copy button next to it is the same call the Message section's
-                                copy buttons make, and nothing is said when it works, as they do.
-                                The label above the link says what it is, because the link's text is
-                                the link itself, and both labels of this section are resolved
-                                through `fieldLabel` as the form's rows are. It reads the settings
-                                feature through the provider, because the gate is the credentials
+      draft_controller.dart DraftController: the two text files the Message
+  section owns are
+                                what a run sends, so the box is not read; the
+  shape rule for the one
+                                field this feature owns, asked for that field
+  rather than for the
+                                whole list, because the required set of its type
+  is not known and
+                                the URL shape is the gate whatever the type is;
+  and the run, with
+                                the same checks the widget gates the button on,
+  so a run is not
+                                reached with a value they refuse. Typed result,
+  no listener, no
+                                context. It holds nothing that can change while
+  the app is running
+                                except the settings feature it is given: the
+  cookie is read from it
+                                per call, and a run does not log in — the login
+  is the settings
+                                page's action, because the site asks for a
+  captcha after a few
+                                logins and the app cannot read one
+  (`ai/pornolab_login.md` §7)
+      draft_section.dart DraftSection: the title row with the Upload button at
+  the right, the
+                                parent forum row, and the link the release holds
+  as a link that
+                                opens the browser. Only what there is to show is
+  drawn: the row and
+                                the button only when a message exists, and the
+  placeholder in place
+                                of the row while nothing has been generated; a
+  link the release
+                                already holds is still shown, because it is what
+  a run wrote. The
+                                button is disabled while a run cannot be made
+  and its tooltip says
+                                which of the three is missing, in the order a
+  run needs them: the
+                                message, a stored cookie, the forum. The row
+  shows the shape rule
+                                with the words the form's rows use, and the
+  words for a result are
+                                the mapping the settings page reads them from
+  too (§4), so the gate
+                                and the message cannot disagree. What a run said
+  is shown as text,
+                                including the line for the run that had to make
+  a new draft, because
+                                the link the release holds changed and the user
+  cannot see why
+                                otherwise; a run that updated the stored draft
+  says nothing. The link
+                                the site answered with is written through the
+  editor's
+                                single write path, because this section has the
+  field and the editor
+                                is the widget with the write path (rule 3). The
+  link is also copied:
+                                the copy button next to it is the same call the
+  Message section's
+                                copy buttons make, and nothing is said when it
+  works, as they do.
+                                The label above the link says what it is,
+  because the link's text is
+                                the link itself, and both labels of this section
+  are resolved
+                                through `fieldLabel` as the form's rows are. It
+  reads the settings
+                                feature through the provider, because the gate
+  is the credentials
                                 rather than the cookie
     settings/
       settings.dart               AppLanguage + SettingsField + Settings (the
@@ -1619,7 +2398,8 @@ lib/
                                   the separator and a rule that reads the
                                   platform can only be tested on the platform it
                                   reads
-                                  SettingsSection is the sections the page has, in
+                                  SettingsSection is the sections the page has,
+  in
                                   the order its left side lists them. It is not
                                   private to the page, because the section a
                                   settings tab shows is the tab's state, held on
@@ -1635,15 +2415,23 @@ lib/
                                   plainly. `pornolabCookieKey` is the key the
                                   cookie a login gives is written under; it is
                                   not a field, so nothing on the page writes it
-      settings_store.dart         SettingsStore (load/save) for settings.json in the app data
-                                  directory; a missing or unreadable file reads as the defaults.
-                                  The directory is a constructor parameter as a function, because
-                                  path_provider is async and a store builds no dependency of its
+      settings_store.dart SettingsStore (load/save) for settings.json in the app
+  data
+                                  directory; a missing or unreadable file reads
+  as the defaults.
+                                  The directory is a constructor parameter as a
+  function, because
+                                  path_provider is async and a store builds no
+  dependency of its
                                   own
-      secret_store.dart           SecretStore (readAll/write/delete) for the OS credential store,
-                                  plus PluginSecretStore over the plugin. It is an interface because
-                                  the plugin is a method channel and cannot be exercised in a test,
-                                  so the settings feature is tested against a fake
+      secret_store.dart SecretStore (readAll/write/delete) for the OS credential
+  store,
+                                  plus PluginSecretStore over the plugin. It is
+  an interface because
+                                  the plugin is a method channel and cannot be
+  exercised in a test,
+                                  so the settings feature is tested against a
+  fake
       settings_controller.dart    SettingsController (ChangeNotifier): the
                                   settings, the locale the app is given, the
                                   default directory with ~ expanded with the
@@ -1764,37 +2552,68 @@ lib/
                                   in §5 about an image rewritten under the same
                                   name does not apply here
     recent_releases/
-      recent_releases.dart              RecentRelease (the directory path as the key, the technical
-                                        names, the source, the three dates) + RecentReleases (the entry
-                                        list, the record rule, the cap) + the date comparison and the
-                                        sort, which stays pure because the comparator it is given is
-                                        what the widget builds for a localized column + the display
-                                        names for a stored tracker and type, or the string the file
-                                        holds when the app does not know them + the row the scan found,
-                                        which has nothing but the path because nothing was read about it
-      recent_releases_store.dart        RecentReleasesStore (load/save) for recent_releases.json in the
-                                        app data directory; a missing or unreadable file reads as an
-                                        empty list. The directory is a constructor parameter as a
-                                        function, for the same reason SettingsStore's is
-      recent_releases_controller.dart   RecentReleasesController (ChangeNotifier): the list, the record
-                                        rule, the availability check, the scan of the default release
-                                        directory, the merged view the table draws, the startup read and
-                                        the tab it opens as the first tab; the third Listenable in the
-                                        app (see §4). Writes as the list changes, so the tab has no
-                                        dirty flag, and a failed write is a flag the page shows as a line
-      recent_releases_page.dart         RecentReleasesPage: the table, one row per entry or found
-                                        folder, with the header that sorts. Which column and which
-                                        direction are widget state, as the Video pack table's open rows
-                                        are; a column that was not the sorted one starts in its natural
-                                        direction. The rows are drawn in the sorted order and the order
-                                        the file lists is not changed. The rows scroll inside the tab
-                                        while the header stays fixed, because the header is the control
-                                        the table is sorted through and the list can be longer than the
-                                        tab (the scan has no cap); the write-failure line stays outside
-                                        the scroll so it is always visible. A row whose manifest is gone
-                                        is dimmed with an icon next to its name whose tooltip gives the
-                                        reason; a row click goes through the shared open flow. It asks
-                                        for the availability check and the scan when it opens, and
+      recent_releases.dart RecentRelease (the directory path as the key, the
+  technical
+                                        names, the source, the three dates) +
+  RecentReleases (the entry
+                                        list, the record rule, the cap) + the
+  date comparison and the
+                                        sort, which stays pure because the
+  comparator it is given is
+                                        what the widget builds for a localized
+  column + the display
+                                        names for a stored tracker and type, or
+  the string the file
+                                        holds when the app does not know them +
+  the row the scan found,
+                                        which has nothing but the path because
+  nothing was read about it
+      recent_releases_store.dart RecentReleasesStore (load/save) for
+  recent_releases.json in the
+                                        app data directory; a missing or
+  unreadable file reads as an
+                                        empty list. The directory is a
+  constructor parameter as a
+                                        function, for the same reason
+  SettingsStore's is
+      recent_releases_controller.dart RecentReleasesController (ChangeNotifier):
+  the list, the record
+                                        rule, the availability check, the scan
+  of the default release
+                                        directory, the merged view the table
+  draws, the startup read and
+                                        the tab it opens as the first tab; the
+  third Listenable in the
+                                        app (see §4). Writes as the list
+  changes, so the tab has no
+                                        dirty flag, and a failed write is a flag
+  the page shows as a line
+      recent_releases_page.dart RecentReleasesPage: the table, one row per entry
+  or found
+                                        folder, with the header that sorts.
+  Which column and which
+                                        direction are widget state, as the Video
+  pack table's open rows
+                                        are; a column that was not the sorted
+  one starts in its natural
+                                        direction. The rows are drawn in the
+  sorted order and the order
+                                        the file lists is not changed. The rows
+  scroll inside the tab
+                                        while the header stays fixed, because
+  the header is the control
+                                        the table is sorted through and the list
+  can be longer than the
+                                        tab (the scan has no cap); the
+  write-failure line stays outside
+                                        the scroll so it is always visible. A
+  row whose manifest is gone
+                                        is dimmed with an icon next to its name
+  whose tooltip gives the
+                                        reason; a row click goes through the
+  shared open flow. It asks
+                                        for the availability check and the scan
+  when it opens, and
                                         passes the default directory to the scan
     window/
       window_size.dart          WindowSize (the whole pixels the window last
@@ -1828,35 +2647,64 @@ lib/
                                 called from the close flow, the only place that
                                 knows the app is closing for real
     stashdb/
-      stash_controller.dart       StashController: the scene ID from what the user pasted, the
-                                  request, which form field each value goes into, the URL the domain
-                                  is read from and the domain its host gives or the bundled mapping
-                                  has, the title with the site number cut off every occurrence of
-                                  it, the values the import changed rather than copied as what was
-                                  done to them and as the parts the app keeps and the parts it cuts,
-                                  the canonical scene URL from the scene ID, the poster, and the file
-                                  the popup shows the poster from; typed result, no listener, no
-                                  context. The values are read asynchronously because the mapping is
-                                  an asset the app reads; the notes are not, because the mapping
-                                  changes a value rather than which URL a value came from.
-      stash_section.dart          StashSection: the row that is the scene link field — the URL or
-                                  ID input with the Fetch button — and the popup a successful fetch
-                                  shows, with each value and its checkbox and Cancel and Apply; the
-                                  popup owns the selection while it is open, and the poster row
-                                  shows its link with the image below it, at the width the row has
-                                  and 240 px tall, from the file the controller writes. Below the
-                                  poster it has the "Import notes" subsection, titled with
-                                  `SectionTitle` like every section, where each value the import
-                                  changed is the message that says what was done to it followed by
-                                  the value with the parts it cut struck through; a note has no
-                                  checkbox because it is not something to apply, and its key
-                                  includes its place in the list because the same field can have one
-                                  note per studio. The values are not there on the first frame,
-                                  because the mapping is an asset the app reads, and the popup shows
-                                  them when the read completes. The row owns the focus of its input and takes it
-                                  back when the popup closes, so the save key reaches the editor
-                                  again. Writes the fields through the editor's single write path,
-                                  the poster through its poster path, and the scene URL field on its
+      stash_controller.dart StashController: the scene ID from what the user
+  pasted, the
+                                  request, which form field each value goes
+  into, the URL the domain
+                                  is read from and the domain its host gives or
+  the bundled mapping
+                                  has, the title with the site number cut off
+  every occurrence of
+                                  it, the values the import changed rather than
+  copied as what was
+                                  done to them and as the parts the app keeps
+  and the parts it cuts,
+                                  the canonical scene URL from the scene ID, the
+  poster, and the file
+                                  the popup shows the poster from; typed result,
+  no listener, no
+                                  context. The values are read asynchronously
+  because the mapping is
+                                  an asset the app reads; the notes are not,
+  because the mapping
+                                  changes a value rather than which URL a value
+  came from.
+      stash_section.dart StashSection: the row that is the scene link field —
+  the URL or
+                                  ID input with the Fetch button — and the popup
+  a successful fetch
+                                  shows, with each value and its checkbox and
+  Cancel and Apply; the
+                                  popup owns the selection while it is open, and
+  the poster row
+                                  shows its link with the image below it, at the
+  width the row has
+                                  and 240 px tall, from the file the controller
+  writes. Below the
+                                  poster it has the "Import notes" subsection,
+  titled with
+                                  `SectionTitle` like every section, where each
+  value the import
+                                  changed is the message that says what was done
+  to it followed by
+                                  the value with the parts it cut struck
+  through; a note has no
+                                  checkbox because it is not something to apply,
+  and its key
+                                  includes its place in the list because the
+  same field can have one
+                                  note per studio. The values are not there on
+  the first frame,
+                                  because the mapping is an asset the app reads,
+  and the popup shows
+                                  them when the read completes. The row owns the
+  focus of its input and takes it
+                                  back when the popup closes, so the save key
+  reaches the editor
+                                  again. Writes the fields through the editor's
+  single write path,
+                                  the poster through its poster path, and the
+  scene URL field on its
                                   own
     system_check/
       system_check_controller.dart SystemCheckController: the tools the app
@@ -1876,9 +2724,11 @@ lib/
                                    prints to stderr and exits 255, so for that
                                    tool the line it printed is the result, and
                                    the exit code is not a failure of the check.
-                                   The calls run at the same time and each result
+                                   The calls run at the same time and each
+  result
                                    is passed to a callback the page gives it, so
-                                   a tool that hangs does not hold up the rows of
+                                   a tool that hangs does not hold up the rows
+  of
                                    the tools that answered
       system_check_page.dart    SystemCheckPage: its title, then a header and
                                 one row per tool, showing the version the tool
@@ -1889,14 +2739,20 @@ lib/
                                 is capped at 1200 px and centred in the tab, the
                                 title with it; the text inside the table stays
                                 at the start. The check runs when the page opens
-                                and the results are its own widget state, kept by
+                                and the results are its own widget state, kept
+  by
                                 tool name rather than by position, because the
-                                results arrive in the order the tools answer, not
-                                the order of the list. A row whose result has not
+                                results arrive in the order the tools answer,
+  not
+                                the order of the list. A row whose result has
+  not
                                 come back yet shows the tool name and a spinner
-                                in the icon column, so the row keeps the shape it
-                                has when the result arrives, and each row updates
-                                as its own result arrives rather than waiting for
+                                in the icon column, so the row keeps the shape
+  it
+                                has when the result arrives, and each row
+  updates
+                                as its own result arrives rather than waiting
+  for
                                 the others. An error row is drawn with
                                 colorScheme.error. Tool names are shown from
                                 NativeTool.name, not from l10n keys. The name
@@ -1908,76 +2764,142 @@ lib/
                                 version, the same mark for each reason
   service/
     fonts/
-      font_store.dart           FontStore: the font the app ships, written into the app data
+      font_store.dart FontStore: the font the app ships, written into the app
+  data
                                 directory so the tool can open it by path
-                                (`ai/bundled_native_tools.md`). libgd resolves a font name
-                                only through fontconfig's own configuration, the one that
-                                names the system font directories, so the tool is given a
-                                path. The font is written once: a file whose length
-                                already matches the asset is left alone, so a run that
-                                generates screenlists does not rewrite 170 KB for every
-                                video. Only the weight the tool draws with is written; the
-                                app's own text gets the same font from the asset bundle.
-                                `fontPath()` is what a tool call needs: the path of the
-                                file. The asset bundle and the app data directory are
-                                constructor parameters, so the service reads no static.
+                                (`ai/bundled_native_tools.md`). libgd resolves a
+  font name
+                                only through fontconfig's own configuration, the
+  one that
+                                names the system font directories, so the tool
+  is given a
+                                path. The font is written once: a file whose
+  length
+                                already matches the asset is left alone, so a
+  run that
+                                generates screenlists does not rewrite 170 KB
+  for every
+                                video. Only the weight the tool draws with is
+  written; the
+                                app's own text gets the same font from the asset
+  bundle.
+                                `fontPath()` is what a tool call needs: the path
+  of the
+                                file. The asset bundle and the app data
+  directory are
+                                constructor parameters, so the service reads no
+  static.
     images/
-      image_dimensions.dart     ImageDimensions + readImageDimensions(): the dimensions a photo
-                                reports, read from its header — JPEG's start-of-frame marker,
-                                PNG's IHDR, WebP's chunks — without decoding the image, and the
-                                photo extension list that is the same set of formats. The header
-                                bytes come through a function rather than a path, so a file and an
-                                archive entry read through the same format dispatch.
-                                readImageDimensionsSync() is the same header read synchronously, so
-                                a widget can lay a grid out while it builds — the same reason
-                                ImagesStore.loadSync exists. `area` is what the extremes
-                                are compared by, and `isLandscape` is the shape the
-                                dimensions give, which is what a resolution field states
-                                (`ai/photoset_pack.md` §3). Neither is the grid's 1.2
+      image_dimensions.dart ImageDimensions + readImageDimensions(): the
+  dimensions a photo
+                                reports, read from its header — JPEG's
+  start-of-frame marker,
+                                PNG's IHDR, WebP's chunks — without decoding the
+  image, and the
+                                photo extension list that is the same set of
+  formats. The header
+                                bytes come through a function rather than a
+  path, so a file and an
+                                archive entry read through the same format
+  dispatch.
+                                readImageDimensionsSync() is the same header
+  read synchronously, so
+                                a widget can lay a grid out while it builds —
+  the same reason
+                                ImagesStore.loadSync exists. `area` is what the
+  extremes
+                                are compared by, and `isLandscape` is the shape
+  the
+                                dimensions give, which is what a resolution
+  field states
+                                (`ai/photoset_pack.md` §3). Neither is the
+  grid's 1.2
                                 line, which decides which zone a tile is in
                                 (`ai/picking.md` §7).
-      masonry.dart              minColumnWidth and columnGap: the column width the page is built
-                                from and the gap between its columns, shared because a section
-                                drawn as the page's columns has to draw exactly those
-                                (`ai/picking.md` §7). `photoColumnCount()` is as many columns as
-                                fit at the width it is given, and `photoColumnWidth()` is the
-                                share of the space, so the space is used up rather than leaving a
-                                strip at the right narrower than a column; the share may be
-                                bounded by a maximum the caller gives, which is what a zone
-                                capped at its photos needs, and then the width past the bound is
-                                left at the right. `photoSpanCount()` is the number of columns a
-                                landscape takes, the number that makes it as wide as the
-                                landscape width it is given, because a grid can only be a whole
-                                number of columns wide. `isLandscape()` is the line the placement
-                                and the counts of each kind share, so they agree on what a zone
-                                is, and a photo whose header could not be read is the square the
-                                drawing lays it out as. `photoZoneColumnCounts()` is the columns
-                                each zone of the pack's grid gets from the two counts: a kind
-                                with no photos has none, a kind with photos has at least one
-                                column and never more than its photos need, and what the two
-                                minimums do not take is shared in proportion to the counts, with
-                                a zone already at its need giving its share to the other. A
-                                landscape zone is given whole spans, since a photo of that kind
-                                cannot be placed in one column, so a column the rounding leaves
-                                over is not one it can use: `wholeSpanCount()` is the number it
-                                can, and the odd column goes to the other kind, or is not
-                                counted when neither can take it, so the width is shared out
-                                among the columns that are. It returns nothing when the space
-                                cannot hold a column of both kinds, which is the case where the
+      masonry.dart minColumnWidth and columnGap: the column width the page is
+  built
+                                from and the gap between its columns, shared
+  because a section
+                                drawn as the page's columns has to draw exactly
+  those
+                                (`ai/picking.md` §7). `photoColumnCount()` is as
+  many columns as
+                                fit at the width it is given, and
+  `photoColumnWidth()` is the
+                                share of the space, so the space is used up
+  rather than leaving a
+                                strip at the right narrower than a column; the
+  share may be
+                                bounded by a maximum the caller gives, which is
+  what a zone
+                                capped at its photos needs, and then the width
+  past the bound is
+                                left at the right. `photoSpanCount()` is the
+  number of columns a
+                                landscape takes, the number that makes it as
+  wide as the
+                                landscape width it is given, because a grid can
+  only be a whole
+                                number of columns wide. `isLandscape()` is the
+  line the placement
+                                and the counts of each kind share, so they agree
+  on what a zone
+                                is, and a photo whose header could not be read
+  is the square the
+                                drawing lays it out as.
+  `photoZoneColumnCounts()` is the columns
+                                each zone of the grid gets, for both photoset
+  types, from the
+                                two counts: a kind
+                                with no photos has none, a kind with photos has
+  at least one
+                                column and never more than its photos need, and
+  what the two
+                                minimums do not take is shared in proportion to
+  the counts, with
+                                a zone already at its need giving its share to
+  the other. A
+                                landscape zone is given whole spans, since a
+  photo of that kind
+                                cannot be placed in one column, so a column the
+  rounding leaves
+                                over is not one it can use: `wholeSpanCount()`
+  is the number it
+                                can, and the odd column goes to the other kind,
+  or is not
+                                counted when neither can take it, so the width
+  is shared out
+                                among the columns that are. It returns nothing
+  when the space
+                                cannot hold a column of both kinds, which is the
+  case where the
                                 grid is not split.
-                                pictureHeight() and tileHeight() are what a tile takes in a
-                                column of a given width, tileHeight with the gap that is its own
-                                padding. `masonryPositions()`: the placement for a grid of
-                                columns of equal width — each photo goes to the columns that are
-                                highest at the point it is added, ties to the lower index, and
-                                the order is the order the source gives. A photo at or above
-                                `landscapeSpanRatio` spans as many columns as the caller allows,
-                                and a span starts where all of its columns are free, so the
-                                others keep a gap. The Screenshots grid asks for a span of one,
-                                because every file there is a frame at the same ratio and spans
-                                would make the grid one column. Heights are in pixels, because a
-                                tile is its image plus the lines under it, so the placement does
-                                depend on the column width. Pure, and tested on its own.
+                                pictureHeight() and tileHeight() are what a tile
+  takes in a
+                                column of a given width, tileHeight with the gap
+  that is its own
+                                padding. `masonryPositions()`: the placement for
+  a grid of
+                                columns of equal width — each photo goes to the
+  columns that are
+                                highest at the point it is added, ties to the
+  lower index, and
+                                the order is the order the source gives. A photo
+  at or above
+                                `landscapeSpanRatio` spans as many columns as
+  the caller allows,
+                                and a span starts where all of its columns are
+  free, so the
+                                others keep a gap. The Screenshots grid asks for
+  a span of one,
+                                because every file there is a frame at the same
+  ratio and spans
+                                would make the grid one column. Heights are in
+  pixels, because a
+                                tile is its image plus the lines under it, so
+  the placement does
+                                depend on the column width. Pure, and tested on
+  its own.
       tool_locator.dart         ToolLocator: where a tool's executable is — the
                                 app bundle first, then PATH. A tool with a
                                 bundle directory and no path fallback is
@@ -1994,17 +2916,24 @@ lib/
                                 platform are constructor parameters, so the rule
                                 can be tested on either platform.
       tool_runner.dart          ToolRunner: the only code that runs an external
-                                process, + the typed ToolRunResult. It reads the output
-                                as it arrives, writes every line to the tool log, stops a
-                                call at the window it was given — 60s by default, or the
-                                one the call asks for, which mkbrr does — and adds to the
-                                child's environment the entries a call is given, which is
-                                where a credential goes, because the log records the
+                                process, + the typed ToolRunResult. It reads the
+  output
+                                as it arrives, writes every line to the tool
+  log, stops a
+                                call at the window it was given — 60s by
+  default, or the
+                                one the call asks for, which mkbrr does — and
+  adds to the
+                                child's environment the entries a call is given,
+  which is
+                                where a credential goes, because the log records
+  the
                                 arguments
       ffmpeg.dart               Ffmpeg: the commands the app uses (version(),
                                 resizeImage() — an image resized to at most
                                 maxSize px and written as a JPEG, screenshot() —
-                                one key frame at the source resolution, written as
+                                one key frame at the source resolution, written
+  as
                                 a JPEG, which is the call both the Screenshots
                                 section and the video thumbnail use)
       ffprobe.dart              Ffprobe: probe() — one call for a file's
@@ -2022,7 +2951,8 @@ lib/
                                 call, this one included, for the reason the
                                 screenlist section gives
       media_info.dart           MediaInfo: the six values the editor shows,
-                                formatted as ai/release_editor.md specifies, plus
+                                formatted as ai/release_editor.md specifies,
+  plus
                                 the duration in seconds the thumbnail seeks to
       uptooda.dart              Uptooda: one image to one hoster, with the
                                 arguments the spec fixes, + the typed upload
@@ -2033,114 +2963,196 @@ lib/
                                 version line the System Check tab shows
       mkbrr.dart                Mkbrr: create() — one call that writes a torrent
                                 for a file or a folder, + the typed result, and
-                                version() — the version line the System Check tab
-                                shows. The bare command prints its banner without
+                                version() — the version line the System Check
+  tab
+                                shows. The bare command prints its banner
+  without
                                 a version, so the check uses the `version`
                                 subcommand. create() is given the progress
-                                callback and reads the percentage, the rate and the
+                                callback and reads the percentage, the rate and
+  the
                                 time left out of the carriage-return-separated
-                                segments, because that is the tool's format, and it
+                                segments, because that is the tool's format, and
+  it
                                 asks for a 60 minute window rather than the
                                 runner's default (`ai/torrents.md`). modify()
-                                changes the flag of a file that is already there;
+                                changes the flag of a file that is already
+  there;
                                 the reason a failed one prints is read from the
                                 output, because a modify that cannot process the
-                                file still exits 0 (`ai/bundled_native_tools.md`)
+                                file still exits 0
+  (`ai/bundled_native_tools.md`)
     photosets/
-      photoset_scanner.dart     PhotosetScanner: reads the picked folder, decides which entries
-                                are items — the rule is given to it per type as `ItemBoundary`,
-                                because a pack is the entries under the source and a single
-                                photoset is the source itself (`ai/single_photoset.md` §5) —
-                                counts and measures the photos in each, and lists the formats
-                                among them. `isSmallerExtreme` and `isLargerExtreme` are the two
-                                comparisons an extreme photo is decided by, and the picker uses
-                                the same two, so the field and the pick name one photo
-                                (`ai/photoset_pack.md` §3, `ai/picking.md` §4). The readers are
-                                behind an interface, so a format can be added without changing
-                                the scan (`ai/photoset_pack.md` §5); the interface also gives the
-                                whole photo, for the photo the picker copies. Each reader is
-                                called on another isolate, so reading a large archive does not
-                                hold up the isolate the UI runs on, and a reader therefore holds
-                                nothing from one call to the next (`ai/photoset_pack.md` §4).
-                                The items the entries give are decided before any reading, so the
-                                count it reports is known before the first item is read: it
-                                reports that count, and then each item as it reads it, through the
-                                optional callback the caller passes — the same shape as
-                                `ToolRunner`'s `onOutput`, so a caller that reports nothing takes
-                                no callback (`ai/picking.md` §7). + the typed scan result, and the
+      photoset_scanner.dart PhotosetScanner: reads the picked folder, decides
+  which entries
+                                are items — the rule is given to it per type as
+  `ItemBoundary`,
+                                because a pack is the entries under the source
+  and a single
+                                photoset is the source itself
+  (`ai/single_photoset.md` §5) —
+                                counts and measures the photos in each, and
+  lists the formats among them,
+                                and reports what the folder has rather than
+  what the post lists — that is the
+                                message's rule, not the scan's
+  (`ai/description_template.md`
+                                §Variables). `isSmallerExtreme` and
+  `isLargerExtreme` are the two
+                                comparisons an extreme photo is decided by, and
+  the picker uses
+                                the same two, so the field and the pick name one
+  photo
+                                (`ai/photoset_pack.md` §3, `ai/picking.md` §4).
+  The readers are
+                                behind an interface, so a format can be added
+  without changing
+                                the scan (`ai/photoset_pack.md` §5); the
+  interface also gives the
+                                whole photo, for the photo the picker copies.
+  Each reader is
+                                called on another isolate, so reading a large
+  archive does not
+                                hold up the isolate the UI runs on, and a reader
+  therefore holds
+                                nothing from one call to the next
+  (`ai/photoset_pack.md` §4).
+                                The items the entries give are decided before
+  any reading, so the
+                                count it reports is known before the first item
+  is read: it
+                                reports that count, and then each item as it
+  reads it, through the
+                                optional callback the caller passes — the same
+  shape as
+                                `ToolRunner`'s `onOutput`, so a caller that
+  reports nothing takes
+                                no callback (`ai/picking.md` §7). + the typed
+  scan result, and the
                                 progress report. Called only when the user asks.
-      directory_reader.dart     DirectoryPhotosetReader: a photoset that is a directory — the files
+      directory_reader.dart DirectoryPhotosetReader: a photoset that is a
+  directory — the files
                                 directly inside it, in name order.
-      zip_reader.dart           ZipPhotosetReader: a photoset that is a ZIP archive — its entries,
-                                in the order the archive lists them. Reads the central directory
-                                through the `archive` package, the one place rule 12 is set aside,
-                                because the parts a hand-written reader gets wrong are the ones real
-                                archives have: zip64 sizes, data descriptors, encrypted entries.
-                                Reads only the bytes a header is made of, not the entry; the whole
-                                entry is read separately, for the photo the picker copies.
-      photoset_picker.dart      PhotosetPicker: the picking rule (`ai/picking.md`) — the count the
-                                popup asked for, the two ways the count is divided, and the extremes
-                                it was asked to keep. Pure: takes the scanned sets and the options the
-                                popup answered with, returns the picks, writes nothing, and shows no
-                                messages. + `PickOptions`, what the popup owns as widget state and
-                                hands over, the four numbers its slider is built from, and the function
-                                that gives the top of its range for a total — the cap, taken as far as
+      zip_reader.dart ZipPhotosetReader: a photoset that is a ZIP archive — its
+  entries,
+                                in the order the archive lists them. Reads the
+  central directory
+                                through the `archive` package, the one place
+  rule 12 is set aside,
+                                because the parts a hand-written reader gets
+  wrong are the ones real
+                                archives have: zip64 sizes, data descriptors,
+  encrypted entries.
+                                Reads only the bytes a header is made of, not
+  the entry; the whole
+                                entry is read separately, for the photo the
+  picker copies.
+      photoset_picker.dart PhotosetPicker: the picking rule (`ai/picking.md`) —
+  the count the
+                                popup asked for, the two ways the count is
+  divided, and the extremes
+                                it was asked to keep. Pure: takes the scanned
+  sets and the options the
+                                popup answered with, returns the picks, writes
+  nothing, and shows no
+                                messages. + `PickOptions`, what the popup owns
+  as widget state and
+                                hands over, the four numbers its slider is built
+  from, and the function
+                                that gives the top of its range for a total —
+  the cap, taken as far as
                                 the pack has (`ai/picking.md` §1).
     videos/
-      image_generator.dart      ImageGenerator: the rules that turn one video file into the images the
-                                 app writes — the key-frame times, the file names, the screenlist rows,
-                                 the ffmpeg and mtn calls. It writes the files and reports each one as
-                                 it writes it, as paths relative to the release directory, so the caller
-                                 can show a frame before the run ends; it does not record them, because
-                                 a record is a file plus the item it belongs to, which is the feature's.
-                                 + the typed per-item result and the failure vocabulary both sections
-                                 map to text, including the `stopsRun` rule. Called only when the user
+      image_generator.dart ImageGenerator: the rules that turn one video file
+  into the images the
+                                 app writes — the key-frame times, the file
+  names, the screenlist rows,
+                                 the ffmpeg and mtn calls. It writes the files
+  and reports each one as
+                                 it writes it, as paths relative to the release
+  directory, so the caller
+                                 can show a frame before the run ends; it does
+  not record them, because
+                                 a record is a file plus the item it belongs to,
+  which is the feature's.
+                                 + the typed per-item result and the failure
+  vocabulary both sections
+                                 map to text, including the `stopsRun` rule.
+  Called only when the user
                                  asks (`ai/doc.md` §2).
-      video_scanner.dart        VideoScanner: walks the picked folder, decides which files are
-                                items by the extension list, takes the size each has on disk, and
-                                probes each one with the existing Ffprobe, one call per item; a file
-                                it cannot probe is still an item, reported by name. + the typed scan
-                                result. Called only when the user asks. No reader interface, because
-                                there is no container format here (`ai/video_pack.md` §4).
+      video_scanner.dart VideoScanner: walks the picked folder, decides which
+  files are
+                                items by the extension list, takes the size each
+  has on disk, and
+                                probes each one with the existing Ffprobe, one
+  call per item; a file
+                                it cannot probe is still an item, reported by
+  name. + the typed scan
+                                result. Called only when the user asks. No
+  reader interface, because
+                                there is no container format here
+  (`ai/video_pack.md` §4).
     torrent/
       torrent_file.dart         readPrivateFlag(): the Private flag as a torrent
-                                file states it — the two dictionaries it can be in
+                                file states it — the two dictionaries it can be
+  in
                                 are walked, the file's top-level one and its
                                 `info` entry, and the integer value there is the
                                 flag. A value that is not the flag is skipped
                                 rather than decoded, because the pieces are the
                                 largest part of a real torrent and nothing here
                                 needs them. A file whose `info` has no `private`
-                                key is not private, which is what the format means
+                                key is not private, which is what the format
+  means
                                 by the flag being absent; bytes that are not a
                                 bencoded dictionary are reported as unreadable
                                 rather than guessed at. A pure function over the
-                                bytes, like `image_dimensions.dart` is over a file
-                                header, so the rule can be tested without a file.
+                                bytes, like `image_dimensions.dart` is over a
+  file
+                                header, so the rule can be tested without a
+  file.
                                 + the typed read result.
     template/
-      style.dart                Style: a parsed style file — key = value, one rule per
-                                line, `{content}` as the slot body, `{token}` as another
-                                key, no inheritance. `ai/description_template.md`.
-      template_renderer.dart    TemplateRenderer: the mustache subset the message uses —
-                                variables, conditional and inverted sections, style slots,
-                                `{{blank}}`, block variables. Line-based: one template line
-                                produces one output line, a line that renders to nothing is
-                                dropped, consecutive blanks collapse, leading and trailing
-                                blanks are trimmed, no trailing newline. Written by hand
+      style.dart Style: a parsed style file — key = value, one rule per
+                                line, `{content}` as the slot body, `{token}` as
+  another
+                                key, no inheritance.
+  `ai/description_template.md`.
+      template_renderer.dart TemplateRenderer: the mustache subset the message
+  uses —
+                                variables, conditional and inverted sections,
+  style slots,
+                                `{{blank}}`, block variables. Line-based: one
+  template line
+                                produces one output line, a line that renders to
+  nothing is
+                                dropped, consecutive blanks collapse, leading
+  and trailing
+                                blanks are trimmed, no trailing newline. Written
+  by hand
                                 because rule 12 allows no third-party packages.
-      template_store.dart       TemplateStore: reads the template and the style for a
-                                tracker and release type from the app bundle. The title
-                                is read per release type first, and the tracker's
-                                `title.txt` is the fallback when that type has no file of
-                                its own (`ai/single_photoset.md` §8); a type with no title
-                                reads neither (`hasTitle`). The app signature is one
-                                file per tracker, `appSignature.txt`, read as text with
-                                its trailing newline kept (`ai/description_template.md`
+      template_store.dart TemplateStore: reads the template and the style for a
+                                tracker and release type from the app bundle.
+  The title
+                                is read per release type first, and the
+  tracker's
+                                `title.txt` is the fallback when that type has
+  no file of
+                                its own (`ai/single_photoset.md` §8); a type
+  with no title
+                                reads neither (`hasTitle`). The app signature is
+  one
+                                file per tracker, `appSignature.txt`, read as
+  text with
+                                its trailing newline kept
+  (`ai/description_template.md`
                                 §App signature). A key the bundle does not have
-                                is read as absent, not as a crash, because the bundle throws
-                                `FlutterError`, an `Error` and not an `Exception`. The asset
-                                bundle is a constructor parameter, so the service reads no
+                                is read as absent, not as a crash, because the
+  bundle throws
+                                `FlutterError`, an `Error` and not an
+  `Exception`. The asset
+                                bundle is a constructor parameter, so the
+  service reads no
                                 static.
     logging/
       tool_log.dart             ToolLog: the JSON Lines log under
@@ -2150,105 +3162,190 @@ lib/
                                 the one the caller gives per call, so the System
                                 Check writes to the app data directory, where
                                 there is no release.
-      tool_log_entry.dart       the shape of one entry: date, tool, the input repeated
-                                on every entry, stream, line — and the exit entry that
-                                closes a call with its exit code, and the three entries a
-                                network call is recorded with: the request, the response, and
-                                the failure that closes a call with no answer. A value that
-                                does not belong in a log file is written as the redacted
-                                marker, which is what the cookie is recorded as. The response
-                                entry carries the headers too, as the rule that says which of
+      tool_log_entry.dart the shape of one entry: date, tool, the input repeated
+                                on every entry, stream, line — and the exit
+  entry that
+                                closes a call with its exit code, and the three
+  entries a
+                                network call is recorded with: the request, the
+  response, and
+                                the failure that closes a call with no answer. A
+  value that
+                                does not belong in a log file is written as the
+  redacted
+                                marker, which is what the cookie is recorded as.
+  The response
+                                entry carries the headers too, as the rule that
+  says which of
                                 them belong in a log file left them
     network/
-      image_downloader.dart     ImageDownloader: downloads one file, + the typed DownloadResult
-                                that says what the response called the file. One of the two
-                                Dart paths that make a network request; uptooda makes its own
-                                requests, but it is a process the app runs, not Dart code
-      stash_client.dart         StashClient: one GraphQL query to StashDB over the same client,
-                                + the typed result and the scene as the schema describes it, and
-                                the studio as the schema has it — the name and the URLs, because
-                                the domain is read from those. No GraphQL package: a GraphQL
-                                call is one POST with a JSON body, and the key goes in the
-                                ApiKey header. parseResponse is the part the tests exercise,
+      image_downloader.dart ImageDownloader: downloads one file, + the typed
+  DownloadResult
+                                that says what the response called the file. One
+  of the two
+                                Dart paths that make a network request; uptooda
+  makes its own
+                                requests, but it is a process the app runs, not
+  Dart code
+      stash_client.dart StashClient: one GraphQL query to StashDB over the same
+  client,
+                                + the typed result and the scene as the schema
+  describes it, and
+                                the studio as the schema has it — the name and
+  the URLs, because
+                                the domain is read from those. No GraphQL
+  package: a GraphQL
+                                call is one POST with a JSON body, and the key
+  goes in the
+                                ApiKey header. parseResponse is the part the
+  tests exercise,
                                 because the transport cannot be
-      pornolab_client.dart      PornolabClient: the three requests `ai/uploading_draft.md` and
-                                `ai/pornolab_login.md` describe — the login, the page that gives the
-                                form token, then the call that saves a draft — over the same client,
-                                + the typed result. An interface, as StashClient is, so the feature
-                                is tested against a fake; the rules it applies (a forum id read from
-                                a URL, the form body, a token read from a page, a response read as
-                                JSON, a `Cookie` value read from the `Set-Cookie` headers, and
-                                whether an answer means a login was accepted) are functions on the
-                                interface, so a test exercises them without a request. A `gone`
-                                answer is read as the stored draft not being there, and the client
-                                answers it by asking for a new draft once, because `draft_id` 0 is
-                                the call that creates one (`ai/uploading_draft.md` §6). The login
-                                form is encoded in Windows-1251 as the site's own form sends it,
-                                which is the one request that does not use the app's UTF-8 rule.
-                                Two of its fields are the form's own rather than data the app
-                                chose: the hidden redirect field, and the submit button whose
-                                value is the word the site uses, so both are constants rather
-                                than translatable strings. A character the codepage cannot
-                                represent is sent as its UTF-8 bytes, as a browser sends it, so
-                                a password with one is a refused login rather than an exception.
+      pornolab_client.dart PornolabClient: the three requests
+  `ai/uploading_draft.md` and
+                                `ai/pornolab_login.md` describe — the login, the
+  page that gives the
+                                form token, then the call that saves a draft —
+  over the same client,
+                                + the typed result. An interface, as StashClient
+  is, so the feature
+                                is tested against a fake; the rules it applies
+  (a forum id read from
+                                a URL, the form body, a token read from a page,
+  a response read as
+                                JSON, a `Cookie` value read from the
+  `Set-Cookie` headers, and
+                                whether an answer means a login was accepted)
+  are functions on the
+                                interface, so a test exercises them without a
+  request. A `gone`
+                                answer is read as the stored draft not being
+  there, and the client
+                                answers it by asking for a new draft once,
+  because `draft_id` 0 is
+                                the call that creates one
+  (`ai/uploading_draft.md` §6). The login
+                                form is encoded in Windows-1251 as the site's
+  own form sends it,
+                                which is the one request that does not use the
+  app's UTF-8 rule.
+                                Two of its fields are the form's own rather than
+  data the app
+                                chose: the hidden redirect field, and the submit
+  button whose
+                                value is the word the site uses, so both are
+  constants rather
+                                than translatable strings. A character the
+  codepage cannot
+                                represent is sent as its UTF-8 bytes, as a
+  browser sends it, so
+                                a password with one is a refused login rather
+  than an exception.
                                 A redirect means the
-                                login was accepted, a 200 login page means it was not, and the
-                                login page that asks for a code is a refused login the user can
-                                still answer, so that is the one result that carries what the page
-                                gave. A `Set-Cookie` alone is not proof, because the site sets one
-                                for an anonymous visitor too. The three parts of a captcha are read
-                                out of the page that asks for it, including the name of the code
-                                field, which is a hash that changes with the page and so cannot be
-                                a constant; a page with only some of the three is the refused login,
-                                because a code the app cannot show is a code the user cannot type.
+                                login was accepted, a 200 login page means it
+  was not, and the
+                                login page that asks for a code is a refused
+  login the user can
+                                still answer, so that is the one result that
+  carries what the page
+                                gave. A `Set-Cookie` alone is not proof, because
+  the site sets one
+                                for an anonymous visitor too. The three parts of
+  a captcha are read
+                                out of the page that asks for it, including the
+  name of the code
+                                field, which is a hash that changes with the
+  page and so cannot be
+                                a constant; a page with only some of the three
+  is the refused login,
+                                because a code the app cannot show is a code the
+  user cannot type.
                                 The token cache is the only state any service
-                                holds, and it is dropped on a login and on a token the site does not
-                                accept. A run is made once, and the app does not make a login from
-                                one (`ai/pornolab_login.md` §7). A redirect on the page the token is
-                                read from is read by where it would have gone: the login page is the
-                                cookie the site did not accept, and any other answer is the request
-                                failing. That rule is a function on the interface as the others are,
-                                and the location the site sends is a full URL while a relative one
-                                names the same page. The User-Agent is built from `app_info.dart`
-                                rather than a generic client string, with the name as one word
-                                because a product token is one word. The limit is the 60 s one
-                                ToolRunner has, redirects are not followed, and the request and the
-                                response are logged with the cookie redacted — no cookie is ever
-                                recorded, and the first login request sends no `Cookie` header at
-                                all, the one exception being the request with a code, which sends the
-                                cookie the captcha page gave as a browser would —
-                                and so is a request that got no answer, recorded as the failure
-                                entry. A response is read as the charset its Content-Type declares,
-                                since the site's pages are not UTF-8; a charset the app has no codec
-                                for, or none declared, is read as Latin-1, which cannot fail, and
-                                the response headers it logs are the ones that carry no credential.
-                                The login's response body is read for the judgement, because the
-                                judgement has a third shape, and is not recorded: what the entry
-                                records as what was read is the cookie, which is never recorded as
+                                holds, and it is dropped on a login and on a
+  token the site does not
+                                accept. A run is made once, and the app does not
+  make a login from
+                                one (`ai/pornolab_login.md` §7). A redirect on
+  the page the token is
+                                read from is read by where it would have gone:
+  the login page is the
+                                cookie the site did not accept, and any other
+  answer is the request
+                                failing. That rule is a function on the
+  interface as the others are,
+                                and the location the site sends is a full URL
+  while a relative one
+                                names the same page. The User-Agent is built
+  from `app_info.dart`
+                                rather than a generic client string, with the
+  name as one word
+                                because a product token is one word. The limit
+  is the 60 s one
+                                ToolRunner has, redirects are not followed, and
+  the request and the
+                                response are logged with the cookie redacted —
+  no cookie is ever
+                                recorded, and the first login request sends no
+  `Cookie` header at
+                                all, the one exception being the request with a
+  code, which sends the
+                                cookie the captcha page gave as a browser would
+  —
+                                and so is a request that got no answer, recorded
+  as the failure
+                                entry. A response is read as the charset its
+  Content-Type declares,
+                                since the site's pages are not UTF-8; a charset
+  the app has no codec
+                                for, or none declared, is read as Latin-1, which
+  cannot fail, and
+                                the response headers it logs are the ones that
+  carry no credential.
+                                The login's response body is read for the
+  judgement, because the
+                                judgement has a third shape, and is not
+  recorded: what the entry
+                                records as what was read is the cookie, which is
+  never recorded as
                                 its value
     stashdb/
-      domain_map.dart           DomainMap: the domains the app writes in a form of its own,
-                                read from `assets/stashdb/domain_map.json`. The domain rule
-                                writes a host as the host gives it, and a host is lowercase,
-                                so a studio that capitalizes its own domain cannot be
-                                recovered from it; the file is the list of the domains the app
-                                writes differently, and a value is used exactly as it is
-                                written. A key is read as the app computes the domain —
-                                lowercase, without `www.` — so the file can be written as a
-                                person sees it rather than as the rule would produce it. A
-                                file the bundle does not have, or that is not an object, is
-                                read as an empty mapping rather than a crash, because the
-                                mapping is optional data. The asset bundle is a constructor
+      domain_map.dart DomainMap: the domains the app writes in a form of its
+  own,
+                                read from `assets/stashdb/domain_map.json`. The
+  domain rule
+                                writes a host as the host gives it, and a host
+  is lowercase,
+                                so a studio that capitalizes its own domain
+  cannot be
+                                recovered from it; the file is the list of the
+  domains the app
+                                writes differently, and a value is used exactly
+  as it is
+                                written. A key is read as the app computes the
+  domain —
+                                lowercase, without `www.` — so the file can be
+  written as a
+                                person sees it rather than as the rule would
+  produce it. A
+                                file the bundle does not have, or that is not an
+  object, is
+                                read as an empty mapping rather than a crash,
+  because the
+                                mapping is optional data. The asset bundle is a
+  constructor
                                 parameter, so the service reads no static.
     launcher/
       folder_opener.dart        FolderOpener: opens a folder in the file manager
-                                the OS uses, + the typed result. One of the two uses of
-                                url_launcher, and one of the two services that call a
-                                platform plugin rather than a process or the filesystem
+                                the OS uses, + the typed result. One of the two
+  uses of
+                                url_launcher, and one of the two services that
+  call a
+                                platform plugin rather than a process or the
+  filesystem
                                 (`ai/torrents.md`)
-      url_opener.dart           UrlOpener: opens a link in the browser the OS uses, + the
+      url_opener.dart UrlOpener: opens a link in the browser the OS uses, + the
                                 typed result. The second use of url_launcher
-                                (`ai/uploading_draft.md`); it shows no messages, so the widget
+                                (`ai/uploading_draft.md`); it shows no messages,
+  so the widget
                                 maps a failure to localized text (rule 13)
   l10n/
     app_en.arb                  template (arb-dir == output-dir == lib/l10n)
@@ -2805,41 +3902,83 @@ asset registry rather than a Material glyph.
 
 **Editor:** `ReleaseEditor` renders the `Release` the tab carries — name as a
 heading with a tracker badge (`TrackerIcon` plus `Tracker.displayName`) and a
-release-type badge (`releaseTypeLabel`) after it at a gap, because they say what the
-name is for and not where the row ends, and 12 px below it before the form, the gap
+release-type badge (`releaseTypeLabel`) after it at a gap, because they say what
+the
+name is for and not where the row ends, and 12 px below it before the form, the
+gap
 a section title has before its content, as the heading titles the page. Then the
 field form for the release type. The form
-is as many columns of at least 430 px as the space the page has — one for a photoset pack, two for the other types, plus the sections'
-columns for the types whose section can be one of them — each with an image box at the top. The page has no maximum width, so the columns
-are the window's width less the padding it has always had; a form capped at 1000 px could not be four. The columns after the form's are
-only ever the sections' columns, and only for the types `release_editor.dart` says can be one of them — the two video types, and the
-photoset pack, whose grid takes all of them, one set per column it fits: its form is the first column, with the values the scan counted and
-the Upload and Message sections stacked below its fields in that same column. A table and a masonry cannot be read at one column width, so
-the single photoset and the image folder keep the whole width below the form; when a section that could be a column does not fit as one it
-sits below the form, left-aligned at one column width, and for a pack that is the whole width, because its grid fits as many of its own
-columns as fit in that width, between the two widths its rule gives it. A fixed width is only kept when the surrounding column does not
-stretch it, so the sections below the form sit in a row that holds their width. The Message section is the fourth column when there is room
-for four, the form's own column for a pack, and otherwise the whole width below everything, which is why the page is built inside the
-LayoutBuilder that decides the columns. Both boxes are 16:9, the shape of the frames they show, so a video frame fills one without being
-cropped; their height comes from the width the column gives them. The poster box shows the poster file the user chose, fitted inside the
-box rather than cropped to it, because a poster is usually portrait; the thumbnail box shows the frame ffmpeg wrote for the video, cropped
-to the box. Neither box shows a smaller copy of the file: the box is the size the widget draws at, and the file is what the tool wrote. An
-empty box says what it is missing, and the message is the caller's rather than one string for both, because the two video cases read
-differently: no video is picked, versus a video that is there with no frame. Both boxes are an `InkWell` with the same action as the button
-that picks their file — the poster's choose button and the pick on the source row — because that is where the user is looking; the video
-box is not clickable while the probe is in flight, and it has no button of its own because the source row already has the pick, and its
-hint is only for the case where clicking it is what fills it. The poster box has a choose button and a paste-from-URL button at the end of
-its label row, and a remove button only when a poster is there, and it is the focus a clipboard paste will be attached to later (§10). The
-label row is the same height with or without buttons, so the two boxes in the two columns start at the same height: a row sizes itself to
-its tallest child, and an icon button is taller than a label. The boxes render nothing but the file they are given: no state of their own
-beyond the widget's poster busy flag, no separate controller, and nothing about them is recorded in `release.json`. Which fields are in
-which column is the widget's layout, not the field model: the scene link field's row is the first row of the left column, under the poster
-box, because the values a fetch gives are what the form is filled with, and that row is the Stash widget's own, so the editor builds no
-text controller for it. Four field lists exist: the Single video one, the video pack one (`ai/video_pack.md`), the single photoset one
-(`ai/single_photoset.md`), and the photoset pack one (`ai/photoset_pack.md`); the form is built from whichever one the release's type has.
-The widget's column layout is a switch exhaustive over `ReleaseType`, so a type added to the enum has to be given a layout there; the
-compiler says so, which is what a runtime fallback used to do silently. The same rule covers the switch in `MessageController` that decides
-which shape the image block has for a type, the one in `MessageSection` that decides whether the row of shapes is drawn, and the one that
+is as many columns of at least 430 px as the space the page has — one for a
+photoset, two for the other types, plus the sections'
+columns for the types whose section can be one of them — each with an image box
+at the top. The page has no maximum width, so the columns
+are the window's width less the padding it has always had; a form capped at 1000
+px could not be four. The columns after the form's are
+only ever the sections' columns, and only for the types `release_editor.dart`
+says can be one of them — the two video types, and the
+photoset types, whose page is the fields' column, then the Photosets block's
+column at the most
+the width this feature gives it, then the photo area for what the row has left:
+the Upload and
+Message sections are stacked below the fields in that same column. A table and a
+masonry cannot be
+read at one column width, so
+the image folder keeps the whole width below the form, as does a photo area when
+the row has no
+room for one of its columns; when a section that could be a column does not fit
+as one it
+sits below the form, left-aligned at one column width, and for a photoset that
+is the whole
+width, because its grid fits as many of its own columns as fit in that width,
+between the two
+widths its rule gives it. A fixed width is only kept when the surrounding column
+does not
+stretch it, so the sections below the form sit in a row that holds their width.
+The Message
+section is the fourth column when there is room for four, the form's own column
+for a
+photoset, and otherwise the whole width below everything, which is why the page
+is built inside the
+LayoutBuilder that decides the columns. Both boxes are 16:9, the shape of the
+frames they show, so a video frame fills one without being
+cropped; their height comes from the width the column gives them. The poster box
+shows the poster file the user chose, fitted inside the
+box rather than cropped to it, because a poster is usually portrait; the
+thumbnail box shows the frame ffmpeg wrote for the video, cropped
+to the box. Neither box shows a smaller copy of the file: the box is the size
+the widget draws at, and the file is what the tool wrote. An
+empty box says what it is missing, and the message is the caller's rather than
+one string for both, because the two video cases read
+differently: no video is picked, versus a video that is there with no frame.
+Both boxes are an `InkWell` with the same action as the button
+that picks their file — the poster's choose button and the pick on the source
+row — because that is where the user is looking; the video
+box is not clickable while the probe is in flight, and it has no button of its
+own because the source row already has the pick, and its
+hint is only for the case where clicking it is what fills it. The poster box has
+a choose button and a paste-from-URL button at the end of
+its label row, and a remove button only when a poster is there, and it is the
+focus a clipboard paste will be attached to later (§10). The
+label row is the same height with or without buttons, so the two boxes in the
+two columns start at the same height: a row sizes itself to
+its tallest child, and an icon button is taller than a label. The boxes render
+nothing but the file they are given: no state of their own
+beyond the widget's poster busy flag, no separate controller, and nothing about
+them is recorded in `release.json`. Which fields are in
+which column is the widget's layout, not the field model: the scene link field's
+row is the first row of the left column, under the poster
+box, because the values a fetch gives are what the form is filled with, and that
+row is the Stash widget's own, so the editor builds no
+text controller for it. Four field lists exist: the Single video one, the video
+pack one (`ai/video_pack.md`), the single photoset one
+(`ai/single_photoset.md`), and the photoset pack one (`ai/photoset_pack.md`);
+the form is built from whichever one the release's type has.
+The widget's column layout is a switch exhaustive over `ReleaseType`, so a type
+added to the enum has to be given a layout there; the
+compiler says so, which is what a runtime fallback used to do silently. The same
+rule covers the switch in `MessageController` that decides
+which shape the image block has for a type, the one in `MessageSection` that
+decides whether the row of shapes is drawn, and the one that
 names the two shapes.
 
 A field list is data. `FieldSpec` holds the name `release.json` writes, the value a new release
@@ -3123,36 +4262,47 @@ editor passed it, so the Upload counters are read again (rule 3). `ImagesStore` 
 and writes `images.json`; a missing or unreadable file reads as an empty manifest, so
 the section shows nothing until the first generation.
 
-**Reading the picked folder.** `ai/photoset_pack.md` is the spec, and `ai/single_photoset.md` the
-one for a single set. `PhotosetBlock` is the data block: its heading with the Scan and Pick
-buttons at the right, the rows the editor gives it for a pack — the path the user picked and the
-counts the scan took from it — and the line naming each set with the number of photos in it.
-Nothing is shown before the scan, because opening a release is a read and changes nothing. While a
-run is going the block draws the progress row with the count it has reached, and a set's line is
-drawn as the scan reads that set, so a root with many sets shows what it has found as it finds it;
-the pick shows the photos as it copies them (`ai/picking.md` §7). For a
-pack the picked photos are drawn by another widget, `PhotosetGallery`, because the block is the
-page's first column and the photos are the columns after it, and one widget cannot be two grid
-cells; for a single photoset the block is the whole feature and draws the photos itself
-(`ai/picking.md` §7). The strings are resolved per type, because "photosets" and "the folder with
-the photosets" read wrong for one set. `PhotosetController.scan()` calls `PhotosetScanner` with
-the item boundary its field list has — the entries under the source for a pack, the source itself
-for a single set — records each item as the scan reports it with `type: photoset` and the per-item
-count, and returns the values it counted for the editor's single write path — the feature has no write path
-of its own — kept to the names the type's field list has. What a run has done is reported through a
-plain callback the widget passes in, as the Upload and Screenshots controllers do (rule 3). The scanner decides which entries are
-items and which are photos through a reader interface, so a format can be added without changing
-the scan, and reports what it could not take rather than guessing at it: entries at the top level
-that are not photosets, photos whose header could not be read, and display names two items would
-share. Order is the order the source gives: for an archive the order of its entries, for a
-directory name order, because a directory has no order of its own. An archive that cannot be read
-is an empty set, as a directory that cannot be listed is — one entry does not fail the whole
-source. The dimensions come from the file header, not by decoding the image, and the minimum and
-the maximum are decided by pixel area across all photos, with the landscape preferred when the
-same area is present in both orientations (`ai/photoset_pack.md` §3); the formats are the
-distinct extensions among the counted photos, lowercased and sorted, the same rule as the video
-formats. The name a row shows is derived from the item path, because the stored path is the
-record ID.
+**Reading the picked folder.** `ai/photoset_pack.md` is the spec, and
+`ai/single_photoset.md` the one for a single set. `PhotosetBlock` is the data
+block: its heading with the Scan and Pick buttons at the right, the rows the
+editor gives it for both photoset types — the path the user picked, the counts
+the scan took from it, and the count the pick wrote — and nothing below them,
+because no type has a list of sets to name (`ai/picking.md` §7). Nothing is
+shown before a run, because opening a release is a read and changes nothing:
+while a scan reads the folder the block draws only its progress row, because
+what it finds is not shown anywhere. The pick shows the photos in the photo area
+as it copies them, and hands the count it wrote to the editor's write path at
+the end of the run. The picked photos are drawn by another widget,
+`PhotosetGallery`, for both types, because the block is the page's second column
+and the pictures are the space after it, and one widget cannot be two grid cells
+(`ai/picking.md` §7). The strings are resolved per type, because "photosets" and
+"the folder with the photosets" read wrong for one set.
+`PhotosetController.scan()` calls `PhotosetScanner` with the item boundary its
+field list has — the entries under the source for a pack, the source itself for
+a single set — records each item as the scan reports it with `type: photoset`
+and the per-item count, and returns the values it counted for the editor's
+single write path — the feature has no write path of its own — kept to the names
+the type's field list has. What a run has done is reported through a plain
+callback the widget passes in, as the Upload and Screenshots controllers do
+(rule 3). The scanner decides which entries are items and which are photos
+through a reader interface, so a format can be added without changing the scan,
+and reports what it could not take rather than guessing at it: entries at the
+top level that are not photosets, photos whose header could not be read, and
+display names two items would share. Order is the order the source gives: for an
+archive the order of its entries, for a directory name order, because a
+directory has no order of its own. An archive that cannot be read is an empty
+set, as a directory that cannot be listed is — one entry does not fail the whole
+source. The dimensions come from the file header, not by decoding the image, and
+the minimum and the maximum are decided by pixel area across all photos, with
+the landscape preferred when the same area is present in both orientations
+(`ai/photoset_pack.md` §3); the formats are the distinct extensions among the
+counted photos, lowercased and sorted, the same rule as the video formats. The
+scan reports what the folder has; the rule that an all-jpg set lists nothing is
+the message's, applied to the value a render reads, not to the field value
+does not write a line for a post whose images are all jpg
+(`ai/description_template.md` §Variables). The name a tile of a grid that mixes
+sets shows is derived from the item path, because the stored path is the record
+ID.
 
 **Reading the picked folder for a video pack.** `ai/video_pack.md` is the spec. `VideoPackSection` is
 the section below the form for a video pack: its title row with the Scan and Generate buttons at the
@@ -3206,43 +4356,59 @@ equal area where the comparison prefers the landscape — the same tie the scan'
 reads counts, and the dimensions only for the extremes, on the comparison the scan uses for the
 fields it writes.
 
-`PhotosetBlock` has its Pick button next to Scan in its heading row, disabled until a scan has run
-because what the popup opens at is what the scan read. Pick opens the popup — the extremes checkbox,
-the choice of strategy, and the slider for the count — the values are the popup's own widget state,
-opened at the rule's on every open rather than remembered from the last popup, and the run happens on
-the popup's answer: a dismissed popup is not an agreement, so Cancel runs nothing (`ai/doc.md` §2).
-`PhotosetController.pick()` copies
-the photos the rule picked into the release under the display name — the release folder mirrors the
-structure the user picked for the images that are copied into it — and records them as `kind: photo`
-with `item` set to the set's path, replacing the photo records this run writes while the poster and
-the records of other kinds are kept. For a pack the run also writes a preview thumbnail beside each
-photo it copies — a JPEG copy capped at 800 px on the biggest side, skipped for a photo already
-within it, named from the photo, and recorded nowhere, so nothing about it is uploaded
-(`ai/picking.md` §8) — and a tile draws that file when it is on disk and the photo when it is not.
-The picked photos are one grid, in the order the source gives the
-sets and, within a set, the order it gives the photos; the message still groups them by set
-(`ai/photoset_pack.md` §7), because that is a list rather than a grid, and a tile says which set its
-photo is from because nothing else does. The grid is as many columns of `photosetColumnWidth` as fit
-in the space it is given, and what those columns cannot use is shared out rather than left as a strip
-at the right, so the space is used up; a photo at or above a ratio of 1.2 spans the number of columns
-that makes it `photosetLandscapeWidth`, which is what makes a landscape read as a landscape rather
-than as a small tile, and a span starts where all of its columns are free, so the others keep a gap —
-filling it would put a photo out of the order the source gives. The columns have no gap of their own,
-because a spanned column must be exactly as many of them as the two widths say: the space between two
-tiles is the padding inside them. A single photoset has no space beside its block, so its block draws
-the same grid at the whole width, and a tile there keeps its file name only, because its block names
-the one set above the photos. The ratio comes from the header, read synchronously, because a grid
-cannot be laid out before it knows the shape of each tile and a widget builds synchronously — the same
-reason `ImagesStore.loadSync` exists. A photo whose header cannot be read takes a square tile. The
-grid places by position rather than by nesting, because a tile can span columns. The picked number in
-a row comes from the records that exist, so it appears only after a pick: the feature shows what is on
-disk. A photo that could not be read or written, and a set with no photos, are reported rather than
-left out, and a set with no photos is only its line in the block, because with nothing grouping the
-photos there is no column for it. Re-picking writes the same names, so the block records what its run wrote and the
-tiles are keyed with a generation that moves on each run, as the rule above requires; that generation
-is the shared state's rather than the block's own counter, because for a pack the pictures are drawn
-by `PhotosetGallery`, and the block reports the run to the editor so the page builds again and the
-area resolves against the emptied cache (`AGENTS.md` §5).
+`PhotosetBlock` has its Pick button next to Scan in its heading row, disabled
+until a scan has run because what the popup opens at is what the scan read. Pick
+opens the popup — the extremes checkbox, the choice of strategy, and the slider
+for the count — the values are the popup's own widget state, opened at the
+rule's on every open rather than remembered from the last popup, and the run
+happens on the popup's answer: a dismissed popup is not an agreement, so Cancel
+runs nothing (`ai/doc.md` §2). `PhotosetController.pick()` copies the photos the
+rule picked into the release under the display name — the release folder mirrors
+the structure the user picked for the images that are copied into it — and
+records them as `kind: photo` with `item` set to the set's path, replacing the
+photo records this run writes while the poster and the records of other kinds
+are kept. The run writes a preview thumbnail beside each photo it copies, for
+both photoset types — a JPEG copy capped at 800 px on the biggest side, skipped
+for a photo already within it, named from the photo, and recorded nowhere, so
+nothing about it is uploaded (`ai/picking.md` §8) — and a tile draws that file
+when it is on disk and the photo when it is not. The picked photos are one grid,
+split by kind for both types, so the order across the grid is not the order the
+source gives: within a kind it is the order the source gives the sets and,
+within a set, the order it gives the photos, which is what grouping by kind
+means (`ai/picking.md` §7). The message still groups them by set
+(`ai/photoset_pack.md` §7), because that is a list rather than a grid, and a
+tile says which set its photo is from where the grid mixes sets, because nothing
+else does. The grid is as many columns of `photosetColumnWidth` as fit in the
+space it is given, and what those columns cannot use is shared out rather than
+left as a strip at the right, so the space is used up; a photo at or above a
+ratio of 1.2 spans the number of columns that makes it `photosetLandscapeWidth`,
+which is what makes a landscape read as a landscape rather than as a small tile,
+and a span starts where all of its columns are free, so the others keep a gap —
+filling it would put a photo out of the order the source gives. The columns have
+no gap of their own, because a spanned column must be exactly as many of them as
+the two widths say: the space between two tiles is the padding inside them. The
+photo area is the third column for both types, so the width it lays out from is
+what the row has left after the fields' column and the block's, and the grid is
+split by kind for both types. A tile labels itself with its file name, and with
+the set it is from only where the grid mixes sets, which is the same rule for
+both types (`ai/picking.md` §7): a grid with one set has no other set to tell
+its photos from, so it keeps the one line. The ratio comes from the header, read
+synchronously, because a grid cannot be laid out before it knows the shape of
+each tile and a widget builds synchronously — the same reason
+`ImagesStore.loadSync` exists. A photo whose header cannot be read takes a
+square tile. The grid places by position rather than by nesting, because a tile
+can span columns. The count of what a pick wrote is a field value, so the block
+hands it to the editor's write path at the end of the run rather than showing
+it, and the row shows nothing until a run has written it: the feature shows what
+is on disk. A photo that could not be read or written, and a set with no photos,
+are reported rather than left out, and a set with no photos is drawn nowhere,
+because the block names no list and the grid has no column for it. Re-picking
+writes the same names, so the block records what its run wrote and the tiles are
+keyed with a generation that moves on each run, as the rule above requires; that
+generation is the shared state's rather than the block's own counter, because
+for a pack the pictures are drawn by `PhotosetGallery`, and the block reports
+the run to the editor so the page builds again and the area resolves against the
+emptied cache (`AGENTS.md` §5).
 
 mtn exits with a non-zero code when it prints a warning, including for a shot it skips,
 even when it wrote the file, so the app decides by the file on disk rather than by the
@@ -3680,164 +4846,200 @@ The editor field labels (`movieFilePathLabel`, `castLabel`, `videoTitleLabel`,
 `genreTagsLabel`, `durationLabel`, `videoTypeLabel`, `videoQualityLabel`,
 `videoFormatLabel`, `videoStreamLabel`, `audioStreamLabel`, `descriptionLabel`,
 `additionalInfoLabel`, plus `posterImageLabel`, `videoThumbnailLabel`,
-`parentForumLabel`, `noImageSelected`, `noVideoSelected`, `chooseFile`, `chooseDate`, `filePickerFailed` and
-`durationHint`) are in both files. The Russian values are the labels from
-`ai/release_editor.md` as it states them, including the optional markers the
-labels for items 4 and 15 carry. The English file holds their translations.
-`movieFilePathLabel` is the label of the
-source row for a type whose source is a file, `photosetFolderLabel` and `videoFolderLabel` are the
-and `photosetPackFolderLabel`, `singlePhotosetFolderLabel` and `videoFolderLabel` are the ones for
-the three types whose source is a directory; the label cannot come from `sourceKind` alone, because
-a folder with videos is a different thing to pick than a folder with photosets, and a folder with
-photos in it is not a folder with sets in it, so it is resolved per release type by `_sourceLabel`
-in `release_editor.dart`. The source row is not a field, so it is keyed by `sourceRowKey` rather
-than by a field name. The probe messages (`movieFileNotFound`, `probeToolNotAvailable`,
-`probeFailed`), the thumbnail message (`thumbnailFailed`), the two box hints (`posterHint` and
-`videoHint`, each shown only by the box it belongs to), the poster family (`chooseImage`,
-`pasteFromUrl`, `nothingToPaste`, `removeImage`, `posterFileNotFound`,
-`posterWrongFormat`, `posterUrlInvalid`, `posterDownloadFailed`, `posterWriteFailed`,
-`posterRemoveFailed`) are in both files too and are used by `release_editor.dart`. The photoset
-pack family (`photosetPackFolderLabel`, `chooseFolder`, `siteOrJournalLabel`, `periodLabel`,
-`photosetCountLabel`, `totalPhotoCountLabel`, `totalSizeLabel`, `minResolutionLabel`,
-`maxResolutionLabel`) is in both files and is used by `release_editor.dart`. `totalSizeLabel`
-is the name the video pack has, and the two photoset field lists read it as well, because the
-size they count is the same kind of value, so no label is added for them. The three names a
-video pack has of its own (`videoCountLabel`, `videoResolutionsLabel`, `videoFormatsLabel`) are
-in both files too; every other name its field list uses is one the other types already have,
-because a credit is the same value as an actress name and a period is the same value, so no
-label is duplicated. A single
-photoset has three keys of its own: `imageFormatsLabel`, and the two words it uses for names the
-other types already have, `modelLabel` and `setNameLabel`; those two are resolved per release type,
-which is why the same field name reads as Cast in one form and Model in another. The release type
-display names (`releaseTypeSingleVideo`, `releaseTypeVideoPack`, `releaseTypeSinglePhotoset`,
-`releaseTypePhotosetPack` and `releaseTypeImageFolderUpload`) are in both files, in the order the
-enum declares them, and are resolved by `releaseTypeLabel` in `release_type.dart`. Every one of
-them carries a "(Beta)" marker except Single video. `genreTagsLabel` is reused rather than given a
-pack name of its own, so the tags work for both types. `fieldLabel` in `release_fields.dart` is
-the one function that turns a field name into a key, and `releaseTypeLabel` is the same for a
-release type, which is why the editor's form, the wizard's dropdown, the editor's badge and the
-Video pack section do not each carry their own table. `parentForumLabel` and `draftLinkLabel` are
-two of those names, so the row the Upload draft section builds and the label above its link resolve
-their words the same way rather than the widget carrying them. The five
-column titles (`columnTitleReleaseInfo`, `columnTitleVideo`,
-`columnTitleSourceFolder`, `columnTitlePhotosets`, `columnTitleImages`) are in both files and are
-used by `release_editor.dart`, which resolves them per release type the same way, because a column
-is named by what its rows are rather than by a field name. A photoset pack resolves only
-`columnTitleReleaseInfo`, because the only column the editor titles is the one with its fields: what is
-below it in that column is the Photosets block, which titles itself as a section does, and the columns after
-the first are the photo area, which titles itself too (`ai/picking.md` §7). The word for the photoset column
-is used only by a single photoset, because a pack titles no column. It is the same word as the heading a
-pack's block titles itself with, and the word for the image folder column is the same as that section's
-title, but these are separate keys, because a column title is not a section title. A tracker is not a key:
-its name is the same in every language, so it is a field on `Tracker`. The Photosets family
-(`scanPhotosets`, `pickPhotosets`, `photosetPickedOfTotal`, `photosetListSectionTitle`,
-`photosetSkippedEntries`, `photosetUnreadPhotos`, `photosetNameCollisions`, `photosetNotCopied`,
-`photosetEmptySets`, `photosetSourceNotFound`, `photosetSourceNotReadable`) is in both files and is
-read through `photosetStrings()` in `photoset_group.dart`, which both widgets use; these are the
-strings that read the same for one set. The ones that do not read the same for one set are keyed per
-type — `photosetPackSectionTitle` against `singlePhotosetSectionTitle`, `photosetPackNoPhotosets`
-against `singlePhotosetNoPhotosets`, `photosetPackSourceEmpty` against `singlePhotosetSourceEmpty` —
-and are resolved by `photosetStrings()` in `photoset_group.dart`, the same shape as `_sourceLabel`
-in the editor: one switch over the type, no table. It resolves three titles, because a pack shows
-three things: the heading of the block, the header naming the list, and the title of the area that
-shows the picked photos. The header is one key, `photosetListSectionTitle`, not a pair, because only
-a pack has a list: the type with one set has null there and draws nothing, and the two keys naming
-its columns (`photosetListNameHeader`, `photosetListCountHeader`) are null for that type for the
-same reason, since a type with one set has no list to have columns in. The words for the name are
-the same as `setNameLabel`'s, because a name shown in a column is the same value the form's field
-names (`ai/picking.md` §7). For
-a pack the third title is `screenshotsSectionTitle`, the key the Screenshots section titles itself
-with, so the two areas that show the same files the same way say the same word; for a single
-photoset there is no area apart from the block, so both are `singlePhotosetSectionTitle`. The keys
-are named for the pack because they were written when the pack was the only type that showed them.
-`photosetPickedOfTotal`, `photosetSkippedEntries`, `photosetUnreadPhotos`, `photosetNameCollisions`,
-`photosetNotCopied` and `photosetEmptySets` take placeholders and are documented with `@key` in both
-files. The count key is the pair one line shows — the number the rule picked and the number the scan
-counted — so its second placeholder is a String rather than an int: the value is the model's, and a
-String placeholder is what lets a count a user edited in `release.json` be shown as it is. There is
-no plural form anywhere, and none is needed: the pair is one format string, and the Russian value is
-the same shape as the English one. The popup Pick opens has five keys of its own —
-`pickOptionsTitle`, `pickExtremesLabel`, `pickCountLabel`, `pickStrategyPerSet`,
-`pickStrategyWholePack` — none with a placeholder. The first three name what the popup asks for, so
-they are the same for both photoset types; the two strategy labels are read through `photosetStrings()`
-and are null for the type with one set, because there is no choice to make there and the popup draws no
-row for it (`ai/picking.md` §7, `ai/single_photoset.md` §6). Its
-confirm button says `pickPhotosets`, the same key the Pick button itself is labelled with, so the popup
-does not invent a second word for the same action. The words a run's progress is said with are keyed
-per type —
-`photosetScanProgress`, `photosetPickProgress`, `imageFolderCopyProgress` — because they name what the
-run counts; each takes the two numbers and is passed to the shared `ProgressRow`, which is presentational
-and resolves nothing itself (`ai/picking.md` §7, `ai/image_folder_upload.md` §5). A type whose item is
-the folder it picked has one item, so a row counting items says nothing and its scan words are null,
-and the block draws nothing there. All three take two int placeholders and are documented with `@key` in
-both files.
-The Video pack family (`videoFolderLabel`, `videoPackSectionTitle`, `scanVideos`, `noVideos`,
-`videoSkippedFiles`, `videoUnprobedFiles`, `videoEmptyFolders`, `videoUnreadableFolders`,
-`videoSourceEmpty`, `videoSourceNotFound`, `videoSourceNotReadable`) is in both files and is used by
-`release_editor.dart` and `video_pack_section.dart`. The four report keys take a `{names}` placeholder and
-are documented with `@key` in both files. What the scan could not take is listed by the section rather than
-shown as a message, because a scan that ran and excluded files is not an error; only the cases where nothing
-can happen at all are messages, and those are the same three as the photoset family's. The values the
-section shows per video use the labels their fields already have, through `fieldLabel`, rather than keys of
-their own, and the table's two value columns are those same labels. The name column is not a field, so its
-header is `fileNameLabel`: the one key in the family that is neither a field label nor a message. The detail
-lines are `label: value`, so the colon is punctuation in the widget, as the joins in the report lines are.
-The Screenshots family (`screenshotsSectionTitle`, `screenshotCountLabel`, `generateScreenshots`,
-`regenerateScreenshots`, `noScreenshots`, `selectVideoFirst`, `screenshotFailed`, `mtnNotAvailable`,
-`screenlistFailed`) is in both files and is used by `screenshots_section.dart`; its failure mapping reuses
-the probe and ffmpeg messages. The two button keys are the bare verbs, because the section's title already
-says what the button acts on, and `selectVideoFirst` is the placeholder the section shows when there is no
-item. The Upload family (`uploadSectionTitle`, `uploadNeedsImagesFirst`, `uploadNeedsScreenlistsFirst`,
-`uploadButton`, `uploadProgress`, `uptoodaNotAvailable`, `imagesManifestFailed`) is in both files and is
-used by `upload_section.dart`. `uploadProgress` is the bar's "{done} / {total}" text with two int
-placeholders. The two placeholder strings are what the section shows instead of the list until the release
-has the poster and an image of the kind its type produces; the widget picks between them per type, so a pack
-names the screenlists and the other types name the screenshots. Only the cases where nothing can happen at
-all get a message — the tool is not in the bundle, or `images.json` could not be written — because a
-per-image upload failure is shown by the bar staying below full. `uptoodaNotAvailable` says the installation
-is incomplete rather than "install it", because that tool is part of the app and is not something the user
-installs. The Torrent family (`torrentSectionTitle`, `torrentButton`, `torrentProgress`, `torrentSpeed`,
-`torrentEta`, `torrentCreated`, `torrentAlreadyCreated`, `mkbrrNotAvailable`, `mkbrrRunFailed`,
-`mkbrrRunTimeout`, `mkbrrModifyFailed`, `folderOpenFailed`, `torrentPickFileFirst`,
-`torrentPickFolderFirst`, `torrentPrivateLabel`, `torrentPrivateTitle`, `torrentPrivateMessage`,
-`torrentPrivateValuePrivate`, `torrentPrivateValueNotPrivate`, `torrentPrivateConfirm`,
-`torrentPrivateNotReadable`) is in both files and is used by `torrent_section.dart`. `torrentProgress` is
-the bar's "{percent}%" text with one int placeholder; `torrentSpeed` and `torrentEta` are the `Label:
-{value}` lines with one String placeholder each, because what the tool reports is text the app cannot format
-as a number. The path the link shows is data, not a string, so it needs no key of its own, and
-`folderOpenFailed` is the message for the link's failure, because the service itself shows nothing (rule
-13). The tool name is inside the strings, as `uptoodaNotAvailable` has it, because a tool name is the same
-in every language and has no key of its own, and `mkbrrNotAvailable` says the installation is incomplete for
-the same reason. The outcome is shown in the section rather than as a snackbar, because the section is
-already the thing that shows the run. `torrentPickFileFirst` and `torrentPickFolderFirst` are the
-placeholder the section shows while no source is picked, and there are two of them because the
-file-or-folder rule is the release type's: one key cannot say both. `torrentPrivateLabel` is the label of
-the flag row. The popup has keys of its own because it is a question rather than a message:
-`torrentPrivateTitle`, and `torrentPrivateMessage` with one String placeholder for the value it names, which
-is why the two value strings exist — one key cannot say both "private" and "not private" — and
-`torrentPrivateConfirm`, the verb the answer button uses, since `cancel` is the shared one.
-`torrentPrivateNotReadable` is what the row says when the file cannot be read, and `mkbrrModifyFailed` is
-the reason the tool printed, with one String placeholder, because a modify that cannot process the file
-still exits 0 and the reason is the only thing it says. `ffmpegNotAvailable` is shared by both image flows:
-it says "install it to work with images" rather than naming the thumbnail, so one key serves both. The
-Message family (`messageSectionTitle`, `generateMessage`, `messageNeedsImagesFirst`, `noMessage`,
-`screenshotLayoutLabel`, `screenshotLayoutByHoster`, `screenshotLayoutByItem`, `includeAppSignature`,
-`templateNotFound`, `styleNotFound`, `templateInvalid`, `messageSaveFailed`, `fieldNotFilled`,
-`productionDateInvalid`, `messageValidationFailed`, `copyToClipboard`) is in both files and is used by
-`message_section.dart`. `includeAppSignature` is the label of the checkbox row, the row that decides whether
-the message ends with the app signature. `noMessage` is the placeholder the section shows when nothing has
-been generated, which is what its value already said: the box is not drawn when it holds nothing, so the key
-is no longer a hint. `copyToClipboard` is the tooltip of every copy button — the Message section's two and
-the one next to the draft link — so one key serves all three. The four failure keys are the cases where
-nothing can happen at all: the template or the style is not in the bundle, a template line cannot be read as
-it stands, or the file could not be written. The labels a template writes are not l10n keys — they are
-literal text in the template file, in the language the site's rules require. The same is true of the two
-words the post writes for a video's streams: they are constants in `message_controller.dart` next to the
-block titles, because the post is in the language the site publishes in, not the language the app's UI is
-in. The row that chooses the shape of the block is app UI, so its label and the two option names are keys in
-both files. `messageNeedsImagesFirst` is the placeholder for the other case: the generation cannot run until
-every image the message reads is uploaded to the poster hoster, so the key says what has to happen first
-while the button is not drawn.
+`parentForumLabel`, `noImageSelected`, `noVideoSelected`, `chooseFile`,
+`chooseDate`, `filePickerFailed` and `durationHint`) are in both files. The
+Russian values are the labels from `ai/release_editor.md` as it states them,
+including the optional markers the labels for items 4 and 15 carry. The English
+file holds their translations. `movieFilePathLabel` is the label of the source
+row for a type whose source is a file, and `photosetPackFolderLabel`,
+`singlePhotosetFolderLabel` and `videoFolderLabel` are the ones for the three
+types whose source is a directory; the label cannot come from `sourceKind`
+alone, because a folder with videos is a different thing to pick than a folder
+with photosets, and a folder with photos in it is not a folder with sets in it,
+so it is resolved per release type by `_sourceLabel` in `release_editor.dart`.
+The source row is not a field, so it is keyed by `sourceRowKey` rather than by a
+field name. The probe messages (`movieFileNotFound`, `probeToolNotAvailable`,
+`probeFailed`), the thumbnail message (`thumbnailFailed`), the two box hints
+(`posterHint` and `videoHint`, each shown only by the box it belongs to), the
+poster family (`chooseImage`, `pasteFromUrl`, `nothingToPaste`, `removeImage`,
+`posterFileNotFound`, `posterWrongFormat`, `posterUrlInvalid`,
+`posterDownloadFailed`, `posterWriteFailed`, `posterRemoveFailed`) are in both
+files too and are used by `release_editor.dart`. The photoset pack family
+(`photosetPackFolderLabel`, `chooseFolder`, `siteOrJournalLabel`, `periodLabel`,
+`photosetCountLabel`, `totalPhotoCountLabel`, `pickedPhotoCountLabel`,
+`totalSizeLabel`, `minResolutionLabel`, `maxResolutionLabel`) is in both files
+and is used by `release_editor.dart`. `pickedPhotoCountLabel` is not a pack
+name: the count of what a pick wrote is the same value for either photoset type,
+so both field lists read that one key, and it is the only name in this family
+that the single photoset's field list uses. `totalSizeLabel` is the name the
+video pack has, and the two photoset field lists read it as well, because the
+size they count is the same kind of value, so no label is added for them. The
+three names a video pack has of its own (`videoCountLabel`,
+`videoResolutionsLabel`, `videoFormatsLabel`) are in both files too; every other
+name its field list uses is one the other types already have, because a credit
+is the same value as an actress name and a period is the same value, so no label
+is duplicated. A single photoset has three keys of its own: `imageFormatsLabel`,
+and the two words it uses for names the other types already have, `modelLabel`
+and `setNameLabel`; those two are resolved per release type, which is why the
+same field name reads as Cast in one form and Model in another. The release type
+display names (`releaseTypeSingleVideo`, `releaseTypeVideoPack`,
+`releaseTypeSinglePhotoset`, `releaseTypePhotosetPack` and
+`releaseTypeImageFolderUpload`) are in both files, in the order the enum
+declares them, and are resolved by `releaseTypeLabel` in `release_type.dart`.
+Every one of them carries a "(Beta)" marker except Single video.
+`genreTagsLabel` is reused rather than given a pack name of its own, so the tags
+work for both types. `fieldLabel` in `release_fields.dart` is the one function
+that turns a field name into a key, and `releaseTypeLabel` is the same for a
+release type, which is why the editor's form, the wizard's dropdown, the
+editor's badge and the Video pack section do not each carry their own table.
+`parentForumLabel` and `draftLinkLabel` are two of those names, so the row the
+Upload draft section builds and the label above its link resolve their words the
+same way rather than the widget carrying them. The four column titles
+(`columnTitleReleaseInfo`, `columnTitleVideo`, `columnTitleSourceFolder`,
+`columnTitleImages`) are in both files and are used by `release_editor.dart`,
+which resolves them per release type the same way, because a column is named by
+what its rows are rather than by a field name. A photoset resolves only
+`columnTitleReleaseInfo`, for either type, because the only column the editor
+titles is the one with its fields: what is below it in that column is the
+Photosets block, which titles itself as a section does, and the column after the
+first is the photo area, which titles itself too (`ai/picking.md` §7). The key
+that named the photoset column is gone, because neither type has a titled
+column: the block titles itself with the word its type reads right for one
+folder or for several. The word for the image folder column is the same as that
+section's title, but these are separate keys, because a column title is not a
+section title. A tracker is not a key: its name is the same in every language,
+so it is a field on `Tracker`. The Photosets family (`scanPhotosets`,
+`pickPhotosets`, `photosetSkippedEntries`, `photosetUnreadPhotos`,
+`photosetNameCollisions`, `photosetNotCopied`, `photosetEmptySets`,
+`photosetSourceNotFound`, `photosetSourceNotReadable`) is in both files and is
+read through `photosetStrings()` in `photoset_group.dart`, which both widgets
+use; these are the strings that read the same for one set. The ones that do not
+read the same for one set are keyed per type — `photosetPackSectionTitle`
+against `singlePhotosetSectionTitle`, `photosetPackSourceEmpty` against
+`singlePhotosetSourceEmpty` — and are resolved by `photosetStrings()` in
+`photoset_group.dart`, the same shape as `_sourceLabel` in the editor: one
+switch over the type, no table. It resolves the heading of the block and the
+title of the area that shows the picked photos for both types. Nothing in it
+names a list of sets, because no type draws one: the keys that named a list, the
+two words naming its columns, and a list that was empty are gone from both files
+(`ai/picking.md` §7). The title of the area is `screenshotsSectionTitle` for
+both types, the key the Screenshots section titles itself with, so the two areas
+that show the same files the same way say the same word; the heading of the
+block is `photosetPackSectionTitle` or `singlePhotosetSectionTitle`, because one
+folder of photos and a folder of sets are said differently. The keys are named
+for the pack because they were written when the pack was the only type that
+showed them. `photosetSkippedEntries`, `photosetUnreadPhotos`,
+`photosetNameCollisions`, `photosetNotCopied` and `photosetEmptySets` take
+placeholders and are documented with `@key` in both files. There is no plural
+form anywhere, and none is needed. The key that said the pair a line of the list
+showed is gone with the line, because the count of what a pick wrote is a field
+value now, and its label is the key named above (`ai/picking.md` §7). The popup
+Pick opens — `pickOptionsTitle`, `pickExtremesLabel`, `pickCountLabel`,
+`pickStrategyPerSet`, `pickStrategyWholePack` — none with a placeholder. The
+first three name what the popup asks for, so they are the same for both photoset
+types; the two strategy labels are read through `photosetStrings()` and are null
+for the type with one set, because there is no choice to make there and the
+popup draws no row for it (`ai/picking.md` §7, `ai/single_photoset.md` §6). Its
+confirm button says `pickPhotosets`, the same key the Pick button itself is
+labelled with, so the popup does not invent a second word for the same action.
+The words a run's progress is said with are keyed per type —
+`photosetScanProgress`, `photosetPickProgress`, `imageFolderCopyProgress` —
+because they name what the run counts; each takes the two numbers and is passed
+to the shared `ProgressRow`, which is presentational and resolves nothing itself
+(`ai/picking.md` §7, `ai/image_folder_upload.md` §5). A type whose item is the
+folder it picked has one item, so a row counting items says nothing and its scan
+words are null, and the block draws nothing there. All three take two int
+placeholders and are documented with `@key` in both files. The Video pack family
+(`videoFolderLabel`, `videoPackSectionTitle`, `scanVideos`, `noVideos`,
+`videoSkippedFiles`, `videoUnprobedFiles`, `videoEmptyFolders`,
+`videoUnreadableFolders`, `videoSourceEmpty`, `videoSourceNotFound`,
+`videoSourceNotReadable`) is in both files and is used by `release_editor.dart`
+and `video_pack_section.dart`. The four report keys take a `{names}` placeholder
+and are documented with `@key` in both files. What the scan could not take is
+listed by the section rather than shown as a message, because a scan that ran
+and excluded files is not an error; only the cases where nothing can happen at
+all are messages, and those are the same three as the photoset family's. The
+values the section shows per video use the labels their fields already have,
+through `fieldLabel`, rather than keys of their own, and the table's two value
+columns are those same labels. The name column is not a field, so its header is
+`fileNameLabel`: the one key in the family that is neither a field label nor a
+message. The detail lines are `label: value`, so the colon is punctuation in the
+widget, as the joins in the report lines are. The Screenshots family
+(`screenshotsSectionTitle`, `screenshotCountLabel`, `generateScreenshots`,
+`regenerateScreenshots`, `noScreenshots`, `selectVideoFirst`,
+`screenshotFailed`, `mtnNotAvailable`, `screenlistFailed`) is in both files and
+is used by `screenshots_section.dart`; its failure mapping reuses the probe and
+ffmpeg messages. The two button keys are the bare verbs, because the section's
+title already says what the button acts on, and `selectVideoFirst` is the
+placeholder the section shows when there is no item. The Upload family
+(`uploadSectionTitle`, `uploadNeedsImagesFirst`, `uploadNeedsScreenlistsFirst`,
+`uploadButton`, `uploadProgress`, `uptoodaNotAvailable`, `imagesManifestFailed`)
+is in both files and is used by `upload_section.dart`. `uploadProgress` is the
+bar's "{done} / {total}" text with two int placeholders. The two placeholder
+strings are what the section shows instead of the list until the release has the
+poster and an image of the kind its type produces; the widget picks between them
+per type, so a pack names the screenlists and the other types name the
+screenshots. Only the cases where nothing can happen at all get a message — the
+tool is not in the bundle, or `images.json` could not be written — because a
+per-image upload failure is shown by the bar staying below full.
+`uptoodaNotAvailable` says the installation is incomplete rather than "install
+it", because that tool is part of the app and is not something the user
+installs. The Torrent family (`torrentSectionTitle`, `torrentButton`,
+`torrentProgress`, `torrentSpeed`, `torrentEta`, `torrentCreated`,
+`torrentAlreadyCreated`, `mkbrrNotAvailable`, `mkbrrRunFailed`,
+`mkbrrRunTimeout`, `mkbrrModifyFailed`, `folderOpenFailed`,
+`torrentPickFileFirst`, `torrentPickFolderFirst`, `torrentPrivateLabel`,
+`torrentPrivateTitle`, `torrentPrivateMessage`, `torrentPrivateValuePrivate`,
+`torrentPrivateValueNotPrivate`, `torrentPrivateConfirm`,
+`torrentPrivateNotReadable`) is in both files and is used by
+`torrent_section.dart`. `torrentProgress` is the bar's "{percent}%" text with
+one int placeholder; `torrentSpeed` and `torrentEta` are the `Label: {value}`
+lines with one String placeholder each, because what the tool reports is text
+the app cannot format as a number. The path the link shows is data, not a
+string, so it needs no key of its own, and `folderOpenFailed` is the message for
+the link's failure, because the service itself shows nothing (rule 13). The tool
+name is inside the strings, as `uptoodaNotAvailable` has it, because a tool name
+is the same in every language and has no key of its own, and `mkbrrNotAvailable`
+says the installation is incomplete for the same reason. The outcome is shown in
+the section rather than as a snackbar, because the section is already the thing
+that shows the run. `torrentPickFileFirst` and `torrentPickFolderFirst` are the
+placeholder the section shows while no source is picked, and there are two of
+them because the file-or-folder rule is the release type's: one key cannot say
+both. `torrentPrivateLabel` is the label of the flag row. The popup has keys of
+its own because it is a question rather than a message: `torrentPrivateTitle`,
+and `torrentPrivateMessage` with one String placeholder for the value it names,
+which is why the two value strings exist — one key cannot say both "private" and
+"not private" — and `torrentPrivateConfirm`, the verb the answer button uses,
+since `cancel` is the shared one. `torrentPrivateNotReadable` is what the row
+says when the file cannot be read, and `mkbrrModifyFailed` is the reason the
+tool printed, with one String placeholder, because a modify that cannot process
+the file still exits 0 and the reason is the only thing it says.
+`ffmpegNotAvailable` is shared by both image flows: it says "install it to work
+with images" rather than naming the thumbnail, so one key serves both. The
+Message family (`messageSectionTitle`, `generateMessage`,
+`messageNeedsImagesFirst`, `noMessage`, `screenshotLayoutLabel`,
+`screenshotLayoutByHoster`, `screenshotLayoutByItem`, `includeAppSignature`,
+`templateNotFound`, `styleNotFound`, `templateInvalid`, `messageSaveFailed`,
+`fieldNotFilled`, `productionDateInvalid`, `messageValidationFailed`,
+`copyToClipboard`) is in both files and is used by `message_section.dart`.
+`includeAppSignature` is the label of the checkbox row, the row that decides
+whether the message ends with the app signature. `noMessage` is the placeholder
+the section shows when nothing has been generated, which is what its value
+already said: the box is not drawn when it holds nothing, so the key is no
+longer a hint. `copyToClipboard` is the tooltip of every copy button — the
+Message section's two and the one next to the draft link — so one key serves all
+three. The four failure keys are the cases where nothing can happen at all: the
+template or the style is not in the bundle, a template line cannot be read as it
+stands, or the file could not be written. The labels a template writes are not
+l10n keys — they are literal text in the template file, in the language the
+site's rules require. The same is true of the two words the post writes for a
+video's streams: they are constants in `message_controller.dart` next to the
+block titles, because the post is in the language the site publishes in, not the
+language the app's UI is in. The row that chooses the shape of the block is app
+UI, so its label and the two option names are keys in both files.
+`messageNeedsImagesFirst` is the placeholder for the other case: the generation
+cannot run until every image the message reads is uploaded to the poster hoster,
+so the key says what has to happen first while the button is not drawn.
 
 The three validation keys are the case where the fields are not complete.
 `fieldNotFilled` and `productionDateInvalid` are one line each, with the
@@ -4392,37 +5594,63 @@ pack — the section, the Upload section with the Message section are the column
 after the form, and the Torrent section is the last thing in the form's second
 column, below its last field with the gap between sections rather than the gap
 between the rows of a column, in the four-column layout and in the single-column
-one. For a photoset pack the Torrent section is in the fields' column instead,
-because for that type the form's second column is its data block, and in both
-layouts it is the row above the Upload section, at the width of the fields'
-column. The test reads it in both: at 2000 px it is below the fields at that
-width, and at 800 px, where there is one column, it is still the row above the
-Upload section. For the photoset pack the block is the page's second column, at
-the most the width this feature gives it, and the photo area is what the row has
-left:
-the test reads the two column widths, the area and the two gaps and checks that
-together they make the page, so nothing is left over at the right, and that the
-block and the area both start at the top of the row. The other half of the rule
+one. For a photoset the rule is read by type, and the test reads both: a pack's
+section is in the fields' column, above the Upload section, because for that
+type the form's second column is its data block and the fields are the first,
+while a single photoset's is at the end of its block's column, below the block,
+as it is for every other type. Both are read at 2000 px and at 800 px: for a
+pack the section is the row above the Upload section at the width of the fields'
+column, and for the single set it is as wide as the block's capped column and
+stays with the block when the form is one column.
+For a photoset the block is the page's second column, at the most the width this
+feature gives it, and the photo area is what the row has left, for both types.
+The
+test reads the two column widths, the area and the two gaps and checks that
+together
+they make the page, so nothing is left over at the right, and that the block and
+the
+area both start at the top of the row. It reads the placement for a pack and for
+a
+single photoset, as two tests, because nothing in the form branches on the type
+and
+what differs is only what the block's rows are: for a single photoset there is
+no
+count field, because the count of one item is the item. The other half of the
+rule
 is its own test, at a window where the row cannot hold one column of the grid:
 there the area is below the row at the whole width and the space beside the
 capped block is left empty, and the same is checked at a window with room for
 one column only, where everything is stacked and the block is capped there too.
 Which column a photo is drawn in is not this test's — that is
-`test/photosets_test.dart`, where the drawing is checked against the assignment.
-The test reads the rows inside the block — the source row and the count field —
-because for a pack those are the block's rows rather than the form's. The Upload
+`test/photosets_test.dart`, where the drawing is checked against the assignment,
+for both
+types.
+The test reads the rows inside the block — the source row and the count fields,
+including the row for the count a pick writes: for a photoset those are the
+block's rows rather than the form's, and the test checks that the picked count
+row is drawn after the total count row, for both types, at the width of the
+column they are in and with the gap between the rows of a column. The
+Upload
 section and the Message section with the draft are below the fields in the
 fields' column, at its width. At 1200 px the sections are
 the same width but below the form, at the left edge, for the types with two form
-columns; for a pack that is only when a single column fits, which its test uses
-800 px for, because a pack has no second form column to make two fit. A field's
+columns; for a photoset that is only when a single column fits, which its test
+uses
+800 px for, because a photoset has no second form column to make two fit. A
+field's
 rectangle is its column width, so a field's width is what those tests read as
 the column width. The column titles are keyed as `columnTitle`, so a test reads
 them as the widgets the editor builds rather than as text: a photoset pack shows
 the word "Photosets" twice — as the heading of its block and as the label of its
 photoset count field — and "Screenshots" once, as the title of the photo area,
-because the only column the editor titles for a pack is the one with its fields,
-"Release Info". The title tests read the titles at the top of each column and as
+and a
+single photoset shows "Photoset" once and "Screenshots" once, because for either
+type
+the only column the editor titles is the one with its fields, "Release Info":
+the block
+titles itself and the area titles itself (`ai/picking.md` §7). The title tests
+read the
+titles at the top of each column and as
 wide as it, the small gap after a title measured against the image box that is
 the first row of the column, and what each type calls its right column; each
 type is its own test, because a pump reuses the state of a widget that is in the
@@ -4448,9 +5676,12 @@ only the four values the scan counts and the words its type uses for the three
 photo names — Images (total), Minimum and Maximum image resolution — with no
 left column, because it has no field the user writes, the section list is per
 type in all five directions — a photoset pack form has the Photosets block and
-its photo area and no Stash or Screenshots section, a single photoset form has
-the block with no area beside it because a single set has no columns for its
-pictures and no Stash or Screenshots section, a video pack form has the Video
+its photo area and no Stash or Screenshots section, and a single photoset form
+has
+the same two widgets, with the words its type uses, and no Stash or Screenshots
+section, because the form does not branch on which of the two it is drawing; a
+video
+pack form has the Video
 pack section and neither of the other two, an image folder form has the Image
 folder section and none of the others, including no Upload draft section because
 it has no title to send, a video form has the Screenshots section and no pack
@@ -4535,44 +5766,20 @@ packing reserves counts one line for each label (`ai/picking.md` §7). Both tile
 come from one run, so the test does not depend on what a line of the label style
 measures, and it also checks that the whole name is still what the widget holds:
 only what is painted is cut.
-`test/photosets_test.dart` covers the row that names the two columns of the
-photoset list: it is drawn for the type that has a list and not for the type
-with one set, not before a scan has produced a list, and between the header
-naming the list and the first line. Each header is at the edge its column's
-values are at — the name at the left, the count at the right — and the test
-reads the two rectangles as the same edges, which is what the shared horizontal
-padding makes. The row is not a line, so it has no band: the nearest `Material`
-above it is not a tinted one, and the test reads that colour too.
-`test/section_title_test.dart` covers the shared title row: the title is at the
-left and the action at the right edge, the title is centred on the row because
-the row is as tall as the action, that the action is at least `actionMinWidth`
-wide, and that with no action the row is only the title and is not taller than
-it — the shape a section shows when it has a placeholder instead of controls
-that can run. The minimum is read from the constant, so the test follows
-whatever value it is changed to. `test/photoset_scan_test.dart` covers the scan:
-a directory under the source is an item, a loose file at the top level is
-reported rather than counted, files outside the extension list are not counted,
-a subfolder inside a set is not read, and when the boundary it is given is the
-source the source itself is the item and its path is the source's own name, the
-order is the order the source gives, the minimum and the maximum are decided by
-pixel area across all photos, with the landscape preferred when the same area is
-present in both orientations, and an extreme in one orientation kept as it is;
-a photo whose header cannot be read is counted and reported, the size a photo
-has is the bytes the source gives it — the size on
-disk for a file in a folder, the entry's own length for an archive, including
-the cases where the header holds placeholders instead of the sizes, and the
-total is summed across the sets, so a photo whose header cannot be read is still
-in it; the formats are the distinct extensions among the counted photos,
-lowercased and sorted; display names two items would share are reported rather
-than renamed, a source that is not there is a failure, and the scan reads
-through the reader interface — a test with a fake archive reader shows that
-adding a format does not change it. The ZIP fixtures are written by hand,
-because the point of the package is the cases a hand-written reader gets wrong:
-a stored entry, a deflated one, a data descriptor, a zip64 central directory, an
-encrypted entry with no password, and a file that is not an archive at all. A
-JPEG is included because its header needs a second read, which has to start from
-the beginning of the entry again rather than from where the first read ended.
-zone is active.
+`test/photosets_test.dart` covers the block drawing nothing below its rows, for
+either type: a scan is a read, so after one no set is named and no photo is
+placed, and what it counted reaches the test through the editor's write path
+rather than through the widget. It covers the same for a type with one set,
+where no scan row is drawn either, because a row counting items says nothing
+when the item is the folder. It also covers that the count a pick wrote is
+handed to that write path at the end of the run, and that a run which copied
+nothing answers 0, because the count is what the run wrote rather than what is
+on disk. So the tests that compare a run's numbers read them from the map the
+write path was given, or from the tiles after the page is built again, and a
+test that needs a run to be over waits for the end of it — there is nothing else
+for such a test to wait for, because the block draws no list for a run. What a
+test that looks at a run while it is going waits on is the progress row, which
+is drawn only while a run is running.
 
 `test/tab_navigation_test.dart` covers the content area's page keys. It runs on
 `TargetPlatform.linux`, because a widget test reports a mobile platform where a
@@ -4604,104 +5811,103 @@ popup open. The app is built as `app.dart` builds it, with the widget placed in
 `MaterialApp.builder`; the save is real file IO, so it runs inside `runAsync`
 like the close flow's tests.
 
-`test/media_info_test.dart` covers the parser against a captured
-fixture: the six values formatted as `ai/release_editor.md` specifies, a part
-ffprobe does not report left out, the first stream of each type, and the
-container name. `test/file_size_test.dart` covers the size display: the byte
-count with its human-friendly form, a byte count too small to have a shorter
-form shown as the number alone, and a value that is not a number shown as it is.
-It also covers the human form alone, the form a fixed-width cell shows, and the
-same two edge cases through it. `test/native_tools_test.dart` runs the real
-binaries through `ToolRunner`: `ffmpeg -version` succeeds, a nonexistent
-executable reports `ToolRunNotAvailable`, a non-zero exit code reports
-`ToolRunFailure` with its code and output, and a call given a shorter window
-than the default is stopped at it: `sleep` on PATH with a 1s window reports
-`ToolRunTimeout`, and its exit entry records no code, which is what shows the
-window is the one the call was given rather than the constant. One real
-`ffprobe` call on a generated file produces the values the editor shows, and one
-real `ffmpeg` call writes a full-resolution screenshot JPEG — the frame the
-Screenshots section and the video thumbnail both write — (`-g 1` makes every
-frame a key frame so the seek lands on one), and its dimensions are read from
-the JPEG header with the same reader the scans use, so the test shows the
-picture is not scaled down, and one real `mtn` call writes the screenlist JPEG —
-the generated video is long enough that mtn does not warn, because a warning
-makes it exit non-zero even when it wrote the file. Another real `mtn` call runs
-on a video that ends with a black section and succeeds, which is what shows the
-flags keep blank frames in the grid: with the default `-b 0.80` mtn would skip a
-shot there and exit non-zero. The same file covers the log the runner writes: a
-call that writes one line produces a line entry and then an exit entry with its
-code, the input is repeated on every entry so an entry stands on its own, and a
-last line with no newline is still recorded. Another test shows the environment
-reaching the child — `sh` on PATH echoes the variable the call was given — and
-that the recorded input holds no copy of it, which is why a credential is passed
-this way. The tests build the runner through `test/test_runner.dart`, which has
-an empty bundle directory, so every tool is read from PATH: one the app does not
-ship, and one that prefers the bundle but has nothing in it.
-`test/tool_locator_test.dart` covers the resolution rule: a tool with a bundle
-directory and no path fallback is read from the bundle, and a tool that is not
-in the bundle is `ToolNotFound` even when PATH has it; a tool with the fallback
-is read from the bundle when it is there and from PATH when it is not; a tool
-with no bundle directory is read from PATH. A file without the execute bits is
-not a tool, in the bundle as on PATH, so a tool with the fallback uses the
-system copy instead. On Windows the name with the `.exe` extension is the one
-found, in the bundle as on PATH — the case the resolver could not find before.
-The PATH and the platform are constructor parameters, so the test points them at
-a temporary directory and runs on either platform; the execute-bit tests are
-skipped on Windows, where there are no permission bits for the rule to check.
-`test/screenlist_rows_test.dart` covers the rows formula on its own, as the spec
-asks: below the minimum, exactly one frame per minute, a duration rounded up to
-a whole row, and above the maximum. It calls `ImageGenerator.screenlistRows`,
-the service that owns the rule now. `test/screenshots_test.dart` covers the
-Screenshots feature: the controller names the files `_rp_screenshotNN.jpg`,
-seeks to the centre of each equal segment of the duration, calls mtn once with
-the rows the duration gives, records the screenshots and the screenlist in
-`images.json` with the item they belong to and their kind, relative to the
-release directory, keeps the records of the other kinds and items when it
-regenerates, decides the screenlist by the file on disk rather than by the exit
-code, and reports an empty or missing path as `fileNotFound`, a screenlist that
-was not written as `screenlistFailed` and mtn not being installed as
-`mtnNotAvailable`; a run that does not finish still records and returns what it
-wrote (the tools are fakes there). It also covers the reporting: each record is
-reported when its file is written, not when the run ends, and the records
-reported are the same ones the manifest holds, in the same order. A run with 0
-records only the screenlist, and a record whose file was deleted is not shown,
-because what a section shows is the records whose files are on disk. The widget
-tests check the slider range, the Generate button and that it is in the title
-row while the slider is not, that the label, the slider and the count are on one
-row, that the section shows the images the fake tools write, that the
-screenshots are still shown when the screenlist was not written, that the grid
-is two equal columns with the gap between them and the screenlist as its first
-tile at the top of the left one, that the name under a tile is centred, that the
-button becomes "Regenerate" once images exist, and that a tile's key changes on
-regeneration so the image re-resolves the rewritten file. It also covers the
-placeholder: with no item the section shows the placeholder saying to select a
-video first and shows no controls. It also covers the run as it goes: the fake
-writes one frame and then waits for the test, so the section is looked at in the
-middle of a run and shows only the frame it has been told about, and the
-function the editor passed it is called when the run ends, not while it runs.
-`test/uptooda_test.dart` covers the parser against a captured `rpstub` fixture:
-the four URLs are read from the fields the tool reports, `success: false` is an
-upload failure whether the process exited 0 or 1, output with no JSON is
-`noResult` (which is the unknown hoster case), and the runner results map to
-`toolNotAvailable` and `timeout`. Another test checks the arguments the spec
-fixes: one image, one hoster, `--code_lang json`, `--thumb_width 300`, and no
-`--code_type`. A last one checks that the environment a call is given reaches
-the runner unchanged, so a credential is not in the recorded arguments.
-`test/upload_controller_test.dart` covers the rules the upload spec states: an
-image already recorded for a hoster is skipped and one that failed is tried
-again, a hoster that is not selected is never called, the state read at open is
-what `images.json` holds for every hoster in the registry, so a run starts from
-what the hoster already has rather than from 0, a failed upload does not
-increase `done`, a hoster with nothing to upload reports a complete run, one
-image at a time per hoster while the hosters run at the same time (the fake
-counts what is in flight), a successful upload is written to `images.json` in
-the record shape, the work list is in the order the file lists the records, a
-poster record has no item because a poster belongs to the release, and the
-environment is built only for a hoster whose registry entry names a settings
-service — an empty value is not passed as a variable. The tests take the hosters
-from `hosters.dart`, so they test the same data the app uses. It also covers the
-last-edit stamp: a run that wrote a record stamps it and one that wrote nothing
-does not, with the store a fake that records the stamps.
+`test/media_info_test.dart` covers the parser against a captured fixture: the
+six values formatted as `ai/release_editor.md` specifies, a part ffprobe does
+not report left out, the first stream of each type, and the container name.
+`test/file_size_test.dart` covers the size display: the byte count with its
+human-friendly form, a byte count too small to have a shorter form shown as the
+number alone, and a value that is not a number shown as it is. It also covers
+the human form alone, the form a fixed-width cell shows, and the same two edge
+cases through it. `test/native_tools_test.dart` runs the real binaries through
+`ToolRunner`: `ffmpeg -version` succeeds, a nonexistent executable reports
+`ToolRunNotAvailable`, a non-zero exit code reports `ToolRunFailure` with its
+code and output, and a call given a shorter window than the default is stopped
+at it: `sleep` on PATH with a 1s window reports `ToolRunTimeout`, and its exit
+entry records no code, which is what shows the window is the one the call was
+given rather than the constant. One real `ffprobe` call on a generated file
+produces the values the editor shows, and one real `ffmpeg` call writes a full-
+resolution screenshot JPEG — the frame the Screenshots section and the video
+thumbnail both write — (`-g 1` makes every frame a key frame so the seek lands
+on one), and its dimensions are read from the JPEG header with the same reader
+the scans use, so the test shows the picture is not scaled down, and one real
+`mtn` call writes the screenlist JPEG — the generated video is long enough that
+mtn does not warn, because a warning makes it exit non-zero even when it wrote
+the file. Another real `mtn` call runs on a video that ends with a black section
+and succeeds, which is what shows the flags keep blank frames in the grid: with
+the default `-b 0.80` mtn would skip a shot there and exit non-zero. The same
+file covers the log the runner writes: a call that writes one line produces a
+line entry and then an exit entry with its code, the input is repeated on every
+entry so an entry stands on its own, and a last line with no newline is still
+recorded. Another test shows the environment reaching the child — `sh` on PATH
+echoes the variable the call was given — and that the recorded input holds no
+copy of it, which is why a credential is passed this way. The tests build the
+runner through `test/test_runner.dart`, which has an empty bundle directory, so
+every tool is read from PATH: one the app does not ship, and one that prefers
+the bundle but has nothing in it. `test/tool_locator_test.dart` covers the
+resolution rule: a tool with a bundle directory and no path fallback is read
+from the bundle, and a tool that is not in the bundle is `ToolNotFound` even
+when PATH has it; a tool with the fallback is read from the bundle when it is
+there and from PATH when it is not; a tool with no bundle directory is read from
+PATH. A file without the execute bits is not a tool, in the bundle as on PATH,
+so a tool with the fallback uses the system copy instead. On Windows the name
+with the `.exe` extension is the one found, in the bundle as on PATH — the case
+the resolver could not find before. The PATH and the platform are constructor
+parameters, so the test points them at a temporary directory and runs on either
+platform; the execute-bit tests are skipped on Windows, where there are no
+permission bits for the rule to check. `test/screenlist_rows_test.dart` covers
+the rows formula on its own, as the spec asks: below the minimum, exactly one
+frame per minute, a duration rounded up to a whole row, and above the maximum.
+It calls `ImageGenerator.screenlistRows`, the service that owns the rule now.
+`test/screenshots_test.dart` covers the Screenshots feature: the controller
+names the files `_rp_screenshotNN.jpg`, seeks to the centre of each equal
+segment of the duration, calls mtn once with the rows the duration gives,
+records the screenshots and the screenlist in `images.json` with the item they
+belong to and their kind, relative to the release directory, keeps the records
+of the other kinds and items when it regenerates, decides the screenlist by the
+file on disk rather than by the exit code, and reports an empty or missing path
+as `fileNotFound`, a screenlist that was not written as `screenlistFailed` and
+mtn not being installed as `mtnNotAvailable`; a run that does not finish still
+records and returns what it wrote (the tools are fakes there). It also covers
+the reporting: each record is reported when its file is written, not when the
+run ends, and the records reported are the same ones the manifest holds, in the
+same order. A run with 0 records only the screenlist, and a record whose file
+was deleted is not shown, because what a section shows is the records whose
+files are on disk. The widget tests check the slider range, the Generate button
+and that it is in the title row while the slider is not, that the label, the
+slider and the count are on one row, that the section shows the images the fake
+tools write, that the screenshots are still shown when the screenlist was not
+written, that the grid is two equal columns with the gap between them and the
+screenlist as its first tile at the top of the left one, that the name under a
+tile is centred, that the button becomes "Regenerate" once images exist, and
+that a tile's key changes on regeneration so the image re-resolves the rewritten
+file. It also covers the placeholder: with no item the section shows the
+placeholder saying to select a video first and shows no controls. It also covers
+the run as it goes: the fake writes one frame and then waits for the test, so
+the section is looked at in the middle of a run and shows only the frame it has
+been told about, and the function the editor passed it is called when the run
+ends, not while it runs. `test/uptooda_test.dart` covers the parser against a
+captured `rpstub` fixture: the four URLs are read from the fields the tool
+reports, `success: false` is an upload failure whether the process exited 0 or
+1, output with no JSON is `noResult` (which is the unknown hoster case), and the
+runner results map to `toolNotAvailable` and `timeout`. Another test checks the
+arguments the spec fixes: one image, one hoster, `--code_lang json`,
+`--thumb_width 300`, and no `--code_type`. A last one checks that the
+environment a call is given reaches the runner unchanged, so a credential is not
+in the recorded arguments. `test/upload_controller_test.dart` covers the rules
+the upload spec states: an image already recorded for a hoster is skipped and
+one that failed is tried again, a hoster that is not selected is never called,
+the state read at open is what `images.json` holds for every hoster in the
+registry, so a run starts from what the hoster already has rather than from 0, a
+failed upload does not increase `done`, a hoster with nothing to upload reports
+a complete run, one image at a time per hoster while the hosters run at the same
+time (the fake counts what is in flight), a successful upload is written to
+`images.json` in the record shape, the work list is in the order the file lists
+the records, a poster record has no item because a poster belongs to the
+release, and the environment is built only for a hoster whose registry entry
+names a settings service — an empty value is not passed as a variable. The tests
+take the hosters from `hosters.dart`, so they test the same data the app uses.
+It also covers the last-edit stamp: a run that wrote a record stamps it and one
+that wrote nothing does not, with the store a fake that records the stamps.
 `test/upload_section_test.dart` covers the widget: the title row with the Upload
 button at the right, the hoster list is rendered with every hoster checked by
 default, only the checked hosters are passed to the controller, and with the
@@ -4741,7 +5947,12 @@ the value rules: a tracker and a release type become the folder and the file
 name, a template not in the bundle is reported, the title is rendered from the
 title template and written to `title.txt`, the title file of the release type is
 read before the tracker's and the tracker's is the fallback when the type has no
-file of its own, its parentheses are omitted when the site number is empty, a
+file of its own, the value the render builds from the two resolution fields is
+the range, or the single value when both ends are the same photo, and nothing
+when neither has been written, the formats a render reads are nothing when every
+format in the value is jpg, so the line is dropped while a mixed set still lists
+them, its parentheses are omitted when the site number
+is empty, a
 tracker with no title template still generates the message with an empty title,
 a type with no title (`hasTitle`) reads no title file and writes no `title.txt`,
 the poster comes from `posterHoster` whatever order the record holds and has no
@@ -5067,22 +6278,25 @@ an empty bundle directory. Real file IO inside a widget test has to go through
 `tester.runAsync` — the test body runs in a fake-async zone, so awaiting a plain
 `dart:io` call there hangs. A widget test also has to put the file on disk
 before `pumpWidget`: `tester.pump()` does not rebuild a widget whose subtree is
-unchanged, so a box built for a missing file would still show nothing. A widget test that runs a scan
-has the same requirement in another form: the reader is called on another isolate, and a fake-async
-zone cannot await one, so the scan is run inside `tester.runAsync` there too
-(`test/photosets_test.dart`, `test/image_folder_test.dart`). A test that looks at what a run shows
-while it is going — a set read while the next one is still being read — waits on the count the
-progress row says, with the same bound, and the reader it is given is one that waits on the second
-item so that the state between two reports is what the test sees rather than what it races.
-A test that needs a run to be over waits for the end of the run, not for the first thing the run
-draws: a run draws its lines and its counts before it ends, so a wait satisfied by one of those
-leaves the run going while the test asserts what the run does at its end, and such a test passes by
-luck rather than because the run finished. The end is observable as the point the widget is at when
-it is over — the progress row is no longer drawn, or a button that only works after a run gains its
-action — and a wait on that is what the tests use. The end of a run is one synchronous block in the
-widget, so once it is observable, everything the run did at its end is there too.
-`dart_test.yaml` sets a 30s per-test timeout so a hang is reported instead of
-blocking the run for the default ten minutes, and caps the runner at
+unchanged, so a box built for a missing file would still show nothing. A widget
+test that runs a scan has the same requirement in another form: the reader is
+called on another isolate, and a fake-async zone cannot await one, so the scan
+is run inside `tester.runAsync` there too (`test/photosets_test.dart`,
+`test/image_folder_test.dart`). A test that looks at what a run shows while it
+is going — the progress row, which is drawn only while a run runs — waits on
+what the run reports, with the same bound, and the reader it is given is one
+that waits on the second item so that the state between two reports is what the
+test sees rather than what it races. A test that needs a run to be over waits
+for the end of the run, not for the first thing the run draws: the only thing a
+run draws while it goes is its progress row, so a wait satisfied by that leaves
+the run going while the test asserts what the run does at its end, and such a
+test passes by luck rather than because the run finished. The end is observable
+as the point the widget is at when it is over — the progress row is no longer
+drawn, or a button that only works after a run gains its action — and a wait on
+that is what the tests use. The end of a run is one synchronous block in the
+widget, so once it is observable, everything the run did at its end is there
+too. `dart_test.yaml` sets a 30s per-test timeout so a hang is reported instead
+of blocking the run for the default ten minutes, and caps the runner at
 `concurrency: 2` so a full run leaves headroom for the desktop instead of
 freezing it. The only CI config is `.github/workflows/windows-release.yml`, the
 release (§9). The suite is not run by CI, so the tool preconditions the tests
@@ -5243,6 +6457,3 @@ From `lib/TODO.MD` (deduplicated) and the gaps in §2:
   left as it is.
 - Run `flutter analyze` before reporting work as done; the tree is expected to
   stay issue-free.
-
-
-

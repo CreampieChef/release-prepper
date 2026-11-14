@@ -316,6 +316,27 @@ void main() {
     },
   );
 
+  // The scan reports what the folder has, and the field value is written with
+  // it, so an all-jpg set is reported as the formats its names have. The rule
+  // that a post lists no formats for such a set is applied to what a render
+  // reads, not here (`ai/description_template.md` §Variables).
+  test(
+    'the formats are what the folder has, not what the post lists',
+    () async {
+      Directory(p.join(directory.path, 'set01')).createSync();
+
+      writePhoto('set01', 'a.jpg', 100, 100);
+      writePhoto('set01', 'b.jpeg', 100, 100);
+
+      final result = await scanner().scan(
+        directory.path,
+        ItemBoundary.entries,
+      ) as ScanSuccess;
+
+      expect(result.imageFormats, ['jpeg', 'jpg']);
+    },
+  );
+
   test(
     'nothing measurable has no minimum or maximum, so no value is written',
     () async {

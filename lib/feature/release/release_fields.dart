@@ -279,6 +279,9 @@ const photosetPackFieldList = FieldList(
     FieldSpec(name: 'genreTags'),
     FieldSpec(name: 'photosetCount', filledByApp: true),
     FieldSpec(name: 'totalPhotoCount', filledByApp: true),
+    // What the pick wrote, kept with the counts the scan took, because it is
+    // the same kind of value: a count the app fills and the post may show.
+    FieldSpec(name: 'pickedPhotoCount', filledByApp: true),
     FieldSpec(name: 'totalSize', filledByApp: true, isByteCount: true),
     FieldSpec(name: 'minResolution', filledByApp: true),
     FieldSpec(name: 'maxResolution', filledByApp: true),
@@ -344,8 +347,10 @@ const videoPackFieldList = FieldList(
 ///
 /// `photosetCount` is not here: with one item it is always 1, and a field the
 /// app cannot answer differently from its own definition is not a field.
-/// `additionalInfo` is not here either, because this type's fields are the ones
-/// above (`ai/single_photoset.md` §3).
+///
+/// The two resolutions are two fields and the post shows them as one line, so
+/// the value the template reads for that line is not a field: it is built when
+/// the message is rendered (`ai/description_template.md` §Variables).
 const singlePhotosetFieldList = FieldList(
   releaseType: ReleaseType.singlePhotoset,
   sourceKind: SourceKind.directory,
@@ -358,7 +363,16 @@ const singlePhotosetFieldList = FieldList(
     FieldSpec(name: 'productionDate'),
     FieldSpec(name: 'genreTags'),
     FieldSpec(name: 'description'),
+    // The same name the single video and the video pack have, because the
+    // additional information is the same value; the template reads it as an
+    // optional line (`ai/description_template.md` §Variables).
+    FieldSpec(name: 'additionalInfo'),
     FieldSpec(name: 'totalPhotoCount', filledByApp: true),
+    // The same name the pack has, because the count of the photos the pick
+    // wrote is the same value whatever the type, and for this type the item
+    // is the folder so the release-level count is the item's
+    // (`ai/picking.md` §7).
+    FieldSpec(name: 'pickedPhotoCount', filledByApp: true),
     FieldSpec(name: 'totalSize', filledByApp: true, isByteCount: true),
     FieldSpec(name: 'minResolution', filledByApp: true),
     FieldSpec(name: 'maxResolution', filledByApp: true),
@@ -472,6 +486,10 @@ String fieldLabel(
     releaseType == ReleaseType.imageFolderUpload
         ? l10n.imageCountLabel
         : l10n.totalPhotoCountLabel,
+  // The photos the pick wrote, not the ones the scan counted, so the words
+  // cannot be the same as `totalPhotoCount`'s. The two photoset types read the
+  // same value, so they read the same words (`ai/picking.md` §7).
+  'pickedPhotoCount' => l10n.pickedPhotoCountLabel,
   'minResolution' =>
     releaseType == ReleaseType.imageFolderUpload
         ? l10n.minImageResolutionLabel

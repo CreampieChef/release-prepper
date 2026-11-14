@@ -197,6 +197,88 @@ void main() {
     },
   );
 
+  // `resolutionMinMax` is a value the render builds from the two fields rather
+  // than a field of a type: the model holds the smallest and the largest photo
+  // as two values, and the post shows them on one line
+  // (`ai/description_template.md` §Variables). The same value at both ends is
+  // one value, not a range, and a value the scan has not written is nothing
+  // rather than an empty half.
+  test(
+    'the resolution line is the range, or the single value when both ends are '
+    'the same photo',
+    () async {
+      final fields = FieldValues();
+      fields.setValue('minResolution', '300x100');
+      fields.setValue('maxResolution', '600x200');
+
+      final bundle = _FakeBundle({
+        'assets/templates/pornolab/singlePhotoset.txt': '{{videoTitle}}',
+        'assets/templates/pornolab/singlePhotoset.title.txt':
+            '{{resolutionMinMax}}',
+        'assets/templates/pornolab/vanilla.style': 'text = {content}',
+      });
+
+      Future<String> title() async {
+        final result = await controller(
+          images: _FakeImagesStore(const ImagesManifest.empty()),
+          bundle: bundle,
+          fields: fields,
+          releaseType: ReleaseType.singlePhotoset,
+        ).generate();
+
+        return (result as MessageGenerated).title;
+      }
+
+      expect(await title(), '300x100-600x200');
+
+      fields.setValue('maxResolution', '300x100');
+      expect(await title(), '300x100');
+
+      fields.setValue('minResolution', '');
+      expect(await title(), '300x100');
+
+      // Nothing measured, so the line the title builds for it produces nothing
+      // and is dropped.
+      fields.setValue('maxResolution', '');
+      expect(await title(), '');
+    },
+  );
+
+  // The formats are the one field value a post lists differently from the way
+  // the app shows it: the field, its row and `release.json` hold what the scan
+  // counted, and only what a render reads is the empty one, which is what drops
+  // the line the site does not write (`ai/description_template.md` §Variables).
+  test('a post lists no formats when the counted photos are all jpg', () async {
+    final fields = FieldValues();
+    fields.setValue('imageFormats', 'jpg, png');
+
+    final bundle = _FakeBundle({
+      'assets/templates/pornolab/singlePhotoset.txt':
+          '{{#imageFormats}}formats: {{imageFormats}}{{/imageFormats}}',
+      'assets/templates/pornolab/vanilla.style': 'text = {content}',
+    });
+
+    Future<String> text() async {
+      final result = await controller(
+        images: _FakeImagesStore(const ImagesManifest.empty()),
+        bundle: bundle,
+        fields: fields,
+        releaseType: ReleaseType.singlePhotoset,
+      ).generate();
+
+      return (result as MessageGenerated).text;
+    }
+
+    // A mixed set still lists jpg with the others.
+    expect(await text(), 'formats: jpg, png');
+
+    fields.setValue('imageFormats', 'jpg');
+    expect(await text(), '');
+
+    fields.setValue('imageFormats', 'jpeg');
+    expect(await text(), '');
+  });
+
   // The optional field is a conditional section, so its parentheses are not
   // written at all. The other fields in the title are required, so the test
   // gives them values and the expectation shows them.
