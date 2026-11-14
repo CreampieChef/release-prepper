@@ -4,8 +4,8 @@ A small HTTP server that answers as a photo hoster, for development runs and
 tests. It is not part of the app and not part of the bundled native tools, so it
 is run by hand:
 
-    python3 test-hoster/rp_test_hoster.py --latency 200 --success-rate 0.9
-    [--port 80]
+    python3 testing-tools/test-hoster/rp_test_hoster.py --latency 200
+    --success-rate 0.9 [--port 80]
 
 Every upload takes `--latency` milliseconds on average, each one deviating by up
 to half either way, and succeeds with probability `--success-rate`. Serving is

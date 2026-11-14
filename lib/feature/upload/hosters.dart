@@ -35,7 +35,7 @@ const realHosters = [
 ];
 
 /// The hosters a `--dev` run uses instead, which call the Python test server
-/// (`test-hoster/rp_test_hoster.py`). They have no icon asset, so they are
+/// under `testing-tools/test-hoster/`. They have no icon asset, so they are
 /// drawn with the placeholder `HosterIcon` shows.
 const mockHosters = [
   Hoster(name: 'rptest-a', iconAsset: 'assets/icons/hosters/rptest_a.png'),

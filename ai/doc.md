@@ -325,22 +325,23 @@ What is left unfinished is not a compile error but missing behaviour:
   subsite and site is the domain of the studio, and the parent's after it when
   it has one, the two separated by " / ", and the same value is what a single
   photoset's site field gets, because the two names are one value written under
-  the name the type has. The domain is the host of the
-  URL the app reads the studio as being on, without `www.`: the URL recorded
-  under a site in the
-  "Primary sources" category, because a studio's URL list is not only its own
-  site and the links
-  to other databases are often listed first; then the URL recorded under the
-  site named "Studio",
-  which is what a studio URL is put under when it does not match a site StashDB
-  knows; and when
-  there is neither, the first URL with a host. A URL with no host is not a
-  domain, so it is not a
-  candidate at any step. A host is lowercase, so the brand part keeps the studio
-  name's
-  capitalization when the name is the same word as the host, and otherwise the
-  host is written as
-  the URL gives it. A domain that `assets/stashdb/domain_map.json` has is what
+  the name the type has. The domain is the host of the URL the app reads the
+  studio as being on, without `www.`: the URLs in the "Primary sources" category
+  are the candidates, because a studio's URL list is not only its own site and
+  the links to other databases are often listed first. Within that category the
+  URL whose host is named for the studio is its own site — a studio with a
+  parent can have a URL there that is the parent's page, so the order the
+  response lists them in does not say which is which — and when nothing in the
+  category is named for the studio, the first is what is read. Then the URL
+  recorded under the site named "Studio", which is what a studio URL is put
+  under when it does not match a site StashDB knows; and when there is neither,
+  the first URL with a host. A URL with no host is not a domain, so it is not a
+  candidate at any step. The same comparison writes the domain and decides which
+  URL is named for the studio, so the two cannot disagree about which host a
+  name is the same word as. A host is lowercase, so the brand part keeps the
+  studio name's capitalization when the name is the same word as the host, and
+  otherwise the host is written as the URL gives it. A domain that
+  `assets/stashdb/domain_map.json` has is what
   the field gets
   before any of this, because the file is the list of the domains the app writes
   in a form the
@@ -2060,7 +2061,7 @@ lib/
   reads. Two
                                 lists, the real hosters and the mock ones that
   call
-                                `test-hoster/rp_test_hoster.py`, chosen between
+                                `testing-tools/test-hoster/`, chosen between
   by the
                                 `--dev` flag `main()` sets. The mock hosters
   have no icon
@@ -3364,13 +3365,30 @@ lib/
   TODO.MD                       open items
 
 test/                           tests (§10): widget tests + native tool tests
-test-hoster/                    the test photo hoster, run by hand: `rp_test_hoster.py`,
-                                an HTTP server the `rptest-a` and `rptest-b` hosters call,
-                                with the upload latency and the success rate given to it on
-                                the command line — serving is not simulated, so what it
-                                stores is served back at once. It stores what it is given
-                                under `test-hoster/photos/<tag>/` (gitignored), and
-                                `README.md` says how to run it. The rules are in
+  fixtures/stashdb/               committed test data, one file per case: the response as StashDB
+                                  gave it, trimmed to the fields the subsite rule reads, with the
+                                  values the case expects. The loop described in §10 reads them,
+                                  one case per file; a case that is the same shape as another is
+                                  not kept twice, so the files are the set the rule is guarded
+                                  against, and they grow as users report more incorrect cases.
+testing-tools/                    the tools that are run by hand and are not part of the
+                                app; what each one produces while it is used is
+                                gitignored, and the `README.md` next to each says how to
+                                run it.
+  test-hoster/                    `rp_test_hoster.py`, an HTTP server the `rptest-a` and
+                                `rptest-b` hosters call, with the upload latency and the
+                                success rate given on the command line — serving is not
+                                simulated, so what it stores is served back at once; the
+                                images go under `photos/<tag>/`.
+  stash-db-import/                `rp_stash_capture.py` serves a form that takes an API
+                                key, a scene URL and the subsite and site the values
+                                should come out as; on a click it asks StashDB for that
+                                scene as the app does, records the response as one file
+                                per scene, and reports what the rule gives for the same
+                                data so the difference is visible. The rule and the query
+                                are copies of the app's, and the app's are the ones that
+                                count. The files are what the subsite and site test cases
+                                are built from. The rules are in
                                 `ai/bundled_native_tools.md`.
 dart_test.yaml                  test timeout: 30s, concurrency: 4
 assets/icons/                   tracker icon assets; declared under
@@ -3417,8 +3435,9 @@ native/uptooda/                 the tool the app ships: `Data/` plus one binary 
                                 app reads the copy the install step made at build time, so
                                 hot reload and hot restart are not enough.
                                 `Data/Scripts/rptest_a.nut` and `rptest_b.nut` are the test
-                                hoster scripts, which call `test-hoster/rp_test_hoster.py`
-                                — a server that is not part of the bundle and is run by
+                                hoster scripts, which call the test hoster under
+                                `testing-tools/test-hoster/` — a server that is not part
+                                of the bundle and is run by
                                 hand.
 
 native/mkbrr/                   the other tool the app ships: one binary per OS, no data
@@ -6129,11 +6148,15 @@ id — that an invalid input and a missing key are reported before anything is
 asked for, the mapping from a scene to fields — including the date field taking
 the release date and falling back to the production date, the subsite and site
 field reading the domain from the URL the preference order names (the Primary
-sources category, then the site named Studio, then the first URL with a host,
-and a URL with no host is never a candidate) with the name's capitalization when
-the name is the same word as the host and falling back to the name when there is
-no URL with a host, and the title with the site number cut off every occurrence
-of it and the ends of what is left trimmed — that the fields filled from the
+sources category, and within it the URL whose host is named for the studio, else
+the first in that category; then the site named Studio, then the first URL with
+a host; a URL with no host is never a candidate), with the name's capitalization
+when the name is the same word as the host and falling back to the name when
+there is no URL with a host; the same values for the recorded cases in
+`test/fixtures/stashdb/`, each file asserting what the case is known to need, so
+the rule is guarded against real results as well as against the shapes a test
+invents; and the title with the site number cut off every occurrence of it and
+the ends of what is left trimmed — that the fields filled from the
 movie file are never filled from StashDB, that the values offered are the names
 the type's field list has, in the order that list gives them, so the same value
 is written under the name another type has (`ai/single_photoset.md` §9), that a

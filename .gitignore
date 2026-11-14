@@ -47,9 +47,13 @@ app.*.map.json
 # Widget Preview related
 .widget_preview/
 
-# The test photo hoster (test-hoster/rp_test_hoster.py) stores the images it is
-# given here, next to the script.
-test-hoster/photos/
+# The tools under testing-tools/ are run by hand and are not part of the app.
+# What they produce while they are being used is not published with the sources:
+# the test photo hoster stores the images it is given, and stash-db-import records
+# the responses it is asked for. The data a test reads is committed under
+# test/fixtures/, not here.
+testing-tools/test-hoster/photos/
+testing-tools/stash-db-import/captured/
 
 # The toolchain installed on this machine is recorded separately, and that file
 # is not published with the sources, so it is not tracked.

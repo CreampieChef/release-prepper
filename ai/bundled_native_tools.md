@@ -294,13 +294,14 @@ what a test uses to check an incorrect hoster. Its behaviour:
   second attempt. That counter counts attempts across every image, which is not
   a problem because the app uploads one image at a time.
 
-`test-hoster/rp_test_hoster.py` is a small HTTP server that answers as a photo
-hoster, and `rptest-a` and `rptest-b` are the two hosters that call it. It is
-run by hand:
+`testing-tools/test-hoster/rp_test_hoster.py` is a small HTTP server that
+answers as a photo hoster, and `rptest-a` and `rptest-b` are the two hosters
+that call it. Both tools under `testing-tools/` are run by hand, and the
+`README.md` next to each says how; what is said here is what they do.
 
 ```
-python3 test-hoster/rp_test_hoster.py --latency 200 --success-rate 0.9
-[--port 80]
+python3 testing-tools/test-hoster/rp_test_hoster.py --latency 200
+--success-rate 0.9 [--port 80]
 ```
 
 Every upload takes `--latency` milliseconds on average, each one deviating by up
@@ -316,9 +317,10 @@ hardcoded in each script: the script API cannot read the `Server Name`, so there
 is one script per test hoster and they differ only by that tag. The tag is also
 the folder the images are stored in.
 
-Files are stored next to the script, under `test-hoster/photos/<tag>/`
-(gitignored), as the name the upload was given with a random id before the
-extension. The thumbnail is the stored name with `_thumb` before its extension,
+Files are stored next to the script, under `photos/<tag>/` (gitignored, as the
+whole working area of each tool under `testing-tools/` is), as the name the
+upload was given with a random id before the extension. The thumbnail is the
+stored name with `_thumb` before its extension,
 always a JPEG, made with ffmpeg at the width the script sends as the
 `thumb_width` field, which is what `--thumb_width` gives. There is no fallback
 when ffmpeg is not on PATH: the upload fails.

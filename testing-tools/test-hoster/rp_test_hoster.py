@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """A tiny photo hoster for testing Release Prepper.
 
-    python3 test-hoster/rp_test_hoster.py --latency 200 --success-rate 0.9
-    [--port 80]
+    python3 testing-tools/test-hoster/rp_test_hoster.py --latency 200
+    --success-rate 0.9 [--port 80]
 
 Every upload takes `latency` milliseconds on average, each one deviating by up to
 half either way, and succeeds with probability `success_rate`. Serving is not
