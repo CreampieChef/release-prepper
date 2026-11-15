@@ -185,15 +185,16 @@ const itemTypeVideo = 'video';
 const itemTypePhotoset = 'photoset';
 const itemTypeImageFolder = 'imageFolder';
 
-/// The two names the Upload draft feature stores (`ai/uploading_draft.md`). They
-/// are in the field lists of the four types the feature covers and not in the
-/// image folder's, because that type has no title to send.
+/// The four names the Upload draft feature stores (`ai/uploading_draft.md` §4,
+/// `ai/pornolab_upload.md` §5). They are in the field lists of the four types
+/// the feature covers and not in the image folder's, because that type has no
+/// title to send.
 ///
-/// Neither has a row the form builds: the parent forum row is the section's, as
-/// `sceneUrl`'s is the Stash row's, and the link is shown as a link. Neither is
-/// a value a template reads, so writing one does not make a rendered message
-/// stale. Neither is required for a message: the requirement is the section's own
-/// gate, the button being disabled while the field is empty. The link is not
+/// None has a row the form builds: the parent forum row is the section's, as
+/// `sceneUrl`'s is the Stash row's, and the links are shown as links. None is a
+/// value a template reads, so writing one does not make a rendered message
+/// stale. None is required for a message: the requirement is the section's own
+/// gate, the button being disabled while the field is empty. A link is not
 /// copied by a clone, because it is what a run wrote rather than what the user
 /// typed; the forum is what the user typed, so a clone keeps it.
 const _parentForum = FieldSpec(
@@ -205,6 +206,32 @@ const _parentForum = FieldSpec(
 
 const _draftUrl = FieldSpec(
   name: 'draftUrl',
+  hasFormRow: false,
+  isRequired: false,
+  readByTemplate: false,
+  copiedByClone: false,
+);
+
+/// The link a post made. It is a new key rather than a field added to a field
+/// list as `parentForum` was, because the value is an id the site made
+/// (`ai/pornolab_upload.md` §5), so this is a format change.
+const _topicUrl = FieldSpec(
+  name: 'topicUrl',
+  hasFormRow: false,
+  isRequired: false,
+  readByTemplate: false,
+  copiedByClone: false,
+);
+
+/// The path the tracker's file was written at, relative to the release
+/// directory (`ai/pornolab_upload.md` §6). It is the one name in a field list
+/// whose value is a path rather than text, and the format records a path inside
+/// a release relative to the release directory (`ai/release_structure.md` §2),
+/// so that is what is stored. It is written only for a run that wrote a file,
+/// as the notice says only what a run wrote (`ai/pornolab_upload.md` §8), and
+/// the only things that read it are the two buttons the editor's heading has.
+const _trackerTorrentFile = FieldSpec(
+  name: 'trackerTorrentFile',
   hasFormRow: false,
   isRequired: false,
   readByTemplate: false,
@@ -259,6 +286,8 @@ const singleVideoFieldList = FieldList(
     FieldSpec(name: 'additionalInfo', isRequired: false),
     _parentForum,
     _draftUrl,
+    _topicUrl,
+    _trackerTorrentFile,
   ],
 );
 
@@ -287,6 +316,8 @@ const photosetPackFieldList = FieldList(
     FieldSpec(name: 'maxResolution', filledByApp: true),
     _parentForum,
     _draftUrl,
+    _topicUrl,
+    _trackerTorrentFile,
   ],
   itemFields: [
     // The count of the photos in one set. It is a field because it is a value
@@ -325,6 +356,8 @@ const videoPackFieldList = FieldList(
     FieldSpec(name: 'videoFormats', filledByApp: true),
     _parentForum,
     _draftUrl,
+    _topicUrl,
+    _trackerTorrentFile,
   ],
   itemFields: [
     // The same names Single video has, because the per-item data is what
@@ -388,6 +421,8 @@ const singlePhotosetFieldList = FieldList(
     FieldSpec(name: 'imageFormats', filledByApp: true),
     _parentForum,
     _draftUrl,
+    _topicUrl,
+    _trackerTorrentFile,
   ],
   itemFields: [
     // The same name the photoset pack has, because the count of the photos in
@@ -515,11 +550,12 @@ String fieldLabel(
   'videoCount' => l10n.videoCountLabel,
   'videoResolutions' => l10n.videoResolutionsLabel,
   'videoFormats' => l10n.videoFormatsLabel,
-  // The two names of the Upload draft section are not rows the form builds: the
-  // row is the section's own input, and the link is shown as itself, so the
+  // The names of the Upload draft section are not rows the form builds: the row
+  // is the section's own input, and the links are shown as themselves, so the
   // section asks for the words here, as the StashDB section does for its input
   // (`ai/uploading_draft.md` §4).
   'parentForum' => l10n.parentForumLabel,
   'draftUrl' => l10n.draftLinkLabel,
+  'topicUrl' => l10n.topicLinkLabel,
   _ => name,
 };

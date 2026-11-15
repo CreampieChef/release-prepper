@@ -28,7 +28,9 @@ one a run cannot update: the answer says so, and the run makes a new draft and
 stores the link to it instead (§6).
 
 The app does not publish the topic. It only saves a draft, so nothing on the
-site becomes public through this feature.
+site becomes public through this feature. Publishing it is the feature
+`ai/pornolab_upload.md` describes, and that document is the one for the form,
+the answer, and the file the tracker serves back.
 
 ## 2. The cookie
 
@@ -100,25 +102,56 @@ type into.
 A clone copies the forum, because it is what the user typed, and not the link,
 because the link is what a run wrote (`copiedByClone`).
 
+The row also shows the name the site gives for the forum the value names,
+because the value is an id and a user reading the row cannot see which forum it
+points at. It is the link the breadcrumb the page writes for that forum id, and
+the breadcrumb is the table cell with the `nav` class, as a run against the site
+showed the page writing it: the page writes it twice, as `nav nav-top` at the
+top and as `nav` at the bottom, and the first is read. The cell is what the rule
+reads, not any element with that class — the same page writes its pagination as
+a `div` with the class, and the links there name the same forum as page numbers,
+so a name read from them would be a number. And the name is read back from the
+entities the page writes it with — a name with an apostrophe comes as `&#039;` —
+so the app reads those five back and leaves anything else as it came.
+
+The page is asked for when the value passes the shape rule, once for a value,
+and what was read is kept per URL in the client, as the token is: the row asks
+while the user types, and a redraw must not be a request. A value the rule
+refuses is not asked for at all, which is the same gate the run has, and a read
+that gives nothing shows nothing — the name is a label, not something a run
+needs, because a run works from the id the value names. The name is not stored:
+it is what a page said, so it is widget state, and nothing is written to
+`release.json`. Its words are `parentForumName`.
+
+The page is asked for at the base the app was started with
+(`ai/pornolab_upload.md` §10), so a run against the stub shows the name that
+page carries, which is the stub's own wording.
+
 ## 5. The section
 
 It is drawn below the Message section, in whatever space that section has: the
 same column when the Message section is a column, the same whole width when it
 is not (`ai/doc.md` §2). Its title row is `SectionTitle`, the title at the left
-and the Upload button at the right, as every section's is. The title names the
-tracker the draft goes to, because the app can talk to more than one.
+and the actions at the right, as every section's is. The title names the tracker
+the draft goes to, because the app can talk to more than one. The second action
+— the Publish button, for a release that has a draft to post
+(`ai/pornolab_upload.md` §5) — is in the same row, because both are actions of
+the whole section; neither is drawn when there is nothing to send, and each is
+disabled while something it reads is missing.
 
 What it shows:
 
 - while nothing has been generated, the section is its title row — with no
-  button, because nothing there can run — and the placeholder saying *Generate a
-  message first*, the same shape the Screenshots section has when it has no
+  button, because nothing there can run — and the placeholder saying *Generate
+  a message first*, the same shape the Screenshots section has when it has no
   images;
-- once a message exists, the parent forum row, the Upload button, the outcome
-  of the last run, and the link when the release has one. The outcome is said in
-  the section rather than in a snackbar, because the section is already the
-  thing that shows the run. The outcome is widget state; only the link is
-  stored.
+- once a message exists, the parent forum row with the name the site gives for
+  the forum it holds (§4), the two buttons, the outcome of the last run, and
+  the links when the release has them. The outcome is said in the section
+  rather than in a snackbar, because the section is already the thing that
+  shows the run. The outcome is widget state; only the links are stored. So is
+  the name, for the same reason: it is what a page said, and nothing a run
+  needs.
 
 A run that updated the draft the stored link points at says nothing, because the
 link is the result. A run that had to make a new one, because the stored draft
@@ -126,11 +159,13 @@ was deleted on the site, says so: the link the release holds changes through tha
 run, and the user cannot see why otherwise.
 
 The placeholder names the first thing the section is missing, in the order the
-section can act on it: the message, then a stored cookie, then the forum. The
-login is one of these because the app does not make one by itself
-(`ai/pornolab_login.md` §7), and the word for it names where to make it. The row
-says the shape rule for the forum, so the tooltip names an empty field rather
-than repeating the rule.
+section can act on it: the message, then a stored cookie, then the forum, then —
+for the publish action, which is the only one that needs it — a file to send
+(`ai/pornolab_upload.md` §7). The login is one of these because the app does not
+make one by itself (`ai/pornolab_login.md` §7), and the word for it names where
+to make it. The word for the file names the action that makes it, as the word
+for the login names the page that makes it. The row says the shape rule for the
+forum, so the tooltip names an empty field rather than repeating the rule.
 
 A link the release already has is shown even when the box has been reset, so the
 placeholder is only what the section says when it has nothing else to say — the
@@ -156,7 +191,11 @@ same way `hasUploadableImages()` does. The credentials are read from
 `SettingsController`, which the widget watches, so a login made from the
 settings page changes what the gate says. The Message section is outside this
 widget, so the section registers its rebuild with the editor, which calls it
-when a generation writes the two files or a reset clears them (rule 3).
+when a generation writes the two files or a reset clears them (rule 3). The file
+is outside this widget too, and it is another feature's run that writes it, so
+the section registers its rebuild for that as well: a run that wrote a file
+tells the editor, which builds this section again and reads the gate again. A
+run that wrote nothing says nothing, as the notice is about what a run wrote.
 
 The subject and the message are the contents of `title.txt` and `message.txt`,
 which always match what the Message section shows, because an edit in the box
@@ -191,7 +230,10 @@ The app takes the id, builds
 writes it as `draftUrl`, and shows it. `is_tpl` is not read: the app never saves
 as a template. The link is built from the site address the client holds, not
 from the URL the user pasted, the same rule as the scene link
-(`StashClient.siteBase`).
+(`StashClient.siteBase`). The address it holds is the stub's when the app was
+started with `--dev-tracker-stub` (`ai/pornolab_upload.md` §10), so a link built
+against the stub is the stub's — but a run against the stub cannot save a draft,
+because that call is not one the stub answers.
 
 A draft the app stored can be deleted on the site, and the answer for an update
 of it is the same shape with `gone` 1:
@@ -325,6 +367,45 @@ request entry is written first, then the response or the failure.
 The log is a required constructor parameter of the client, as it is of
 `ToolRunner`, and writing it is one of its side effects.
 
+**Only for a run that is asked to be read.** The same calls can also be written
+as plain text, with `--unsafe-verbose-tracker-logging`: the cookie as its value
+rather than as the marker, and a page in full rather than the value the app read
+out of it. Those are the two things a problem with an encoding, or with a field
+the site wants, is read back from, and the rules above keep them as markers for
+a reason that applies to a run a user makes, not to a run someone is reading —
+which is why the flag that turns this on is called unsafe, and why a run writes
+nothing unless someone asks for it — the flag is given on the command line the
+app is started with, as the flag that chooses the hosters is
+(`ai/bundled_native_tools.md`). It is called for every request this client
+makes, not only for the post, so one file shows the whole feature; it writes
+into the same `_rp_logs/` folder as the app's log, as `debug_log.txt`, one block
+per request and its answer, in the order the calls were made. Whether anything
+is written is decided by the service itself —
+`service/logging/debug_text_log.dart` — so the call sites stay with the client
+that makes the calls, and a run without the flag leaves the block it built. A
+file part is recorded as its name and its size, as the app's log records it.
+
+The shape of a block is the service's, not the client's, so a call site says
+only which side of the exchange it is and what the call was. Four lines, then a
+blank line, then the headers as `name: value` and then what was sent or
+answered. The first and the fourth are the marker 80 times; the second and the
+third are the marker 10 times, a space, and then the date or the line the block
+is about: the method and the address for what the app sent, the status and then
+the method and the address for what the site answered, and the method and the
+address alone for a request that got no answer. The marker is the direction,
+because a file is read top to bottom: `<` is what the app sent, `>` what the
+site answered, and `#` a request that got no answer, which is neither of the
+two. Every header line comes from one helper, so the headers the app sets itself
+are written the way the answer's are.
+
+The lines a block writes are the headers the app sets itself, so the length the
+form declares is one of them: it is the length of the body the block was written
+from, and it is the header a server that is not a browser reads instead of the
+body (`ai/pornolab_upload.md` §3).
+
+This is not a second logging rule for the app: it is the app's log, read
+differently, for a run that was started so it could be read.
+
 ## 9. Testing
 
 Nothing in the tests reaches the network. The client is behind an interface, as
@@ -361,19 +442,26 @@ What is tested:
   cookie recorded, and the request it sends, which carries no `Cookie` header;
 - the form token cache being dropped by a login;
 - the settings row: the field list and the mask flag, the username shown plainly
-  and the password masked, the three controls on one line, the button committing
-  the fields before it calls the site, the red Log out, the fields disabled
-  while a session exists, and a logout making no request;
+  and the password masked, the three controls on one line, the button
+  committing the fields before it calls the site, the red Log out, the fields
+  disabled while a session exists, and a logout making no request;
 - the location that is the login page, and the answer a wrong cookie gets on the
   page the token is read from being read as the cookie refused rather than as
   the request failing;
 - the section: the placeholder while no message exists, the button disabled
-  while no cookie is stored, the order the placeholder names, a run with nothing
-  stored not being made, a cookie the site did not accept being said as the
-  result it is with the run not made again, the button disabled while the forum
-  is empty, the link shown from a stored value before any run, the label drawn
-  only with a link, the copy button writing to the clipboard, and the link
-  opening through the fake launcher;
+  while no cookie is stored, the order the placeholder names, a run with
+  nothing stored not being made, a cookie the site did not accept being said
+  as the result it is with the run not made again, the button disabled while
+  the forum is empty, the link shown from a stored value before any run, the
+  label drawn only with a link, the copy button writing to the clipboard, and
+  the link opening through the fake launcher;
+- the section being built again when the file a run wrote appears, because the
+  gate for it is read while the section builds and the run is another feature's;
+- the name read from the page the value names, including the entities a name
+  comes as, the cell the page writes the breadcrumb in being what is read, the
+  pagination with the same class not being read, a breadcrumb for another forum
+  giving nothing, and the row not asking for a value the shape rule refuses —
+  the same gate the run has;
 - the section saying which of the two a run did: the line for the run that made
   a new draft, and nothing said for the run that updated the stored one.
 
@@ -392,15 +480,27 @@ The shape is the one the rest of the app uses:
   app already has. The rules are on the interface so a test exercises them
   without a request.
 - `lib/feature/draft/draft_controller.dart` — the gates, the rule for the one
-  field the feature owns, and the run. It holds nothing that can change while
-  the app is running: the cookie is read from `SettingsController` per call, and
-  a run does not make a login. That is the first controller that depends on
-  another controller, recorded in `ai/doc.md` §4.
-- `lib/feature/draft/draft_section.dart` — the widget, and the words it shows
-  for a result, read from the mapping the settings page shares.
+  field the feature owns, and the two runs. It holds nothing that can change
+  while the app is running: the cookie is read from `SettingsController` per
+  call, and a run does not make a login. That is the first controller that
+  depends on another controller, recorded in `ai/doc.md` §4. The name of the
+  file a post sends is not decided here either: it is the Torrent feature's
+  rule, read through `lib/service/torrent/torrent_path.dart`.
+- `lib/feature/draft/draft_section.dart` — the widget, the second action and its
+  popup, the label the row shows, and the words it shows for a result, read
+  from the mapping the settings page shares.
+- `lib/service/torrent/torrent_path.dart` — the name the app writes a release's
+  torrent under, the same file when it is already there, and the app's own
+  folder inside the release with the path the tracker's copy is written at in
+  it, so the feature that writes the file and the feature that sends it read
+  one rule.
+- `lib/service/logging/debug_text_log.dart` — the plain text copy of the same
+  calls (§8), written only for a run started with the flag, and its own service
+  so that the decision to write is one place and the call sites stay with the
+  client.
 - `lib/service/launcher/url_opener.dart` — opening a URL in a browser, the
   second job for `url_launcher`, behind a service with a typed result as
-  `FolderOpener` is.
+  `PathOpener` is.
 - `lib/service/logging/tool_log_entry.dart` — the three entry types a network
   call is recorded with, and the redacted marker.
 

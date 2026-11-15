@@ -12,7 +12,9 @@ import 'tool_log_entry.dart';
 /// Writes are serialised here: several hosters run at the same time, and a JSON
 /// Lines file cannot be appended to from two places at once.
 class ToolLog {
-  static const directoryName = 'logs';
+  // The folder is the app's own, so it carries the app's prefix, as the app's
+  // files inside a release do (`ai/picking.md` §8).
+  static const directoryName = '_rp_logs';
   static const filePrefix = 'log_';
 
   Future<void> _writes = Future<void>.value();

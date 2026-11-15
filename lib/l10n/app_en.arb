@@ -43,6 +43,9 @@
     "clonePosterNotUploadedWarning": "The poster has not been uploaded, so its links cannot be copied. It is best to upload the poster first, so the same poster does not have to be uploaded more than once.",
     "openRelease": "Open Release",
     "openReleaseShortcut": "Ctrl+O",
+    "openReleaseOnTracker": "Open release",
+    "openTorrentFile": "Open torrent",
+    "openTorrentFolder": "Open torrent folder",
     "chooseReleaseFolder": "Choose a release folder",
     "releaseManifestNotFound": "The selected folder does not contain release.json.",
     "releaseMetadataInvalid": "The release.json file is not valid.",
@@ -527,6 +530,7 @@
         }
     },
     "folderOpenFailed": "Could not open the folder.",
+    "fileOpenFailed": "Could not open the file.",
     "draftSectionTitle": "Upload draft to tracker",
     "draftUploadButton": "Upload",
     "parentForumLabel": "Parent forum",
@@ -538,11 +542,53 @@
             }
         }
     },
+    "parentForumName": "The site names this forum: {name}",
+    "@parentForumName": {
+        "placeholders": {
+            "name": {
+                "type": "String"
+            }
+        }
+    },
     "draftLinkLabel": "Draft link on tracker",
+    "topicLinkLabel": "Topic link on tracker",
     "draftNeedsMessageFirst": "Generate a message first",
     "draftNeedsLoginFirst": "Log in in Settings → Integration",
     "draftNeedsForumFirst": "Set the parent forum",
     "draftRecreated": "The draft the stored link pointed to is no longer on the site, so a new one was created.",
+    "publishButton": "Publish",
+    "publishTitle": "Are you sure you want to upload this release?",
+    "publishNames": "Parent forum: {forum}\nRelease title: {title}",
+    "@publishNames": {
+        "placeholders": {
+            "forum": {
+                "type": "String"
+            },
+            "title": {
+                "type": "String"
+            }
+        }
+    },
+    "publishCheck": "I have verified the draft and want to upload it unchanged, and I understand the post cannot be taken back.",
+    "publishConfirm": "Upload",
+    "publishNeedsFileFirst": "Make the torrent first",
+    "publishFileRefused": "The site did not accept the file: it is over the size the form declares, or not one of the extensions it accepts.",
+    "publishFileWritten": "The file the site served was written as {name}.",
+    "@publishFileWritten": {
+        "placeholders": {
+            "name": {
+                "type": "String"
+            }
+        }
+    },
+    "publishFileNotWritten": "The topic was made, but the file could not be written as {name}. The topic exists either way.",
+    "@publishFileNotWritten": {
+        "placeholders": {
+            "name": {
+                "type": "String"
+            }
+        }
+    },
     "pornolabNeedsCredentials": "Enter the username and the password",
     "pornolabLoginAccepted": "Login accepted.",
     "pornolabLoginRefused": "The site did not accept the username and the password.",

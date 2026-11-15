@@ -9,6 +9,8 @@ import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../service/images/masonry.dart';
+import '../../service/launcher/path_opener.dart';
+import '../../service/launcher/url_opener.dart';
 import '../../service/native_tools/ffmpeg.dart';
 import '../../service/native_tools/ffprobe.dart';
 import '../../service/native_tools/media_info.dart';
@@ -26,6 +28,7 @@ import '../screenshots/images_store.dart';
 import '../screenshots/screenshots_section.dart';
 import '../stashdb/stash_section.dart';
 import '../tab/tab_manager.dart';
+import '../text_width.dart';
 import '../torrent/torrent_section.dart';
 import '../tracker_icon.dart';
 import '../upload/upload_section.dart';
@@ -123,18 +126,21 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
     setState(() {});
   }
 
-  /// What the sections rebuild with, registered by them when they open. A change
-  /// in one is something another one shows: an upload run changes the counts the
-  /// Upload section shows and whether the Message section can generate, the source
-  /// row changes what the Torrent section can run on, a field written through the
-  /// write path is a value the Message section's message was built from, and the
-  /// two files the Message section writes are what the Upload draft section sends.
-  /// The sections cannot see each other, so the editor — the widget that places
-  /// them all — is where they meet. A plain callback, not a listener (rule 3).
+  /// What the sections rebuild with, registered by them when they open. A
+  /// change in one is something another one shows: an upload run changes the
+  /// counts the Upload section shows and whether the Message section can
+  /// generate, the source row changes what the Torrent section can run on, a
+  /// field written through the write path is a value the Message section's
+  /// message was built from, the two files the Message section writes are what
+  /// the Upload draft section sends, and the file a Torrent run writes is what
+  /// its publish action needs. The sections cannot see each other, so the
+  /// editor — the widget that places them all — is where they meet. A plain
+  /// callback, not a listener (rule 3).
   final List<void Function()> _imageRebuilds = [];
   final List<void Function()> _sourceRebuilds = [];
   final List<void Function()> _fieldRebuilds = [];
   final List<void Function()> _messageRebuilds = [];
+  final List<void Function()> _fileRebuilds = [];
 
   void _registerImageRebuild(void Function() rebuild) =>
       _imageRebuilds.add(rebuild);
@@ -147,6 +153,9 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
 
   void _registerMessageRebuild(void Function() rebuild) =>
       _messageRebuilds.add(rebuild);
+
+  void _registerFileRebuild(void Function() rebuild) =>
+      _fileRebuilds.add(rebuild);
 
   void _imagesChanged() {
     for (final rebuild in _imageRebuilds) {
@@ -174,6 +183,18 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
   /// that writes them, so the notice goes to it alone (rule 3).
   void _messageChanged() {
     for (final rebuild in _messageRebuilds) {
+      rebuild();
+    }
+  }
+
+  /// A Torrent run wrote the file. Only the Upload draft section shows
+  /// something that depends on the file being there — its publish action is
+  /// gated on it — and it is not the widget that writes the file, so the notice
+  /// goes to it alone (rule 3). The gate is read while the widget builds, so
+  /// without this a file a run made would not be seen until the section built
+  /// again.
+  void _fileWritten() {
+    for (final rebuild in _fileRebuilds) {
       rebuild();
     }
   }
@@ -356,6 +377,8 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
       ffmpeg: context.read<Ffmpeg>(),
       downloader: context.read<ImageDownloader>(),
       images: context.read<ImagesStore>(),
+      urlOpener: context.read<UrlOpener>(),
+      pathOpener: context.read<PathOpener>(),
       tabId: widget.tabId,
     );
 
@@ -1208,13 +1231,58 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
     );
   }
 
+  /// The gaps the heading draws its parts with: the one after the name, and the
+  /// one between the parts of a group. The vertical one is the gap between the
+  /// two lines when the row cannot hold them, so a row that stops reads as the
+  /// same row.
+  static const _headingNameGap = 12.0;
+  static const _headingItemGap = 8.0;
+
+  /// What a badge takes beyond its label: the padding the box draws the label
+  /// with, and the glyph with the gap between the glyph and the label. These
+  /// are the numbers `_badge` draws with, so the point where the heading stops
+  /// fitting is measured with the same numbers the row uses.
+  static const _badgePadding = 10.0;
+  static const _badgeIconSize = 16.0;
+  static const _badgeIconGap = 6.0;
+
+  /// What a button takes beyond its label: the padding it draws the label with,
+  /// and the narrowest it is drawn at. The app's theme overrides neither, so
+  /// these are the values the `FilledButton` the heading draws with, and they
+  /// are what the point where the row stops is measured from.
+  static const _buttonPadding = 24.0;
+  static const _buttonMinWidth = 64.0;
+
+  /// The width a badge takes at a label: the label measured at the style the
+  /// theme gives it, plus what the box draws around it.
+  double _badgeWidth(String text, {required bool hasIcon}) =>
+      measuredTextWidth(
+        context,
+        text,
+        Theme.of(context).textTheme.labelLarge!,
+      ) +
+      _badgePadding * 2 +
+      (hasIcon ? _badgeIconSize + _badgeIconGap : 0);
+
+  /// The width a button takes at a label: the label measured at the style the
+  /// theme gives buttons, plus the padding it draws it with, and never less
+  /// than the width a button is drawn at whatever its label is.
+  double _buttonWidth(String label) => math.max(
+    _buttonMinWidth,
+    measuredTextWidth(context, label, Theme.of(context).textTheme.labelLarge!) +
+        _buttonPadding * 2,
+  );
+
   /// A badge next to the title: the tracker with its icon, and the release
   /// type.
   Widget _badge({Widget? icon, required String text}) {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: _badgePadding,
+        vertical: 6,
+      ),
       decoration: BoxDecoration(
         border: Border.all(color: theme.colorScheme.outlineVariant),
         borderRadius: BorderRadius.circular(999),
@@ -1222,10 +1290,164 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[icon, const SizedBox(width: 6)],
+          if (icon != null) ...[icon, SizedBox(width: _badgeIconGap)],
           Text(text, style: theme.textTheme.labelLarge),
         ],
       ),
+    );
+  }
+
+  /// One of the three buttons the heading row has. It is drawn disabled while
+  /// the record has no value for it: a post that did not happen left nothing to
+  /// open, and the record is the only thing that says it did.
+  Widget _openButton(
+    String label, {
+    required Key key,
+    required bool hasValue,
+    required void Function() onPressed,
+  }) => FilledButton(
+    key: key,
+    onPressed: hasValue ? onPressed : null,
+    child: Text(label),
+  );
+
+  Future<void> _openTopic(AppLocalizations l10n) async {
+    if (await _controller.openTopic() is UrlOpenFailed) {
+      _sayOpenFailed(l10n.linkOpenFailed);
+    }
+  }
+
+  Future<void> _openTorrentFile(AppLocalizations l10n) async {
+    if (await _controller.openTorrentFile() is PathOpenFailed) {
+      _sayOpenFailed(l10n.fileOpenFailed);
+    }
+  }
+
+  Future<void> _openTorrentFolder(AppLocalizations l10n) async {
+    if (await _controller.openTorrentFolder() is PathOpenFailed) {
+      _sayOpenFailed(l10n.folderOpenFailed);
+    }
+  }
+
+  /// A failed open is said in a snackbar, because the heading is the page's
+  /// title rather than a section that has a place for an outcome: a section
+  /// says what its run ended with in itself, and this row has no body to say it
+  /// in (`ai/torrents.md`).
+  void _sayOpenFailed(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// The heading: the name, the two badges that say what the name is for, and
+  /// the three buttons that are what can be done with the release. The buttons
+  /// are at the right edge of the row, the same way a section puts its action
+  /// at the right of its title row, and each is drawn disabled while the record
+  /// has no value for it, because the record is the only thing that says a post
+  /// happened, as the publish button is disabled while its field is empty
+  /// (`ai/pornolab_upload.md` §11).
+  ///
+  /// The parts are one line when the page has room for all of them; where the
+  /// line stops is what the parts need rather than a page breakpoint, so a
+  /// window narrower than that puts the buttons on the line below, in the order
+  /// the record's values are read — the same rule the settings page's rows
+  /// follow (`ai/doc.md` §3). The widths are measured with the styles the theme
+  /// gives them, so the point where the row stops is that point in the language
+  /// the app is in.
+  Widget _heading(AppLocalizations l10n, double width) {
+    final theme = Theme.of(context);
+    final release = _controller.release;
+
+    Widget name() => Text(release.name, style: theme.textTheme.headlineMedium);
+
+    final hasPath = _controller.fields.value('trackerTorrentFile').isNotEmpty;
+
+    final badges = [
+      SizedBox(width: _headingNameGap),
+      _badge(
+        icon: TrackerIcon(tracker: release.tracker, size: _badgeIconSize),
+        text: release.tracker.displayName,
+      ),
+      SizedBox(width: _headingItemGap),
+      _badge(text: releaseTypeLabel(release.releaseType, l10n)),
+    ];
+
+    final buttons = [
+      _openButton(
+        l10n.openReleaseOnTracker,
+        key: const ValueKey('openTopicButton'),
+        hasValue: _controller.fields.value('topicUrl').isNotEmpty,
+        onPressed: () => _openTopic(l10n),
+      ),
+      SizedBox(width: _headingItemGap),
+      _openButton(
+        l10n.openTorrentFile,
+        key: const ValueKey('openTorrentFileButton'),
+        hasValue: hasPath,
+        onPressed: () => _openTorrentFile(l10n),
+      ),
+      SizedBox(width: _headingItemGap),
+      _openButton(
+        l10n.openTorrentFolder,
+        key: const ValueKey('openTorrentFolderButton'),
+        hasValue: hasPath,
+        onPressed: () => _openTorrentFolder(l10n),
+      ),
+    ];
+
+    // The name, the two badges, the three buttons, and the gaps the row draws
+    // between them.
+    final needs =
+        measuredTextWidth(
+          context,
+          release.name,
+          theme.textTheme.headlineMedium!,
+        ) +
+        _headingNameGap +
+        _badgeWidth(release.tracker.displayName, hasIcon: true) +
+        _headingItemGap +
+        _badgeWidth(
+          releaseTypeLabel(release.releaseType, l10n),
+          hasIcon: false,
+        ) +
+        _headingNameGap +
+        _buttonWidth(l10n.openReleaseOnTracker) +
+        _headingItemGap +
+        _buttonWidth(l10n.openTorrentFile) +
+        _headingItemGap +
+        _buttonWidth(l10n.openTorrentFolder);
+
+    if (needs <= width) {
+      return Row(
+        children: [
+          // The name takes only the width its name needs, so the badges come
+          // after it, and the single flex child — the gap before the buttons —
+          // is what puts them at the right edge. Nothing here is capped: the
+          // measured point is what keeps the row from overflowing, so a name
+          // long enough to need more than the row has is the case below.
+          name(),
+          ...badges,
+          const Spacer(),
+          SizedBox(width: _headingNameGap),
+          ...buttons,
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [name(), ...badges],
+        ),
+        // The gap between the two lines is the one the row uses between its
+        // parts, so a row that stopped reads as the same row.
+        SizedBox(height: _headingItemGap),
+        Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: buttons),
+      ],
     );
   }
 
@@ -1478,6 +1700,7 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
                     release: release,
                     onApply: _applyFieldValues,
                     subscribeMessageChanged: _registerMessageRebuild,
+                    subscribeFileWritten: _registerFileRebuild,
                   )
                 : null;
             final torrent = TorrentSection(
@@ -1485,6 +1708,7 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
               subscribeSourceChanged: _registerSourceRebuild,
               onPrivateChanged: _writeTorrentPrivate,
               onPrivateSaved: _saveTorrentPrivate,
+              onFileWritten: _fileWritten,
             );
 
             // Whether the Message section is inside a column rather than the
@@ -1699,28 +1923,7 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
-                  children: [
-                    // The badges follow the name, because they say what the
-                    // name is for. `Flexible` rather than `Expanded`: the text
-                    // takes only the width its name needs, so the badges come
-                    // after it, and a name long enough to fill the row still
-                    // cannot push them off it.
-                    Flexible(
-                      child: Text(
-                        release.name,
-                        style: Theme.of(context).textTheme.headlineMedium,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    _badge(
-                      icon: TrackerIcon(tracker: release.tracker, size: 16),
-                      text: release.tracker.displayName,
-                    ),
-                    const SizedBox(width: 8),
-                    _badge(text: releaseTypeLabel(release.releaseType, l10n)),
-                  ],
-                ),
+                _heading(l10n, width),
                 // The heading is the title of the page rather than of a column,
                 // so it keeps the gap a section title has before its content.
                 const SizedBox(height: 12),

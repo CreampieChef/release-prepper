@@ -128,6 +128,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get openReleaseShortcut => 'Ctrl+O';
 
   @override
+  String get openReleaseOnTracker => 'Открыть релиз';
+
+  @override
+  String get openTorrentFile => 'Открыть торрент';
+
+  @override
+  String get openTorrentFolder => 'Открыть папку торрента';
+
+  @override
   String get chooseReleaseFolder => 'Выберите папку релиза';
 
   @override
@@ -911,6 +920,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get folderOpenFailed => 'Не удалось открыть папку.';
 
   @override
+  String get fileOpenFailed => 'Не удалось открыть файл.';
+
+  @override
   String get draftSectionTitle => 'Загрузка черновика на трекер';
 
   @override
@@ -925,7 +937,15 @@ class AppLocalizationsRu extends AppLocalizations {
   }
 
   @override
+  String parentForumName(String name) {
+    return 'Сайт называет этот форум так: $name';
+  }
+
+  @override
   String get draftLinkLabel => 'Ссылка на черновик на трекере';
+
+  @override
+  String get topicLinkLabel => 'Ссылка на тему на трекере';
 
   @override
   String get draftNeedsMessageFirst => 'Сначала создайте сообщение';
@@ -940,6 +960,41 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get draftRecreated =>
       'Черновика, на который указывала сохранённая ссылка, на сайте больше нет, поэтому создан новый.';
+
+  @override
+  String get publishButton => 'Опубликовать';
+
+  @override
+  String get publishTitle => 'Вы уверены, что хотите загрузить этот релиз?';
+
+  @override
+  String publishNames(String forum, String title) {
+    return 'Родительский форум: $forum\nНазвание релиза: $title';
+  }
+
+  @override
+  String get publishCheck =>
+      'Подтверждаю: черновик проверен, загружаю его без изменений. Понимаю, что публикацию нельзя отменить.';
+
+  @override
+  String get publishConfirm => 'Загрузить';
+
+  @override
+  String get publishNeedsFileFirst => 'Сначала создайте торрент';
+
+  @override
+  String get publishFileRefused =>
+      'Сайт не принял файл: он больше размера, который объявляет форма, или не из принятых расширений.';
+
+  @override
+  String publishFileWritten(String name) {
+    return 'Файл, который сайт дал, записан как $name.';
+  }
+
+  @override
+  String publishFileNotWritten(String name) {
+    return 'Тема создана, но файл записать как $name не удалось. Тема есть в любом случае.';
+  }
 
   @override
   String get pornolabNeedsCredentials => 'Введите имя пользователя и пароль';

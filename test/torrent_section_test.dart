@@ -14,7 +14,7 @@ import 'package:release_prepper/feature/release/tracker.dart';
 import 'package:release_prepper/feature/section_title.dart';
 import 'package:release_prepper/feature/torrent/torrent_section.dart';
 import 'package:release_prepper/l10n/app_localizations.dart';
-import 'package:release_prepper/service/launcher/folder_opener.dart';
+import 'package:release_prepper/service/launcher/path_opener.dart';
 import 'package:release_prepper/service/native_tools/mkbrr.dart';
 
 import 'test_bencode.dart';
@@ -95,17 +95,17 @@ List<int> torrentBytes(bool private) => utf8.encode(
 );
 
 // The opener answers with the result the test gives instead of asking the OS.
-class _FakeFolderOpener extends FolderOpener {
-  _FakeFolderOpener(this.result);
+class _FakePathOpener extends PathOpener {
+  _FakePathOpener(this.result);
 
-  final OpenFolderResult result;
+  final OpenPathResult result;
 
-  /// The folders each call asked for.
+  /// The paths each call asked for.
   final calls = <String>[];
 
   @override
-  Future<OpenFolderResult> open(String directory) async {
-    calls.add(directory);
+  Future<OpenPathResult> open(String path) async {
+    calls.add(path);
 
     return result;
   }
@@ -122,6 +122,10 @@ void ignorePrivateChanged(bool private) {}
 // The same for the save path, the one for the case where a run changed the file the
 // flag describes.
 Future<void> ignorePrivateSaved(bool private) async {}
+
+// The same for the notice a run ends with: a test that does not look at what
+// the editor is told does not need it.
+void ignoreFileWritten() {}
 
 void main() {
   final release = Release(
@@ -142,7 +146,7 @@ void main() {
 
   Widget app({
     required _FakeMkbrr mkbrr,
-    required _FakeFolderOpener opener,
+    required _FakePathOpener opener,
     required Release release,
     // The editor registers this section's rebuild; a test that does not look at
     // what the source row says does not need it, so the default is the no-op
@@ -152,10 +156,13 @@ void main() {
     // does not need them.
     void Function(bool) onPrivateChanged = ignorePrivateChanged,
     Future<void> Function(bool) onPrivateSaved = ignorePrivateSaved,
+    // The same for the notice a run ends with: a test that does not look at
+    // what the editor is told does not need it.
+    void Function() onFileWritten = ignoreFileWritten,
   }) => MultiProvider(
     providers: [
       Provider<Mkbrr>(create: (_) => mkbrr),
-      Provider<FolderOpener>(create: (_) => opener),
+      Provider<PathOpener>(create: (_) => opener),
     ],
     child: MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -167,6 +174,7 @@ void main() {
             subscribeSourceChanged: subscribeSourceChanged,
             onPrivateChanged: onPrivateChanged,
             onPrivateSaved: onPrivateSaved,
+            onFileWritten: onFileWritten,
           ),
         ),
       ),
@@ -203,12 +211,12 @@ void main() {
     WidgetTester tester,
     AppLocalizations l10n,
     MkbrrResult result, {
-    _FakeFolderOpener? opener,
+    _FakePathOpener? opener,
   }) async {
     await tester.pumpWidget(
       app(
         mkbrr: _FakeMkbrr(result),
-        opener: opener ?? _FakeFolderOpener(const FolderOpened()),
+        opener: opener ?? _FakePathOpener(const PathOpened()),
         release: release,
       ),
     );
@@ -228,7 +236,7 @@ void main() {
       await tester.pumpWidget(
         app(
           mkbrr: _FakeMkbrr(const MkbrrCreated(path: 'out.torrent')),
-          opener: _FakeFolderOpener(const FolderOpened()),
+          opener: _FakePathOpener(const PathOpened()),
           release: release,
         ),
       );
@@ -258,7 +266,7 @@ void main() {
     await tester.pumpWidget(
       app(
         mkbrr: _FakeMkbrr(const MkbrrNotPresent()),
-        opener: _FakeFolderOpener(const FolderOpened()),
+        opener: _FakePathOpener(const PathOpened()),
         release: Release(
           name: 'my release',
           directoryPath: '/tmp/release_prepper_test',
@@ -285,7 +293,7 @@ void main() {
     await tester.pumpWidget(
       app(
         mkbrr: _FakeMkbrr(const MkbrrNotPresent()),
-        opener: _FakeFolderOpener(const FolderOpened()),
+        opener: _FakePathOpener(const PathOpened()),
         release: Release(
           name: 'my release',
           directoryPath: '/tmp/release_prepper_test',
@@ -327,7 +335,7 @@ void main() {
     await tester.pumpWidget(
       app(
         mkbrr: _FakeMkbrr(const MkbrrNotPresent()),
-        opener: _FakeFolderOpener(const FolderOpened()),
+        opener: _FakePathOpener(const PathOpened()),
         release: picked,
         subscribeSourceChanged: (callback) => rebuild = callback,
       ),
@@ -366,7 +374,7 @@ void main() {
       await tester.pumpWidget(
         app(
           mkbrr: mkbrr,
-          opener: _FakeFolderOpener(const FolderOpened()),
+          opener: _FakePathOpener(const PathOpened()),
           release: release,
         ),
       );
@@ -422,7 +430,7 @@ void main() {
     await tester.pumpWidget(
       app(
         mkbrr: mkbrr,
-        opener: _FakeFolderOpener(const FolderOpened()),
+        opener: _FakePathOpener(const PathOpened()),
         release: release,
       ),
     );
@@ -457,7 +465,7 @@ void main() {
     await tester.pumpWidget(
       app(
         mkbrr: mkbrr,
-        opener: _FakeFolderOpener(const FolderOpened()),
+        opener: _FakePathOpener(const PathOpened()),
         release: release,
       ),
     );
@@ -489,7 +497,7 @@ void main() {
     await tester.pumpWidget(
       app(
         mkbrr: mkbrr,
-        opener: _FakeFolderOpener(const FolderOpened()),
+        opener: _FakePathOpener(const PathOpened()),
         release: release,
       ),
     );
@@ -514,6 +522,110 @@ void main() {
     expect(find.text(l10n.torrentCreated('out.torrent')), findsOneWidget);
   });
 
+  // The file is what the Upload draft section gates its publish action on, and
+  // a file that appears is not something that section can see without building
+  // again, so a run that wrote one tells the editor (`ai/pornolab_upload.md`
+  // §7).
+  testWidgets(
+    'a run that wrote the file tells the editor, which is what builds the '
+    'section that reads the file',
+    (tester) async {
+      tester.view.physicalSize = const Size(1200, 1200);
+      tester.view.devicePixelRatio = 1.0;
+
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+      final written = <String>[];
+
+      await tester.pumpWidget(
+        app(
+          mkbrr: _FakeMkbrr(const MkbrrCreated(path: 'out.torrent')),
+          opener: _FakePathOpener(const PathOpened()),
+          release: release,
+          onFileWritten: () => written.add('written'),
+        ),
+      );
+
+      await tester.tap(find.text(l10n.torrentButton));
+      await tester.pumpAndSettle();
+
+      expect(written, ['written']);
+    },
+  );
+
+  // The notice says what a run wrote, so a run that wrote nothing says nothing:
+  // a failed run leaves no file, and the section that reads the file would show
+  // the same thing if it were built again.
+  testWidgets('a run that wrote no file tells the editor nothing', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 1200);
+    tester.view.devicePixelRatio = 1.0;
+
+    final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+    final written = <String>[];
+
+    await tester.pumpWidget(
+      app(
+        mkbrr: _FakeMkbrr(const MkbrrRunFailed(exitCode: 1)),
+        opener: _FakePathOpener(const PathOpened()),
+        release: release,
+        onFileWritten: () => written.add('written'),
+      ),
+    );
+
+    await tester.tap(find.text(l10n.torrentButton));
+    await tester.pumpAndSettle();
+
+    expect(written, isEmpty);
+  });
+
+  // A flag change rewrites a file that is already there, so the run is the same
+  // one that can make a file and it ends with the same notice.
+  testWidgets('a flag change that rewrote the file tells the editor too', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 1200);
+    tester.view.devicePixelRatio = 1.0;
+
+    final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+    final directory = Directory.systemTemp.createTempSync(
+      'release_prepper_test',
+    );
+
+    File(p.join(directory.path, 'my release.torrent'))
+        .writeAsBytesSync(torrentBytes(true));
+
+    final written = <String>[];
+
+    await tester.pumpWidget(
+      app(
+        mkbrr: _FakeMkbrr(
+          MkbrrModified(path: p.join(directory.path, 'my release.torrent')),
+          writeFile: true,
+        ),
+        opener: _FakePathOpener(const PathOpened()),
+        release: releaseWith(
+          torrentPrivate: true,
+          directoryPath: directory.path,
+        ),
+        onFileWritten: () => written.add('written'),
+      ),
+    );
+
+    await tester.tap(flagCheckbox());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text(l10n.torrentPrivateConfirm));
+    await tester.pumpAndSettle();
+
+    expect(written, ['written']);
+
+    directory.deleteSync(recursive: true);
+  });
+
   // A release opened again can already have the file, and the app records
   // nothing for it, so the section says what it finds on disk before any run.
   testWidgets('a release whose file is already on disk says so', (
@@ -533,7 +645,7 @@ void main() {
     await tester.pumpWidget(
       app(
         mkbrr: _FakeMkbrr(const MkbrrNotPresent()),
-        opener: _FakeFolderOpener(const FolderOpened()),
+        opener: _FakePathOpener(const PathOpened()),
         release: Release(
           name: 'my release',
           directoryPath: directory.path,
@@ -577,7 +689,7 @@ void main() {
     await tester.pumpWidget(
       app(
         mkbrr: _FakeMkbrr(const MkbrrNotPresent()),
-        opener: _FakeFolderOpener(const FolderOpened()),
+        opener: _FakePathOpener(const PathOpened()),
         release: Release(
           name: 'my release',
           directoryPath: directory.path,
@@ -611,7 +723,7 @@ void main() {
 
     final l10n = await AppLocalizations.delegate.load(const Locale('en'));
 
-    final opener = _FakeFolderOpener(const FolderOpened());
+    final opener = _FakePathOpener(const PathOpened());
 
     await run(
       tester,
@@ -638,7 +750,7 @@ void main() {
 
     final l10n = await AppLocalizations.delegate.load(const Locale('en'));
 
-    final opener = _FakeFolderOpener(const FolderOpenFailed());
+    final opener = _FakePathOpener(const PathOpenFailed());
 
     await tester.pumpWidget(
       app(
@@ -669,7 +781,7 @@ void main() {
     await tester.pumpWidget(
       app(
         mkbrr: _FakeMkbrr(const MkbrrNotPresent()),
-        opener: _FakeFolderOpener(const FolderOpened()),
+        opener: _FakePathOpener(const PathOpened()),
         release: release,
       ),
     );
@@ -727,7 +839,7 @@ void main() {
     await tester.pumpWidget(
       app(
         mkbrr: _FakeMkbrr(const MkbrrNotPresent()),
-        opener: _FakeFolderOpener(const FolderOpened()),
+        opener: _FakePathOpener(const PathOpened()),
         release: release,
       ),
     );
@@ -750,7 +862,7 @@ void main() {
     await tester.pumpWidget(
       app(
         mkbrr: _FakeMkbrr(const MkbrrNotPresent()),
-        opener: _FakeFolderOpener(const FolderOpened()),
+        opener: _FakePathOpener(const PathOpened()),
         release: releaseWith(torrentPrivate: false),
       ),
     );
@@ -767,7 +879,7 @@ void main() {
     await tester.pumpWidget(
       app(
         mkbrr: _FakeMkbrr(const MkbrrNotPresent()),
-        opener: _FakeFolderOpener(const FolderOpened()),
+        opener: _FakePathOpener(const PathOpened()),
         release: release,
       ),
     );
@@ -793,7 +905,7 @@ void main() {
     await tester.pumpWidget(
       app(
         mkbrr: _FakeMkbrr(const MkbrrNotPresent()),
-        opener: _FakeFolderOpener(const FolderOpened()),
+        opener: _FakePathOpener(const PathOpened()),
         release: releaseWith(
           torrentPrivate: true,
           directoryPath: directory.path,
@@ -829,7 +941,7 @@ void main() {
       await tester.pumpWidget(
         app(
           mkbrr: _FakeMkbrr(const MkbrrNotPresent()),
-          opener: _FakeFolderOpener(const FolderOpened()),
+          opener: _FakePathOpener(const PathOpened()),
           release: releaseWith(
             torrentPrivate: true,
             directoryPath: directory.path,
@@ -865,7 +977,7 @@ void main() {
     await tester.pumpWidget(
       app(
         mkbrr: _FakeMkbrr(const MkbrrNotPresent()),
-        opener: _FakeFolderOpener(const FolderOpened()),
+        opener: _FakePathOpener(const PathOpened()),
         release: releaseWith(
           torrentPrivate: true,
           directoryPath: directory.path,
@@ -895,7 +1007,7 @@ void main() {
     await tester.pumpWidget(
       app(
         mkbrr: _FakeMkbrr(const MkbrrNotPresent()),
-        opener: _FakeFolderOpener(const FolderOpened()),
+        opener: _FakePathOpener(const PathOpened()),
         release: release,
         onPrivateChanged: (value) {
           chosen.add(value);
@@ -937,7 +1049,7 @@ void main() {
     await tester.pumpWidget(
       app(
         mkbrr: mkbrr,
-        opener: _FakeFolderOpener(const FolderOpened()),
+        opener: _FakePathOpener(const PathOpened()),
         release: releaseWith(
           torrentPrivate: false,
           directoryPath: directory.path,
@@ -994,7 +1106,7 @@ void main() {
       await tester.pumpWidget(
         app(
           mkbrr: mkbrr,
-          opener: _FakeFolderOpener(const FolderOpened()),
+          opener: _FakePathOpener(const PathOpened()),
           release: releaseWith(
             torrentPrivate: true,
             directoryPath: directory.path,
@@ -1049,7 +1161,7 @@ void main() {
     await tester.pumpWidget(
       app(
         mkbrr: mkbrr,
-        opener: _FakeFolderOpener(const FolderOpened()),
+        opener: _FakePathOpener(const PathOpened()),
         release: releaseWith(
           torrentPrivate: true,
           directoryPath: directory.path,
@@ -1088,7 +1200,7 @@ void main() {
     await tester.pumpWidget(
       app(
         mkbrr: mkbrr,
-        opener: _FakeFolderOpener(const FolderOpened()),
+        opener: _FakePathOpener(const PathOpened()),
         release: release,
       ),
     );

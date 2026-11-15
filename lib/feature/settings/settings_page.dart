@@ -8,6 +8,7 @@ import '../../l10n/app_localizations.dart';
 import '../../service/network/pornolab_client.dart';
 import '../pornolab_results.dart';
 import '../tab/tab_manager.dart';
+import '../text_width.dart';
 import 'settings.dart';
 import 'settings_controller.dart';
 
@@ -338,21 +339,6 @@ class _SettingsPageState extends State<SettingsPage> {
     ];
   }
 
-  /// The width a string needs at a style. `TextPainter` is the only way to ask,
-  /// and the styles are the ones the theme gives the controls on the row, so the
-  /// answer is the same as what the widget draws in the language the app is in.
-  double _textWidth(String text, TextStyle style) {
-    final painter = TextPainter(
-      text: TextSpan(text: text, style: style),
-      textDirection: Directionality.of(context),
-      textScaler: MediaQuery.textScalerOf(context),
-    );
-
-    painter.layout();
-
-    return painter.width;
-  }
-
   /// The width a button takes on a row: the label at the style the theme gives
   /// buttons, plus the padding it draws that label with. An icon button adds
   /// the glyph and the gap between the glyph and the label. Measured rather
@@ -361,7 +347,7 @@ class _SettingsPageState extends State<SettingsPage> {
   double _buttonWidth(String label, {required bool hasIcon}) {
     final theme = Theme.of(context);
 
-    return _textWidth(label, theme.textTheme.labelLarge!) +
+    return measuredTextWidth(context, label, theme.textTheme.labelLarge!) +
         _buttonPadding * 2 +
         (hasIcon ? _iconWidth + _iconLabelGap : 0);
   }

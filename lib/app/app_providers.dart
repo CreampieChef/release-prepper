@@ -26,9 +26,11 @@ import '../feature/window/window_controller.dart';
 import '../feature/window/window_gateway.dart';
 import '../feature/window/window_size_store.dart';
 import '../service/fonts/font_store.dart';
-import '../service/launcher/folder_opener.dart';
+import '../service/launcher/path_opener.dart';
 import '../service/launcher/url_opener.dart';
+import '../service/logging/debug_text_log.dart';
 import '../service/logging/tool_log.dart';
+
 import '../service/native_tools/ffprobe.dart';
 import '../service/native_tools/ffmpeg.dart';
 import '../service/native_tools/mkbrr.dart';
@@ -62,7 +64,7 @@ List<SingleChildWidget> appProviders() => [
     ),
   ),
 
-  // The tool log, `<release_dir>/logs/`. `ToolRunner` writes it.
+  // The tool log, `<release_dir>/_rp_logs/`. `ToolRunner` writes it.
   Provider<ToolLog>(create: (_) => ToolLog()),
 
   Provider<ToolRunner>(
@@ -132,6 +134,15 @@ List<SingleChildWidget> appProviders() => [
   // given it.
   Provider<DomainMap>(create: (_) => DomainMap(bundle: rootBundle)),
 
+  // The plain text copy of the same calls, for reading a run against the site
+  // by hand (`ai/uploading_draft.md` §8). It writes nothing unless the app was
+  // started with `--unsafe-verbose-tracker-logging`, so a normal run has only
+  // the app's log. The flag is read by the service itself, as rule 10 records
+  // for the flags read in `main()`. It is a separate service so that the
+  // decision to write is one place and the call sites stay with the client that
+  // makes the calls.
+  Provider<DebugTextLog>(create: (_) => DebugTextLog()),
+
   // PornoLab, over the same client, for the Upload draft section
   // (`ai/uploading_draft.md`). The cookie is not a dependency of the client for
   // the same reason the API key is not one. This is the first stateful service
@@ -141,16 +152,20 @@ List<SingleChildWidget> appProviders() => [
     create: (context) => HttpPornolabClient(
       client: context.read<HttpClient>(),
       log: context.read<ToolLog>(),
+      debug: context.read<DebugTextLog>(),
     ),
   ),
 
-  // Opening a folder in the file manager the OS uses, for the link the Torrent
-  // section shows next to the path (`ai/torrents.md`).
-  Provider<FolderOpener>(create: (_) => const FolderOpener()),
+  // Opening a path with the handler the OS uses for it — a folder in the file
+  // manager, a file in the application registered for its type — for the link
+  // the Torrent section shows next to the path and for the three buttons the
+  // editor's heading has (`ai/torrents.md`, `ai/pornolab_upload.md` §11).
+  Provider<PathOpener>(create: (_) => const PathOpener()),
 
   // Opening a link in the browser the OS uses, for the draft link the Upload
-  // draft section shows (`ai/uploading_draft.md` §5). The second use of
-  // url_launcher, after `FolderOpener`.
+  // draft section shows and for the topic link the editor's heading opens
+  // (`ai/uploading_draft.md` §5). The second use of url_launcher, after
+  // `PathOpener`.
   Provider<UrlOpener>(create: (_) => const UrlOpener()),
 
   Provider<ReleaseStore>(create: (_) => ReleaseStore()),

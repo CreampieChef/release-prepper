@@ -6,8 +6,10 @@ import 'package:path/path.dart' as p;
 
 import 'package:release_prepper/app/app_info.dart';
 import 'package:release_prepper/service/logging/tool_log.dart';
+import 'package:release_prepper/service/logging/debug_text_log.dart';
 import 'package:release_prepper/service/logging/tool_log_entry.dart';
 import 'package:release_prepper/service/network/pornolab_client.dart';
+import 'package:release_prepper/service/torrent/torrent_path.dart';
 
 // `HttpClient` has only a factory constructor, so it cannot be extended; the
 // fake implements the interface and forwards what the test does not call. It
@@ -29,7 +31,9 @@ class _FailingHttpClient implements HttpClient {
 // is here — the status, the headers, the body as bytes — and `noSuchMethod`
 // answers the members the code does not touch.
 class _FakeResponse implements HttpClientResponse {
-  _FakeResponse(this.statusCode, this.headers, {this.body = ''});
+  // [bytes] is what the answer serves when it is a file rather than a page: the
+  // bytes must reach the client as they are, so they cannot be written as text.
+  _FakeResponse(this.statusCode, this.headers, {this.body = '', this.bytes});
 
   @override
   final int statusCode;
@@ -39,9 +43,11 @@ class _FakeResponse implements HttpClientResponse {
 
   final String body;
 
+  final List<int>? bytes;
+
   @override
   Future<void> forEach(void Function(List<int>) action) async =>
-      action(utf8.encode(body));
+      action(bytes ?? utf8.encode(body));
 
   @override
   Future<E> drain<E>([E? error]) async => error as E;
@@ -75,6 +81,11 @@ class _FakeHeaders implements HttpHeaders {
   set contentType(Object? value) =>
       _contentType = value is ContentType ? value : null;
 
+  // The length the request declares is what a test reads, because the body is
+  // what the length is the length of.
+  @override
+  int contentLength = 0;
+
   @override
   void forEach(void Function(String, List<String>) action) =>
       _values.forEach(action);
@@ -98,6 +109,14 @@ class _FakeRequest implements HttpClientRequest {
 
   @override
   void write(Object? data) => body.add(data.toString());
+
+  // A multipart body is bytes, so the file part is recorded as bytes rather
+  // than as text: the test that says a value is the codepage's bytes cannot
+  // read them back through a String.
+  @override
+  void add(List<int> data) => bytes.addAll(data);
+
+  final bytes = <int>[];
 
   @override
   Future<HttpClientResponse> close() async => response;
@@ -155,6 +174,35 @@ var form_token = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
 
   const token = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
 
+  // The answer a post gets: the block with its two links, trimmed the way the
+  // example page is. The ids are the ones `ai/pornolab_upload.md` uses for its
+  // examples, not the ones the recording has.
+  const block = """
+<table class="forumline message">
+<tr><td class="row1">Информация</td></tr>
+<tr><td><a href="dl.php?t=3000111">download</a>
+<a href="viewtopic.php?t=3000111">topic</a></td></tr>
+</table>""";
+
+  // The breadcrumb a forum page writes, as a real page was seen to write it
+  // (`ai/uploading_draft.md` §4): the table cell with the `nav` class, which
+  // the page writes twice and the fixture is the first. The entity the name is
+  // written with is kept, because the name is read back from it. The pagination
+  // is the other element with that class and its links name the same forum as
+  // page numbers, so the fixture carries it: the rule reads the cell, not it.
+  const nav = """
+<table>
+<tr>
+<td class="nav nav-top" width="100%">
+&nbsp;<a href="./index.php">Список форумов</a>
+<em>&raquo;</em> <a href="viewforum.php?f=1857">SiteRip&#039;s 2022 (HD Video)</a>
+</td>
+</tr>
+</table>
+<div class="nav" id="pagination">
+<p><a class="pg" href="viewforum.php?f=1857&amp;start=50">2</a></p>
+</div>""";
+
   // The login form as the site writes it when it asks for a code, in the order
   // the form declares its fields. The page this was worked from is not in the
   // repo because it carries an account name, so this is the trimmed shape of it
@@ -170,10 +218,18 @@ var form_token = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
 <input type="submit" name="login" value="Вход" />
 </form>""";
 
-  // The entries the client wrote, in the order it wrote them.
-  List<Map<String, dynamic>> logEntries(Directory directory) =>
+  // The entries the client wrote, in the order it wrote them. Only the app's
+  // own log files, because the client writes the plain text copy into the same
+  // folder too.
+  List<File> logFiles(Directory directory) =>
       Directory(p.join(directory.path, ToolLog.directoryName))
           .listSync()
+          .whereType<File>()
+          .where((file) => p.basename(file.path).startsWith(ToolLog.filePrefix))
+          .toList();
+
+  List<Map<String, dynamic>> logEntries(Directory directory) =>
+      logFiles(directory)
           .expand((file) => File(file.path).readAsLinesSync())
           .map((line) => jsonDecode(line) as Map<String, dynamic>)
           .toList();
@@ -273,6 +329,76 @@ var form_token = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
       PornolabClient.draftUrl(forumId: 1013, draftId: 42),
       'https://pornolab.net/forum/posting.php?mode=newtopic&f=1013&draft=42',
     );
+  });
+
+  // The base is what the app was started with, through the flag `main()` reads
+  // before the app is built (`ai/pornolab_upload.md` §10). One value, because
+  // the requests and the links are built from it: a link to the site for a
+  // topic the stub made is not the topic the app made.
+  test(
+    'the base the app was started with is what the links are built from',
+    () {
+      devTrackerStub = true;
+      addTearDown(() => devTrackerStub = false);
+
+      expect(PornolabClient.base(), 'http://localhost:40002');
+      expect(
+        PornolabClient.topicUrl(topicId: 3000111),
+        'http://localhost:40002/forum/viewtopic.php?t=3000111',
+      );
+      expect(
+        PornolabClient.draftUrl(forumId: 1857, draftId: 11818),
+        'http://localhost:40002/forum/posting.php?mode=newtopic&f=1857'
+        '&draft=11818',
+      );
+    },
+  );
+
+  // A run against the stub is a run made to the stub, in the three calls the
+  // post is made of and in the order it makes them. The base is the same value
+  // the links are built from, so a run cannot ask one and link to the other.
+  test('a run with the flag is made to the stub, not to the site', () async {
+    devTrackerStub = true;
+    addTearDown(() => devTrackerStub = false);
+
+    final directory = Directory.systemTemp.createTempSync(
+      'pornolab_stub_base_test',
+    );
+
+    final sent = File(p.join(directory.path, 'the-release.torrent'))
+      ..writeAsBytesSync(utf8.encode('d5:filesdee'));
+
+    final http = _FakeHttpClient([
+      _FakeResponse(200, _FakeHeaders(), body: page),
+      _FakeResponse(200, _FakeHeaders(), body: block),
+      _FakeResponse(200, _FakeHeaders(), bytes: [9, 8, 7]),
+    ]);
+
+    final client = HttpPornolabClient(
+      client: http,
+      log: ToolLog(),
+      debug: DebugTextLog(),
+    );
+
+    await client.postTopic(
+      releaseDirectory: directory.path,
+      cookie: 'session=abc',
+      forumId: 1857,
+      draftId: 11818,
+      subject: 'the title',
+      message: 'the message',
+      filePath: sent.path,
+    );
+
+    expect(http.calls, [
+      Uri.parse(
+        'http://localhost:40002/forum/posting.php?mode=newtopic&f=1857',
+      ),
+      Uri.parse('http://localhost:40002/forum/posting.php'),
+      Uri.parse('http://localhost:40002/forum/dl.php?t=3000111'),
+    ]);
+
+    directory.deleteSync(recursive: true);
   });
 
   test('the form body is the fields the call sends, encoded as UTF-8', () {
@@ -478,6 +604,7 @@ var form_token = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
         const SocketException("Failed host lookup: 'pornolab.net'"),
       ),
       log: ToolLog(),
+      debug: DebugTextLog(),
     );
 
     final result = await client.saveDraft(
@@ -492,8 +619,7 @@ var form_token = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
     expect(result, isA<PornolabFailure>());
     expect((result as PornolabFailure).kind, PornolabFailureKind.requestFailed);
 
-    final entries = Directory(p.join(directory.path, ToolLog.directoryName))
-        .listSync();
+    final entries = logFiles(directory);
 
     expect(entries, hasLength(1));
 
@@ -538,7 +664,11 @@ var form_token = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
 
       final http = _FakeHttpClient([_FakeResponse(302, headers)]);
 
-      final client = HttpPornolabClient(client: http, log: ToolLog());
+      final client = HttpPornolabClient(
+        client: http,
+        log: ToolLog(),
+        debug: DebugTextLog(),
+      );
 
       final result = await client.saveDraft(
         releaseDirectory: directory.path,
@@ -581,7 +711,11 @@ var form_token = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
       _FakeResponse(200, _FakeHeaders(), body: '{"draft_id": 43}'),
     ]);
 
-    final client = HttpPornolabClient(client: http, log: ToolLog());
+    final client = HttpPornolabClient(
+      client: http,
+      log: ToolLog(),
+      debug: DebugTextLog(),
+    );
 
     final result = await client.saveDraft(
       releaseDirectory: directory.path,
@@ -636,7 +770,11 @@ var form_token = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
       _FakeResponse(200, _FakeHeaders(), body: gone),
     ]);
 
-    final client = HttpPornolabClient(client: http, log: ToolLog());
+    final client = HttpPornolabClient(
+      client: http,
+      log: ToolLog(),
+      debug: DebugTextLog(),
+    );
 
     final result = await client.saveDraft(
       releaseDirectory: directory.path,
@@ -891,6 +1029,7 @@ var form_token = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
         ),
       ]),
       log: ToolLog(),
+      debug: DebugTextLog(),
     );
 
     final result = await client.login(
@@ -966,6 +1105,7 @@ var form_token = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
         ),
       ]),
       log: ToolLog(),
+      debug: DebugTextLog(),
     );
 
     final result = await client.login(
@@ -1028,7 +1168,11 @@ var form_token = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
 
     final http = _FakeHttpClient([_FakeResponse(302, _FakeHeaders())]);
 
-    final client = HttpPornolabClient(client: http, log: ToolLog());
+    final client = HttpPornolabClient(
+      client: http,
+      log: ToolLog(),
+      debug: DebugTextLog(),
+    );
 
     await client.login(
       logDirectory: directory.path,
@@ -1071,7 +1215,11 @@ var form_token = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
         _FakeResponse(302, _FakeHeaders()..add('set-cookie', 'session=abc')),
       ]);
 
-      final client = HttpPornolabClient(client: http, log: ToolLog());
+      final client = HttpPornolabClient(
+        client: http,
+        log: ToolLog(),
+        debug: DebugTextLog(),
+      );
 
       await client.login(
         logDirectory: directory.path,
@@ -1115,7 +1263,11 @@ var form_token = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
       _FakeResponse(200, _FakeHeaders(), body: '{"draft_id": 43}'),
     ]);
 
-    final client = HttpPornolabClient(client: http, log: ToolLog());
+    final client = HttpPornolabClient(
+      client: http,
+      log: ToolLog(),
+      debug: DebugTextLog(),
+    );
 
     int pageReads() =>
         http.calls.where((url) => url.path.contains('posting.php')).length;
@@ -1151,4 +1303,636 @@ var form_token = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
 
     directory.deleteSync(recursive: true);
   });
+
+  // The form the app fills, in the order the page lays it out
+  // (`ai/pornolab_upload.md` §3). The parts the page has for its controls are
+  // not sent, because the app has none of them.
+  test(
+    'the form is the parts the app has, in the order the page puts them',
+    () {
+      final parts = PornolabClient.formParts(
+        token: token,
+        forumId: 1857,
+        draftId: 11818,
+        subject: 'the title',
+        message: 'the message',
+        fileName: 'the-release.torrent',
+        fileBytes: [1, 2, 3],
+      );
+
+      expect(parts.map((part) => part.name).toList(), [
+        'mode',
+        'f',
+        't',
+        'p',
+        'draft_id',
+        'subject',
+        'message',
+        'MAX_FILE_SIZE',
+        'attach',
+        'post',
+        'form_token',
+      ]);
+
+      // The file part is between the message and the button, because that is
+      // where the page's own form has it.
+      expect(parts.indexWhere((part) => part.isFile), 8);
+    },
+  );
+
+  // A file part is not a field, so it carries the name the sender gives the
+  // file with and the type a browser writes for it (§3). The name is the one
+  // the app's own run wrote the file under.
+  test('the file part carries the name it was given with and its type', () {
+    final parts = PornolabClient.formParts(
+      token: token,
+      forumId: 1857,
+      draftId: 11818,
+      subject: 'the title',
+      message: 'the message',
+      fileName: 'the-release.torrent',
+      fileBytes: [1, 2, 3],
+    );
+
+    final file = parts.firstWhere((part) => part.isFile);
+
+    expect(file.name, 'attach');
+    expect(file.fileName, 'the-release.torrent');
+    expect(file.contentType, 'application/x-bittorrent');
+    expect(file.bytes, [1, 2, 3]);
+  });
+
+  // The body as the form writes it: the parts between the delimiter and the
+  // value, the last closed with the two dashes RFC 2046 asks for (§3).
+  test(
+    'the body is the parts, with the file part carrying its content type',
+    () {
+      final parts = PornolabClient.formParts(
+        token: token,
+        forumId: 1857,
+        draftId: 11818,
+        subject: 'the title',
+        message: 'the message',
+        fileName: 'the-release.torrent',
+        fileBytes: utf8.encode('d5:filesdee'),
+      );
+
+      final body = latin1.decode(
+        PornolabClient.postBody(boundary: '----rpformboundary0', parts: parts),
+      );
+
+      // The delimiter is the two dashes RFC 2046 asks for plus the boundary,
+      // which is what the recording shows a browser writing — so a boundary
+      // that already begins with dashes is not a mistake.
+      expect(
+        body,
+        startsWith(
+          '------rpformboundary0\r\n'
+          'Content-Disposition: form-data; name="mode"\r\n\r\nnewtopic\r\n',
+        ),
+      );
+      expect(
+        body,
+        contains(
+          'name="attach"; filename="the-release.torrent"\r\n'
+          'Content-Type: application/x-bittorrent\r\n\r\nd5:filesdee\r\n',
+        ),
+      );
+      expect(body, endsWith('------rpformboundary0--\r\n'));
+
+      // The parts the page has for its controls are not in it, because the app
+      // has no value for them.
+      expect(body, isNot(contains('topic_tags')));
+    },
+  );
+
+  // A part is the value itself rather than a percent-encoded field, so nothing
+  // is escaped, and the bytes are still the page's codepage (§4).
+  test('a value is written as the codepage bytes, with nothing escaped', () {
+    expect(PornolabClient.cp1251Bytes('Привет'), [
+      0xCF,
+      0xF0,
+      0xE8,
+      0xE2,
+      0xE5,
+      0xF2,
+    ]);
+
+    // A space stays a space, which is what separates this from `encodeCp1251`.
+    expect(PornolabClient.cp1251Bytes('a b'), utf8.encode('a b'));
+
+    // A character the codepage has no byte for is the character's UTF-8 bytes,
+    // the same rule `encodeCp1251` follows.
+    expect(PornolabClient.cp1251Bytes('é'), utf8.encode('é'));
+  });
+
+  // The id the block carries is the same in both of its links, so either is
+  // read (§5). A page that is not the block gives nothing: it cannot say which
+  // of the two it refused, so it is one result until such an answer is seen
+  // (§12).
+  test('the id is read from either link the block carries', () {
+    expect(PornolabClient.topicIdFromBlock(block), 3000111);
+
+    expect(
+      PornolabClient.topicIdFromBlock(
+        block.replaceFirst('dl.php?t=', 'viewtopic.php?t='),
+      ),
+      3000111,
+    );
+
+    expect(PornolabClient.topicIdFromBlock(page), isNull);
+  });
+
+  // The path the served file is written at is the app's folder with the name
+  // the site gives it, in the shape the record holds a path inside a release as
+  // (§6, `ai/release_structure.md` §2). The link is built from the base the app
+  // is talking to, as `draftUrl` is, because the id is what the answer gave.
+  test('the served file and the link are named by the id the answer gave', () {
+    expect(
+      trackerTorrentPath(3000111),
+      '_rp_torrent/[pornolab.net].t3000111.torrent',
+    );
+
+    expect(
+      PornolabClient.topicUrl(topicId: 3000111),
+      'https://pornolab.net/forum/viewtopic.php?t=3000111',
+    );
+  });
+
+  // The name for the row is the link the breadcrumb cell writes for the forum
+  // the value names. A name with an apostrophe comes as an entity, so it is
+  // read back (§4). The fixture's pagination carries the same class and a link
+  // for the same forum, so the expectation here is also that the cell is what
+  // is read: a name read from the pagination would be a page number.
+  test(
+    'the name is read from the breadcrumb link for the forum the value names',
+    () {
+      expect(
+        PornolabClient.forumNameFromPage(nav, 1857),
+        "SiteRip's 2022 (HD Video)",
+      );
+
+      // A breadcrumb for another forum is not the name of this one, and a page
+      // with no breadcrumb gives nothing: the name is a label, not something a
+      // run needs.
+      expect(PornolabClient.forumNameFromPage(nav, 1013), isNull);
+      expect(PornolabClient.forumNameFromPage(page, 1857), isNull);
+    },
+  );
+
+  // The page the name is read from is asked for at the base the app was started
+  // with, as every other request on this interface is, so a run against the
+  // stub reads the name from the page the stub writes (`ai/pornolab_upload.md`
+  // §10). The value is not an address here: it is where the id comes from.
+  test('the page the name is read from is asked for at the base', () async {
+    devTrackerStub = true;
+    addTearDown(() => devTrackerStub = false);
+
+    final directory = Directory.systemTemp.createTempSync(
+      'pornolab_name_base_test',
+    );
+
+    final http = _FakeHttpClient([
+      _FakeResponse(200, _FakeHeaders(), body: nav),
+    ]);
+
+    final client = HttpPornolabClient(
+      client: http,
+      log: ToolLog(),
+      debug: DebugTextLog(),
+    );
+
+    final result = await client.forumName(
+      releaseDirectory: directory.path,
+      cookie: 'session=abc',
+      url: 'https://pornolab.net/forum/viewforum.php?f=1857',
+    );
+
+    expect(http.calls, [
+      Uri.parse('http://localhost:40002/forum/viewforum.php?f=1857'),
+    ]);
+
+    expect(result, isA<ForumNameRead>());
+    expect((result as ForumNameRead).name, "SiteRip's 2022 (HD Video)");
+
+    // Without the flag the same call is made to the site, because the base is
+    // the site's address then. One value, so the call and the links cannot
+    // disagree.
+    devTrackerStub = false;
+
+    final site = _FakeHttpClient([
+      _FakeResponse(200, _FakeHeaders(), body: nav),
+    ]);
+
+    final other = HttpPornolabClient(
+      client: site,
+      log: ToolLog(),
+      debug: DebugTextLog(),
+    );
+
+    await other.forumName(
+      releaseDirectory: directory.path,
+      cookie: 'session=abc',
+      url: 'https://pornolab.net/forum/viewforum.php?f=1857',
+    );
+
+    expect(site.calls, [
+      Uri.parse('https://pornolab.net/forum/viewforum.php?f=1857'),
+    ]);
+
+    directory.deleteSync(recursive: true);
+  });
+
+  // A post is three calls: the page the token comes from, the form with the
+  // file, and the file the tracker serves for the topic the form made (§7). The
+  // test reads what was sent and what was written, because the file is the part
+  // of the run the user cannot see.
+  test(
+    'a post sends the form and writes the file the tracker serves',
+    () async {
+      final directory = Directory.systemTemp.createTempSync(
+        'pornolab_post_test',
+      );
+
+      final sent = File(p.join(directory.path, 'the-release.torrent'))
+        ..writeAsBytesSync(utf8.encode('d5:filesdee'));
+
+      final fileHeaders = _FakeHeaders()
+        ..set(
+          'content-disposition',
+          'attachment; filename="[pornolab.net].t3000111.torrent"',
+        );
+
+      final http = _FakeHttpClient([
+        _FakeResponse(200, _FakeHeaders(), body: page),
+        _FakeResponse(200, _FakeHeaders(), body: block),
+        _FakeResponse(200, fileHeaders, bytes: [9, 8, 7]),
+      ]);
+
+      final client = HttpPornolabClient(
+        client: http,
+        log: ToolLog(),
+        debug: DebugTextLog(),
+      );
+
+      final result = await client.postTopic(
+        releaseDirectory: directory.path,
+        cookie: 'the-cookie',
+        forumId: 1857,
+        draftId: 11818,
+        subject: 'the title',
+        message: 'the message',
+        filePath: sent.path,
+      );
+
+      expect(result, isA<Posted>());
+
+      final posted = result as Posted;
+
+      expect(posted.topicId, 3000111);
+      expect(
+        posted.topicUrl,
+        'https://pornolab.net/forum/viewtopic.php?t=3000111',
+      );
+
+      // The tracker's copy is written in the app's folder, under the name the
+      // site gives it, and the file the app sent stays: nothing in the app
+      // deletes a file, so a posted release has both (§6). The path the result
+      // carries is the recorded one, relative to the release directory.
+      expect(posted.filePath, '_rp_torrent/[pornolab.net].t3000111.torrent');
+      expect(File(p.join(directory.path, posted.filePath!)).readAsBytesSync(), [
+        9,
+        8,
+        7,
+      ]);
+
+      // The form is sent as a browser sends it, so the boundary in the
+      // Content-Type is the one the body is built from.
+      final request = http.requests[1] as _FakeRequest;
+      final header = request.headers.value('Content-Type')!;
+
+      expect(header, startsWith('multipart/form-data; boundary='));
+
+      final boundary = header.split('boundary=').last;
+
+      expect(
+        latin1.decode(request.bytes),
+        startsWith(
+          '--$boundary\r\nContent-Disposition: form-data; name="mode"',
+        ),
+      );
+      expect(
+        latin1.decode(request.bytes),
+        contains('filename="the-release.torrent"'),
+      );
+
+      // The length is declared as a browser declares it, because a server
+      // that is not a browser reads that header rather than the body. Without
+      // it the form is a chunked body, which is a shape nothing here has a rule
+      // for (§3).
+      expect(request.headers.contentLength, request.bytes.length);
+      expect(request.headers.contentLength, greaterThan(0));
+
+      // The log records a file part as the name it was given with and its size,
+      // never its bytes (§9). The cookie is still the marker, as the app's log
+      // keeps it. The entries are one per request and one per answer in the
+      // order the calls were made, so the form is the third entry.
+      final lines = logEntries(directory);
+
+      expect(lines[0]['input'], contains(ToolLogEntry.redacted));
+      expect(
+        lines[2]['input'],
+        containsAll(['attach', 'the-release.torrent', 'size']),
+      );
+      expect(lines[2]['input'], isNot(contains('d5:filesdee')));
+
+      directory.deleteSync(recursive: true);
+    },
+  );
+
+  // The plain text copy (`ai/uploading_draft.md` §8) is the same calls read
+  // by hand: the cookie as its value and a page in full, which are the two
+  // things an encoding or a field the site wants is read back from, and
+  // which the app's log keeps as markers for a reason that applies to a run a
+  // user makes. The flag is turned on here because the file is what the test
+  // reads; the test for the flag itself is `test/debug_text_log_test.dart`.
+  test(
+    'the text log records the cookie as its value and the page in full',
+    () async {
+      verboseTrackerLogging = true;
+      addTearDown(() => verboseTrackerLogging = false);
+
+      final directory = Directory.systemTemp.createTempSync(
+        'pornolab_debug_test',
+      );
+
+      final sent = File(p.join(directory.path, 'the-release.torrent'))
+        ..writeAsBytesSync(utf8.encode('d5:filesdee'));
+
+      final http = _FakeHttpClient([
+        _FakeResponse(200, _FakeHeaders(), body: page),
+        _FakeResponse(200, _FakeHeaders(), body: block),
+        _FakeResponse(200, _FakeHeaders(), bytes: [9, 8, 7]),
+      ]);
+
+      final client = HttpPornolabClient(
+        client: http,
+        log: ToolLog(),
+        debug: DebugTextLog(),
+      );
+
+      await client.postTopic(
+        releaseDirectory: directory.path,
+        cookie: 'session=abc',
+        forumId: 1857,
+        draftId: 11818,
+        subject: 'the title',
+        message: 'the message',
+        filePath: sent.path,
+      );
+
+      final text = File(
+        p.join(directory.path, ToolLog.directoryName, DebugTextLog.fileName),
+      ).readAsStringSync();
+
+      // The cookie as its value, and the user agent, each as one header line.
+      expect(text, contains('Cookie: session=abc'));
+      expect(text, contains('User-Agent: ReleasePrepper/0.1.0'));
+      expect(text, contains(page));
+
+      // A file is not text, so its part is recorded as its name and its size,
+      // as the app's log records it.
+      expect(text, contains('the-release.torrent, 11 bytes'));
+      expect(text, isNot(contains('d5:filesdee')));
+
+      // The lines are the headers the app sets itself, which is the length the
+      // form declares as well (§8).
+      expect(text, matches(RegExp(r'Content-Length: \d+')));
+
+      // Every request the client makes writes its block, which is the one for
+      // the file as well, and the block for a request comes before its answer
+      // (§8).
+      final download = http.calls.last;
+      final requestBlock = text.indexOf(
+        '${'<' * DebugTextLog.gutterWidth} GET $download',
+      );
+      final answerBlock = text.indexOf(
+        '${'>' * DebugTextLog.gutterWidth} 200 GET $download',
+      );
+
+      expect(requestBlock, greaterThan(-1));
+      expect(answerBlock, greaterThan(requestBlock));
+
+      directory.deleteSync(recursive: true);
+    },
+  );
+
+  // A post is not made for a release with no file to send, because for a
+  // tracker whose releases are torrents a topic with no file is not a release
+  // (§7). The gate is before the request, so nothing is asked for.
+  test('a post is not made when there is no file to send', () async {
+    final directory = Directory.systemTemp.createTempSync(
+      'pornolab_no_file_test',
+    );
+
+    final http = _FakeHttpClient([
+      _FakeResponse(200, _FakeHeaders(), body: page),
+    ]);
+
+    final client = HttpPornolabClient(
+      client: http,
+      log: ToolLog(),
+      debug: DebugTextLog(),
+    );
+
+    final result = await client.postTopic(
+      releaseDirectory: directory.path,
+      cookie: 'the-cookie',
+      forumId: 1857,
+      draftId: 11818,
+      subject: 'the title',
+      message: 'the message',
+      filePath: p.join(directory.path, 'the-release.torrent'),
+    );
+
+    expect(
+      result,
+      isA<PornolabFailure>().having(
+        (f) => f.kind,
+        'kind',
+        PornolabFailureKind.noFile,
+      ),
+    );
+
+    expect(http.requests, isEmpty);
+
+    directory.deleteSync(recursive: true);
+  });
+
+  // What the form declares for the file is the rule the app works inside, so a
+  // file outside it is refused before the request: the answer for one is a
+  // shape the recording does not have (§3, §12).
+  test(
+    'a file outside what the form declares is refused before the request',
+    () async {
+      final directory = Directory.systemTemp.createTempSync(
+        'pornolab_refused_test',
+      );
+
+      final http = _FakeHttpClient([
+        _FakeResponse(200, _FakeHeaders(), body: page),
+      ]);
+
+      final client = HttpPornolabClient(
+        client: http,
+        log: ToolLog(),
+        debug: DebugTextLog(),
+      );
+
+      final tooSmall = File(p.join(directory.path, 'the-release.txt'))
+        ..writeAsBytesSync([1]);
+
+      final result = await client.postTopic(
+        releaseDirectory: directory.path,
+        cookie: 'the-cookie',
+        forumId: 1857,
+        draftId: 11818,
+        subject: 'the title',
+        message: 'the message',
+        filePath: tooSmall.path,
+      );
+
+      expect(
+        result,
+        isA<PornolabFailure>().having(
+          (f) => f.kind,
+          'kind',
+          PornolabFailureKind.fileRefused,
+        ),
+      );
+
+      expect(http.requests, isEmpty);
+
+      // The same for a file over the size the form declares.
+      final tooLarge = File(p.join(directory.path, 'the-release.torrent'))
+        ..writeAsBytesSync(List.filled(PornolabClient.maxFileSize + 1, 0));
+
+      final tooLargeResult = await client.postTopic(
+        releaseDirectory: directory.path,
+        cookie: 'the-cookie',
+        forumId: 1857,
+        draftId: 11818,
+        subject: 'the title',
+        message: 'the message',
+        filePath: tooLarge.path,
+      );
+
+      expect(
+        tooLargeResult,
+        isA<PornolabFailure>().having(
+          (f) => f.kind,
+          'kind',
+          PornolabFailureKind.fileRefused,
+        ),
+      );
+
+      expect(http.requests, isEmpty);
+
+      directory.deleteSync(recursive: true);
+    },
+  );
+
+  // The topic exists whatever the download gives, so a download that fails is
+  // the file not being written rather than the run failing: the section says
+  // the two apart because the user needs to know which of them the release has
+  // (§6, §8).
+  test('a post whose download fails is the file not being written', () async {
+    final directory = Directory.systemTemp.createTempSync(
+      'pornolab_download_test',
+    );
+
+    final sent = File(p.join(directory.path, 'the-release.torrent'))
+      ..writeAsBytesSync([1]);
+
+    final http = _FakeHttpClient([
+      _FakeResponse(200, _FakeHeaders(), body: page),
+      _FakeResponse(200, _FakeHeaders(), body: block),
+      _FakeResponse(404, _FakeHeaders(), body: ''),
+    ]);
+
+    final client = HttpPornolabClient(
+      client: http,
+      log: ToolLog(),
+      debug: DebugTextLog(),
+    );
+
+    final result = await client.postTopic(
+      releaseDirectory: directory.path,
+      cookie: 'the-cookie',
+      forumId: 1857,
+      draftId: 11818,
+      subject: 'the title',
+      message: 'the message',
+      filePath: sent.path,
+    );
+
+    expect(result, isA<Posted>());
+
+    final posted = result as Posted;
+
+    expect(posted.topicId, 3000111);
+    expect(posted.filePath, isNull);
+    expect(
+      File(p.join(directory.path, '[pornolab.net].t3000111.torrent'))
+          .existsSync(),
+      isFalse,
+    );
+
+    directory.deleteSync(recursive: true);
+  });
+
+  // A write that fails is the same result as a download that fails. The path
+  // the run writes to is held by a directory here, which is the shape a write
+  // cannot succeed against.
+  test(
+    'a post whose write fails says the topic was made and the file not written',
+    () async {
+      final directory = Directory.systemTemp.createTempSync(
+        'pornolab_write_test',
+      );
+
+      final sent = File(p.join(directory.path, 'the-release.torrent'))
+        ..writeAsBytesSync([1]);
+
+      final http = _FakeHttpClient([
+        _FakeResponse(200, _FakeHeaders(), body: page),
+        _FakeResponse(200, _FakeHeaders(), body: block),
+        _FakeResponse(200, _FakeHeaders(), bytes: [9, 8, 7]),
+      ]);
+
+      final client = HttpPornolabClient(
+        client: http,
+        log: ToolLog(),
+        debug: DebugTextLog(),
+      );
+
+      Directory(p.join(directory.path, trackerTorrentPath(3000111)))
+          .createSync(recursive: true);
+
+      final result = await client.postTopic(
+        releaseDirectory: directory.path,
+        cookie: 'the-cookie',
+        forumId: 1857,
+        draftId: 11818,
+        subject: 'the title',
+        message: 'the message',
+        filePath: sent.path,
+      );
+
+      expect(result, isA<Posted>());
+      expect((result as Posted).filePath, isNull);
+
+      directory.deleteSync(recursive: true);
+    },
+  );
 }

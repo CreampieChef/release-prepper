@@ -3,23 +3,52 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:enough_convert/windows.dart';
+import 'package:path/path.dart' as p;
 
 import '../../app/app_info.dart';
+import '../logging/debug_text_log.dart';
 import '../logging/tool_log.dart';
 import '../logging/tool_log_entry.dart';
+import '../torrent/torrent_path.dart';
 
-/// PornoLab, over the two requests `ai/uploading_draft.md` describes: the page
-/// that gives the form token, and the call that saves a draft.
+/// Whether the app was started with `--dev-tracker-stub`, which is what makes
+/// the client build its requests and its links from the stub under
+/// `testing-tools/pornolab-stub/` rather than from the site
+/// (`ai/pornolab_upload.md` §10).
 ///
-/// It is an interface, as `SecretStore` is, so the feature can be tested against
-/// a fake. The rules it applies — a forum id read from a URL, the form body, a
-/// token read from a page, a response read as JSON — are functions on the
-/// interface, so a test exercises them without a request, the way
-/// `StashClient.parseResponse` is exercised (`ai/uploading_draft.md` §9).
+/// This is the second of the three top-level variables in the app, and the
+/// second exception to rule 10, for the reason rule 10 gives for the first: it
+/// is read once by `main()` before the app is built and nothing writes it
+/// afterwards, and no part of the app is the place that decides an address, so
+/// there is nowhere in the provider scope to put it.
+bool devTrackerStub = false;
+
+/// PornoLab, over the requests the app makes to it: the page that gives the
+/// form token, the call that saves a draft, the form with the file attached,
+/// and the file the tracker serves back for the topic that form made.
+///
+/// It is an interface, as `SecretStore` is, so the feature can be tested
+/// against a fake. The rules it applies — a forum id read from a URL, the form
+/// body, a token read from a page, a response read as JSON, the block read for
+/// the id it carries — are functions on the interface, so a test exercises them
+/// without a request, the way `StashClient.parseResponse` is exercised
+/// (`ai/uploading_draft.md` §9, `ai/pornolab_upload.md` §10).
 abstract class PornolabClient {
   /// The site the app calls and the link it builds. `Tracker` holds no address;
-  /// the address is here because this is the code that needs it.
+  /// the address is here because this is the code that needs it. Nothing uses
+  /// this directly: the requests and the links read `base()`, which is this
+  /// when the app was not started with the flag.
   static const siteBase = 'https://pornolab.net';
+
+  /// The address the stub serves on — the port its `README.md` documents, and
+  /// the one the script defaults to.
+  static const stubBase = 'http://localhost:40002';
+
+  /// The base the requests and the links are built from: the stub when the app
+  /// was started with `--dev-tracker-stub`, the site otherwise. One rule,
+  /// because the two have to agree: a link to the site is not the topic the
+  /// stub made (`ai/pornolab_upload.md` §10).
+  static String base() => devTrackerStub ? stubBase : siteBase;
 
   /// The same limit `ToolRunner` has.
   static const timeout = Duration(seconds: 60);
@@ -40,6 +69,38 @@ abstract class PornolabClient {
     required int draftId,
     required String subject,
     required String message,
+  });
+
+  /// The post (`ai/pornolab_upload.md`): the form with the file attached, and
+  /// the file the tracker serves back for the topic that form made.
+  ///
+  /// [filePath] is the file the app's own run wrote, because a post is not made
+  /// before there is a file to carry (`ai/pornolab_upload.md` §7). The file the
+  /// answer gives is written into the release under the name the site gives it
+  /// (§6); the file the app sent is kept, because nothing in the app deletes a
+  /// file — so a release that has been posted has two, and the result names the
+  /// one the site gave.
+  Future<PornolabResult> postTopic({
+    required String releaseDirectory,
+    required String cookie,
+    required int forumId,
+    required int draftId,
+    required String subject,
+    required String message,
+    required String filePath,
+  });
+
+  /// The name the page gives for the forum the field's value names
+  /// (`ai/pornolab_upload.md` §5). The page is asked for at `base()`, as every
+  /// other request here is, and the answer is cached under the value the row
+  /// holds. The name is what the row shows; it is not stored, and a post is
+  /// made from the id in the URL whatever the page says, so a page with no name
+  /// is reported as the answer it is rather than as a result the section has
+  /// words for.
+  Future<PornolabResult> forumName({
+    required String releaseDirectory,
+    required String cookie,
+    required String url,
   });
 
   /// The login (`ai/pornolab_login.md`). The cookie it gives back is stored by
@@ -88,11 +149,12 @@ abstract class PornolabClient {
     return int.tryParse(url.queryParameters['draft'] ?? '') ?? 0;
   }
 
-  /// The link the app shows and stores. It is built from the site rather than
-  /// from what the user pasted, the same rule as the scene link
-  /// (`StashClient.siteBase`).
+  /// The link the app shows and stores. It is built from the base the app is
+  /// talking to rather than from what the user pasted, the same rule as the
+  /// scene link (`StashClient.siteBase`) — so a link made while the app is
+  /// pointed at the stub is the stub's link.
   static String draftUrl({required int forumId, required int draftId}) =>
-      '$siteBase/forum/posting.php?mode=newtopic&f=$forumId&draft=$draftId';
+      '${base()}/forum/posting.php?mode=newtopic&f=$forumId&draft=$draftId';
 
   /// The form body, with the values percent-encoded as UTF-8, so the newlines of
   /// a message are `%0A`.
@@ -111,6 +173,176 @@ abstract class PornolabClient {
     'subject=${Uri.encodeQueryComponent(subject)}',
     'message=${Uri.encodeQueryComponent(message)}',
   ].join('&');
+
+  /// What the page declares for the file part: the size and the extensions
+  /// (`ai/pornolab_upload.md` §3). The app does not gate on them — it sends the
+  /// file it has and a refusal is an answer, not a check — so this is the one
+  /// place the rule is, and the result that names a refused file is read from
+  /// the same values.
+  static const maxFileSize = 1048576;
+
+  static const acceptedExtensions = ['.torrent', '.zip', '.rar'];
+
+  /// The link a post makes. Built from the base the app is talking to rather
+  /// than from what the user pasted, the same rule as `draftUrl`, because the
+  /// id is what the answer gave (`ai/pornolab_upload.md` §5).
+  static String topicUrl({required int topicId}) =>
+      '${base()}/forum/viewtopic.php?t=$topicId';
+
+  /// The parts of the form, in the order the page lays it out (§3), with the
+  /// file part between the message and `post` because that is where the page's
+  /// own form has it. The parts the page has for its controls are not here,
+  /// because the app has none of them, and whether the site wants a value for
+  /// one is an open question (§12) — nothing is invented for it.
+  ///
+  /// One rule for the order, because the same parts are what the body is built
+  /// from and what the log records.
+  static List<FormPart> formParts({
+    required String token,
+    required int forumId,
+    required int draftId,
+    required String subject,
+    required String message,
+    required String fileName,
+    required List<int> fileBytes,
+  }) => [
+    FormPart('mode', value: 'newtopic'),
+    FormPart('f', value: '$forumId'),
+    FormPart('t', value: '0'),
+    FormPart('p', value: '0'),
+    FormPart('draft_id', value: '$draftId'),
+    FormPart('subject', value: subject),
+    FormPart('message', value: message),
+    FormPart('MAX_FILE_SIZE', value: '$maxFileSize'),
+    FormPart(
+      'attach',
+      fileName: fileName,
+      contentType: 'application/x-bittorrent',
+      bytes: fileBytes,
+    ),
+    FormPart('post', value: '1'),
+    FormPart('form_token', value: token),
+  ];
+
+  /// The parts written as a multipart body. The values are written as the
+  /// page's charset, not as UTF-8: a post is a form the app is filling, and the
+  /// recording of one is Windows-1251 (§4). A part is the value itself rather
+  /// than a percent-encoded field, so nothing is escaped.
+  static List<int> postBody({
+    required String boundary,
+    required List<FormPart> parts,
+  }) {
+    final delimiter = '--$boundary';
+
+    return [
+      for (final part in parts) ...[
+        ...utf8.encode(
+          '$delimiter\r\nContent-Disposition: form-data; name="${part.name}"',
+        ),
+        if (part.isFile) ...[
+          ...utf8.encode('; filename="${part.fileName}"'),
+          ...utf8.encode('\r\nContent-Type: ${part.contentType}'),
+        ],
+        ...utf8.encode('\r\n\r\n'),
+        ...(part.isFile ? part.bytes : cp1251Bytes(part.value)),
+        ...utf8.encode('\r\n'),
+      ],
+      ...utf8.encode('$delimiter--\r\n'),
+    ];
+  }
+
+  /// The id the block carries, as §5 reads it: the first `t` inside the block,
+  /// which both of its links have. A page with no block is an answer the app
+  /// cannot name, and that is one result until such an answer is seen (§12) —
+  /// it is not read as the form being refused, because a page like this cannot
+  /// say which of the two it refused.
+  static int? topicIdFromBlock(String html) {
+    final block = _block.firstMatch(html);
+
+    if (block == null) {
+      return null;
+    }
+
+    final id = _blockId.firstMatch(block.group(1)!);
+
+    return id == null ? null : int.tryParse(id.group(1)!);
+  }
+
+  /// The name the page gives for the forum the field's value names: the link the
+  /// breadcrumb cell writes for that forum id, which is the shape a real page was
+  /// seen to write. A page that writes no breadcrumb, or a breadcrumb for
+  /// another forum, gives no name — the row shows nothing, because the name is
+  /// a label and the run works from the id the value names.
+  static String? forumNameFromPage(String html, int forumId) {
+    final nav = _nav.firstMatch(html);
+
+    if (nav == null) {
+      return null;
+    }
+
+    for (final link in _navLink.allMatches(nav.group(1)!)) {
+      if (int.tryParse(link.group(1)!) == forumId) {
+        return unescape(link.group(2)!);
+      }
+    }
+
+    return null;
+  }
+
+  /// A name as the page writes it: HTML entities are read back as the
+  /// characters they stand for, because a name with an apostrophe comes as
+  /// `&#039;`. Only the five the page was seen to write; anything else is left
+  /// as it came.
+  static String unescape(String text) => text
+      .replaceAll('&amp;', '&')
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#039;', "'");
+
+  /// The bytes a part of a multipart form writes a value as: the codepage's
+  /// bytes when it has one, otherwise the character's UTF-8 bytes — the same
+  /// rule as `encodeCp1251`, without the escaping, because a part is the value
+  /// itself and not a percent-encoded field.
+  static List<int> cp1251Bytes(String value) {
+    final codec = const Windows1251Codec();
+    final out = <int>[];
+
+    for (final rune in value.runes) {
+      out.addAll(_formBytes(codec, String.fromCharCode(rune)));
+    }
+
+    return out;
+  }
+
+  /// A boundary the app makes up. It only has to be a string the body cannot
+  /// contain, so it is not the shape a browser's is; the parts are separated by
+  /// the two dashes RFC 2046 asks for, which is what the recording shows a
+  /// browser writing.
+  static String formBoundary() =>
+      '----rpformboundary${DateTime.now().microsecondsSinceEpoch.toRadixString(16)}';
+
+  static final _block = RegExp(
+    r'(<table class="forumline message">.*?</table>)',
+    dotAll: true,
+  );
+
+  static final _blockId = RegExp(r'[?&]t=(\d+)');
+
+  /// The breadcrumb as the page writes it: the table cell with the `nav` class,
+  /// which a real page was seen to write twice — as `nav nav-top` at the top and
+  /// as `nav` at the bottom — and the first is read. The cell is what is looked
+  /// for, not any element with that class: the same page writes its pagination as
+  /// a `div` with it, and the links there name the same forum as page numbers, so
+  /// a name read from there would be a number.
+  static final _nav = RegExp(
+    r'<td class="nav[^"]*"[^>]*>(.*?)</td>',
+    dotAll: true,
+  );
+
+  static final _navLink = RegExp(
+    r'<a href="[^"]*viewforum\.php\?f=(\d+)">([^<]+)',
+  );
 
   /// The value of the login form's submit button. A browser sends a named submit
   /// button as part of the form data, and its value is the button's label, so
@@ -409,7 +641,11 @@ abstract class PornolabClient {
 
 /// The requests, over the `HttpClient` the app already has.
 class HttpPornolabClient implements PornolabClient {
-  HttpPornolabClient({required this.client, required this.log});
+  HttpPornolabClient({
+    required this.client,
+    required this.log,
+    required this.debug,
+  });
 
   final HttpClient client;
 
@@ -417,12 +653,26 @@ class HttpPornolabClient implements PornolabClient {
   /// required parameter, as it is for `ToolRunner`.
   final ToolLog log;
 
+  /// The plain text copy of the same calls (`ai/uploading_draft.md` §8),
+  /// written only for a run started with `--unsafe-verbose-tracker-logging`. It
+  /// is a required parameter for the same reason, and the calls that write it
+  /// stay with the client: whether anything is written is the service's
+  /// decision, and the shape of a block is its shape as well, so a call says
+  /// only which side of the exchange it is and what the call was.
+  final DebugTextLog debug;
+
   /// The token for the app's session on the site. The site ties it to the
   /// session rather than to a release, and this is one instance for the whole
   /// app, so the cache is here rather than in a feature
   /// (`ai/uploading_draft.md` §6). A run told the token was wrong drops it, so
   /// the next run reads the page again.
   String? _token;
+
+  /// The names read for the value the parent forum row holds, by URL. The same
+  /// reason as the token: a name belongs to the site, not to a release, and the
+  /// row asks for it while it is being typed, so a redraw must not be a
+  /// request.
+  final _names = <String, String>{};
 
   @override
   Future<PornolabResult> saveDraft({
@@ -434,35 +684,13 @@ class HttpPornolabClient implements PornolabClient {
     required String message,
   }) async {
     try {
-      String? token = _token;
+      final answer = await _tokenFor(releaseDirectory, cookie, forumId);
 
-      if (token == null) {
-        final page = await _get(
-          releaseDirectory,
-          cookie,
-          Uri.parse('${PornolabClient.siteBase}/forum/posting.php')
-              .replace(queryParameters: {'mode': 'newtopic', 'f': '$forumId'}),
-        );
-
-        if (page.status != 200) {
-          // A cookie the site does not accept is answered with the redirect to
-          // the login page before the page is served; any other answer is the
-          // request failing (`ai/uploading_draft.md` §6).
-          return PornolabFailure(
-            PornolabClient.locationIsLoginPage(page.location)
-                ? PornolabFailureKind.cookieRefused
-                : PornolabFailureKind.requestFailed,
-          );
-        }
-
-        token = PornolabClient.formTokenFromPage(page.body);
-
-        if (token == null) {
-          return const PornolabFailure(PornolabFailureKind.noToken);
-        }
-
-        _token = token;
+      if (answer.failure != null) {
+        return answer.failure!;
       }
+
+      final token = answer.token!;
 
       final result = await _save(
         releaseDirectory,
@@ -507,7 +735,241 @@ class HttpPornolabClient implements PornolabClient {
     }
   }
 
-  /// One call that saves the draft, and the answer read as the result it is.
+  @override
+  Future<PornolabResult> postTopic({
+    required String releaseDirectory,
+    required String cookie,
+    required int forumId,
+    required int draftId,
+    required String subject,
+    required String message,
+    required String filePath,
+  }) async {
+    try {
+      final file = File(filePath);
+
+      if (!file.existsSync()) {
+        return const PornolabFailure(PornolabFailureKind.noFile);
+      }
+
+      // What the page declares for the file part is the rule the app works
+      // inside, so a file outside it is refused before the request: the answer
+      // for one is a shape the recording does not have (`ai/pornolab_upload.md`
+      // §3, §12).
+      final bytes = file.readAsBytesSync();
+
+      if (!PornolabClient.acceptedExtensions.contains(
+        p.extension(filePath).toLowerCase(),
+      )) {
+        return const PornolabFailure(PornolabFailureKind.fileRefused);
+      }
+
+      if (bytes.length > PornolabClient.maxFileSize) {
+        return const PornolabFailure(PornolabFailureKind.fileRefused);
+      }
+
+      final answer = await _tokenFor(releaseDirectory, cookie, forumId);
+
+      if (answer.failure != null) {
+        return answer.failure!;
+      }
+
+      final parts = PornolabClient.formParts(
+        token: answer.token!,
+        forumId: forumId,
+        draftId: draftId,
+        subject: subject,
+        message: message,
+        fileName: p.basename(filePath),
+        fileBytes: bytes,
+      );
+
+      final boundary = PornolabClient.formBoundary();
+
+      final response = await _postForm(
+        releaseDirectory,
+        cookie,
+        Uri.parse('${PornolabClient.base()}/forum/posting.php'),
+        boundary,
+        parts,
+      );
+
+      if (response.status != 200) {
+        return PornolabFailure(
+          PornolabClient.locationIsLoginPage(response.location)
+              ? PornolabFailureKind.cookieRefused
+              : PornolabFailureKind.requestFailed,
+        );
+      }
+
+      final made = PornolabClient.topicIdFromBlock(response.body);
+
+      // A page that is not the block is one result with the form not being
+      // accepted, because an answer like this cannot name which of the two it
+      // refused (`ai/pornolab_upload.md` §5). The token is not dropped for it:
+      // the app was not told the token was wrong, and the shape that says so
+      // belongs to the draft call.
+      if (made == null) {
+        return const PornolabFailure(PornolabFailureKind.badResponse);
+      }
+
+      // The run cannot be read as finished at the answer: the file the account
+      // is told to seed is the one the tracker serves, and that is what the
+      // release gets (`ai/pornolab_upload.md` §6). The topic exists whatever
+      // the download gives, so a download that fails is the file not being
+      // written, not the run failing.
+      final served = await _getFile(
+        releaseDirectory,
+        cookie,
+        Uri.parse('${PornolabClient.base()}/forum/dl.php'),
+        {'t': '$made'},
+      );
+
+      // The path is what the record holds, so the result carries it in the
+      // shape the format records a path inside a release as: relative to the
+      // release directory. The file goes under the app's folder, because a
+      // posted release keeps two `.torrent` files (`ai/pornolab_upload.md` §6).
+      final path = trackerTorrentPath(made);
+      final written = p.join(releaseDirectory, path);
+
+      if (served.status != 200) {
+        return Posted(made, topicUrl: PornolabClient.topicUrl(topicId: made));
+      }
+
+      try {
+        // The folder is the app's own, like the log's, so it is created the
+        // same way before the first file goes into it.
+        final folder = Directory(p.dirname(written));
+
+        if (!folder.existsSync()) {
+          folder.createSync(recursive: true);
+        }
+
+        await File(written).writeAsBytes(served.bytes);
+      } catch (_) {
+        return Posted(made, topicUrl: PornolabClient.topicUrl(topicId: made));
+      }
+
+      return Posted(
+        made,
+        topicUrl: PornolabClient.topicUrl(topicId: made),
+        filePath: path,
+      );
+    } on TimeoutException {
+      return const PornolabFailure(PornolabFailureKind.timedOut);
+    } catch (_) {
+      return const PornolabFailure(PornolabFailureKind.requestFailed);
+    }
+  }
+
+  @override
+  Future<PornolabResult> forumName({
+    required String releaseDirectory,
+    required String cookie,
+    required String url,
+  }) async {
+    // The shape rule is the row's gate, so a name is asked for only for a value
+    // the row accepts (`field_validation.dart`).
+    final forumId = PornolabClient.forumIdFromUrl(url);
+
+    if (forumId == null) {
+      return const PornolabFailure(PornolabFailureKind.badForumUrl);
+    }
+
+    final cached = _names[url];
+
+    if (cached != null) {
+      return ForumNameRead(cached);
+    }
+
+    try {
+      // The page is asked for at the base the app was started with, as every
+      // other request on this interface is, so a run against the stub reads the
+      // name from the page the stub writes (`ai/pornolab_upload.md` §10). The
+      // value stays the key the answer is cached under, because that is what
+      // the row asked for and what a redraw must not ask again.
+      final page = await _get(
+        releaseDirectory,
+        cookie,
+        Uri.parse('${PornolabClient.base()}/forum/viewforum.php')
+            .replace(queryParameters: {'f': '$forumId'}),
+        read: (body) => PornolabClient.forumNameFromPage(body, forumId) ?? '',
+      );
+
+      if (page.status != 200) {
+        return PornolabFailure(
+          PornolabClient.locationIsLoginPage(page.location)
+              ? PornolabFailureKind.cookieRefused
+              : PornolabFailureKind.requestFailed,
+        );
+      }
+
+      final name = PornolabClient.forumNameFromPage(page.body, forumId);
+
+      // A page with no breadcrumb is an answer the app cannot read; the row
+      // shows nothing for it, because the name is a label and not something a
+      // run needs (`ai/pornolab_upload.md` §5).
+      if (name == null) {
+        return const PornolabFailure(PornolabFailureKind.badResponse);
+      }
+
+      _names[url] = name;
+
+      return ForumNameRead(name);
+    } on TimeoutException {
+      return const PornolabFailure(PornolabFailureKind.timedOut);
+    } catch (_) {
+      return const PornolabFailure(PornolabFailureKind.requestFailed);
+    }
+  }
+
+  /// The token, the cached one when there is one. The page is asked for without
+  /// the draft: the token belongs to the session, so the recording's `draft`
+  /// parameter is not what the rule needs, and the same page gives the same
+  /// token for both features.
+  Future<_TokenAnswer> _tokenFor(
+    String releaseDirectory,
+    String cookie,
+    int forumId,
+  ) async {
+    if (_token != null) {
+      return _TokenAnswer(token: _token);
+    }
+
+    final page = await _get(
+      releaseDirectory,
+      cookie,
+      Uri.parse('${PornolabClient.base()}/forum/posting.php')
+          .replace(queryParameters: {'mode': 'newtopic', 'f': '$forumId'}),
+      read: (body) => PornolabClient.formTokenFromPage(body) ?? '',
+    );
+
+    if (page.status != 200) {
+      // A cookie the site does not accept is answered with the redirect to the
+      // login page before the page is served; any other answer is the request
+      // failing (`ai/uploading_draft.md` §6).
+      return _TokenAnswer(
+        failure: PornolabFailure(
+          PornolabClient.locationIsLoginPage(page.location)
+              ? PornolabFailureKind.cookieRefused
+              : PornolabFailureKind.requestFailed,
+        ),
+      );
+    }
+
+    final token = PornolabClient.formTokenFromPage(page.body);
+
+    if (token == null) {
+      return _TokenAnswer(
+        failure: const PornolabFailure(PornolabFailureKind.noToken),
+      );
+    }
+
+    _token = token;
+
+    return _TokenAnswer(token: token);
+  }
+
   Future<PornolabResult> _save(
     String releaseDirectory,
     String cookie,
@@ -528,7 +990,7 @@ class HttpPornolabClient implements PornolabClient {
     final response = await _post(
       releaseDirectory,
       cookie,
-      Uri.parse('${PornolabClient.siteBase}/forum/ajax.php'),
+      Uri.parse('${PornolabClient.base()}/forum/ajax.php'),
       body,
     );
 
@@ -555,7 +1017,7 @@ class HttpPornolabClient implements PornolabClient {
     String code = '',
   }) async {
     try {
-      final url = Uri.parse('${PornolabClient.siteBase}/forum/login.php');
+      final url = Uri.parse('${PornolabClient.base()}/forum/login.php');
 
       // The first request has no cookie to send, because the app logs in for the
       // reason it has none. The request with a code sends the cookie the captcha
@@ -606,6 +1068,8 @@ class HttpPornolabClient implements PornolabClient {
         ),
       );
 
+      await debug.sent(logDirectory, 'POST $url', _ownHeaders(cookie), body);
+
       try {
         final request = await client.postUrl(url);
 
@@ -646,6 +1110,13 @@ class HttpPornolabClient implements PornolabClient {
           ),
         );
 
+        await debug.received(
+          logDirectory,
+          '${response.statusCode} POST $url',
+          _headerLines(headers),
+          text,
+        );
+
         // A login is a new session on the site, so the token that belonged to
         // the one before it is not kept (`ai/pornolab_login.md` §7).
         _token = null;
@@ -666,6 +1137,8 @@ class HttpPornolabClient implements PornolabClient {
           ),
         );
 
+        await debug.failed(logDirectory, 'POST $url', error.toString());
+
         rethrow;
       }
     } on TimeoutException {
@@ -678,8 +1151,9 @@ class HttpPornolabClient implements PornolabClient {
   Future<_Exchange> _get(
     String releaseDirectory,
     String cookie,
-    Uri url,
-  ) async {
+    Uri url, {
+    required String Function(String body) read,
+  }) async {
     final input = _input(cookie);
 
     await log.write(
@@ -693,6 +1167,8 @@ class HttpPornolabClient implements PornolabClient {
       ),
     );
 
+    await debug.sent(releaseDirectory, 'GET $url', _ownHeaders(cookie));
+
     try {
       final request = await client.getUrl(url);
 
@@ -702,7 +1178,11 @@ class HttpPornolabClient implements PornolabClient {
       _headers(request, cookie);
 
       final response = await request.close().timeout(PornolabClient.timeout);
-      final body = await _read(response);
+      final bytes = await _bytes(response);
+      final body = PornolabClient.decodeBody(
+        bytes,
+        response.headers.contentType?.charset,
+      );
       final received = _headersMap(response.headers);
 
       await log.write(
@@ -712,9 +1192,16 @@ class HttpPornolabClient implements PornolabClient {
           tool: PornolabClient.logName,
           input: input,
           status: response.statusCode,
-          read: PornolabClient.formTokenFromPage(body) ?? '',
+          read: read(body),
           headers: PornolabClient.logHeaders(received),
         ),
+      );
+
+      await debug.received(
+        releaseDirectory,
+        '${response.statusCode} GET $url',
+        _headerLines(received),
+        body,
       );
 
       return _Exchange(
@@ -732,6 +1219,8 @@ class HttpPornolabClient implements PornolabClient {
           error: error.toString(),
         ),
       );
+
+      await debug.failed(releaseDirectory, 'GET $url', error.toString());
 
       rethrow;
     }
@@ -758,6 +1247,8 @@ class HttpPornolabClient implements PornolabClient {
         url: url.toString(),
       ),
     );
+
+    await debug.sent(releaseDirectory, 'POST $url', _ownHeaders(cookie), body);
 
     try {
       final request = await client.postUrl(url);
@@ -787,6 +1278,13 @@ class HttpPornolabClient implements PornolabClient {
         ),
       );
 
+      await debug.received(
+        releaseDirectory,
+        '${response.statusCode} POST $url',
+        _headerLines(received),
+        text,
+      );
+
       return _Exchange(response.statusCode, text);
     } catch (error) {
       await log.write(
@@ -799,8 +1297,238 @@ class HttpPornolabClient implements PornolabClient {
         ),
       );
 
+      await debug.failed(releaseDirectory, 'POST $url', error.toString());
+
       rethrow;
     }
+  }
+
+  /// A form the app is filling rather than a body it invents: the parts as
+  /// `formParts` orders them, sent as a browser sends a form, and the answer
+  /// read as the block the site writes for a post.
+  Future<_Exchange> _postForm(
+    String releaseDirectory,
+    String cookie,
+    Uri url,
+    String boundary,
+    List<FormPart> parts,
+  ) async {
+    // A file part is not a field, so the entry holds the name it was given with
+    // and its size, never its bytes (`ai/pornolab_upload.md` §9).
+    final input = [
+      ..._input(cookie),
+      for (final part in parts)
+        if (part.isFile) ...[
+          part.name,
+          part.fileName,
+          'size',
+          '${part.bytes.length}',
+        ] else ...[
+          part.name,
+          part.value,
+        ],
+    ];
+
+    final body = PornolabClient.postBody(boundary: boundary, parts: parts);
+
+    await log.write(
+      releaseDirectory,
+      ToolLogRequest(
+        date: DateTime.now().toUtc(),
+        tool: PornolabClient.logName,
+        input: input,
+        method: 'POST',
+        url: url.toString(),
+      ),
+    );
+
+    await debug.sent(
+      releaseDirectory,
+      'POST $url',
+      [
+        ..._ownHeaders(cookie),
+        'Content-Type: multipart/form-data; boundary=$boundary',
+        'Content-Length: ${body.length}',
+      ],
+      [
+        for (final part in parts)
+          part.isFile
+              ? '${part.name} = ${part.fileName}, ${part.bytes.length} bytes'
+              : '${part.name} = ${part.value}',
+      ].join('\n'),
+    );
+
+    try {
+      final request = await client.postUrl(url);
+
+      request.followRedirects = false;
+      _headers(request, cookie);
+
+      // The boundary is written as the browser writes it, in the header itself:
+      // `ContentType` has no field for one, so the value is set as the string
+      // the form sends.
+      request.headers.set(
+        'Content-Type',
+        'multipart/form-data; boundary=$boundary',
+      );
+
+      // The length is declared, as a browser declares it. A server that is not
+      // a browser reads this header rather than the body, so a form without it
+      // is sent as a chunked body, which is a shape nothing here has a rule for
+      // (`ai/pornolab_upload.md` §3).
+      request.headers.contentLength = body.length;
+
+      request.add(body);
+
+      final response = await request.close().timeout(PornolabClient.timeout);
+      final text = await _read(response);
+      final received = _headersMap(response.headers);
+
+      await log.write(
+        releaseDirectory,
+        ToolLogResponse(
+          date: DateTime.now().toUtc(),
+          tool: PornolabClient.logName,
+          input: input,
+          status: response.statusCode,
+          read: text,
+          headers: PornolabClient.logHeaders(received),
+        ),
+      );
+
+      await debug.received(
+        releaseDirectory,
+        '${response.statusCode} POST $url',
+        _headerLines(received),
+        text,
+      );
+
+      return _Exchange(response.statusCode, text);
+    } catch (error) {
+      await log.write(
+        releaseDirectory,
+        ToolLogFailure(
+          date: DateTime.now().toUtc(),
+          tool: PornolabClient.logName,
+          input: input,
+          error: error.toString(),
+        ),
+      );
+
+      await debug.failed(releaseDirectory, 'POST $url', error.toString());
+
+      rethrow;
+    }
+  }
+
+  /// A file the site serves. The bytes are kept as they came: the charset rule
+  /// is for a page, and the pieces of a bencoded file are bytes, so reading
+  /// them as text would change what the app writes. The text log records the
+  /// size rather than the bytes, as the app's log does.
+  Future<_FileExchange> _getFile(
+    String releaseDirectory,
+    String cookie,
+    Uri url,
+    Map<String, String> query,
+  ) async {
+    final full = url.replace(queryParameters: query);
+    final input = [..._input(cookie), 't', query['t'] ?? ''];
+
+    await log.write(
+      releaseDirectory,
+      ToolLogRequest(
+        date: DateTime.now().toUtc(),
+        tool: PornolabClient.logName,
+        input: input,
+        method: 'GET',
+        url: full.toString(),
+      ),
+    );
+
+    await debug.sent(releaseDirectory, 'GET $full', _ownHeaders(cookie));
+
+    try {
+      final request = await client.getUrl(full);
+
+      request.followRedirects = false;
+      _headers(request, cookie);
+
+      final response = await request.close().timeout(PornolabClient.timeout);
+      final bytes = await _bytes(response);
+      final received = _headersMap(response.headers);
+      final name =
+          _dispositionName(response.headers.value('content-disposition')) ?? '';
+
+      // The name the answer gave the file is the id it is for, and the headers
+      // the entry records carry the size, which is what says the file is there
+      // (§9).
+      await log.write(
+        releaseDirectory,
+        ToolLogResponse(
+          date: DateTime.now().toUtc(),
+          tool: PornolabClient.logName,
+          input: input,
+          status: response.statusCode,
+          read: name,
+          headers: PornolabClient.logHeaders(received),
+        ),
+      );
+
+      await debug.received(
+        releaseDirectory,
+        '${response.statusCode} GET $full',
+        _headerLines(received),
+        '${bytes.length} bytes, not text',
+      );
+
+      return _FileExchange(
+        response.statusCode,
+        bytes,
+        name,
+        location: response.headers.value('location') ?? '',
+      );
+    } catch (error) {
+      await log.write(
+        releaseDirectory,
+        ToolLogFailure(
+          date: DateTime.now().toUtc(),
+          tool: PornolabClient.logName,
+          input: input,
+          error: error.toString(),
+        ),
+      );
+
+      await debug.failed(releaseDirectory, 'GET $full', error.toString());
+
+      rethrow;
+    }
+  }
+
+  /// The headers the app sets itself, as the text log writes a header: the
+  /// cookie as its value, which the app's log keeps as the marker, and the user
+  /// agent as the app sends it. They go through the same helper the answer's
+  /// headers go through, so a header is `name: value` in both
+  /// (`ai/uploading_draft.md` §8).
+  List<String> _ownHeaders(String cookie) => _headerLines({
+    if (cookie.isNotEmpty) 'Cookie': [cookie],
+    'User-Agent': [PornolabClient.userAgent()],
+  });
+
+  List<String> _headerLines(Map<String, List<String>> headers) => [
+    for (final entry in headers.entries)
+      '${entry.key}: ${entry.value.join(', ')}',
+  ];
+
+  /// The file name an answer's `Content-Disposition` carries, or nothing when
+  /// the answer served a file without naming it.
+  String? _dispositionName(String? disposition) {
+    if (disposition == null) {
+      return null;
+    }
+
+    final match = RegExp(r'filename="([^"]*)"').firstMatch(disposition);
+
+    return match?.group(1);
   }
 
   void _headers(HttpClientRequest request, String cookie) {
@@ -816,14 +1544,20 @@ class HttpPornolabClient implements PornolabClient {
   /// The answer as text. The bytes are collected before being decoded because
   /// the charset is the response's, not what the app assumes.
   Future<String> _read(HttpClientResponse response) async {
-    final bytes = <int>[];
-
-    await response.forEach(bytes.addAll).timeout(PornolabClient.timeout);
+    final bytes = await _bytes(response);
 
     return PornolabClient.decodeBody(
       bytes,
       response.headers.contentType?.charset,
     );
+  }
+
+  Future<List<int>> _bytes(HttpClientResponse response) async {
+    final bytes = <int>[];
+
+    await response.forEach(bytes.addAll).timeout(PornolabClient.timeout);
+
+    return bytes;
   }
 
   /// The response headers as a map, so the rule on the interface is what decides
@@ -868,6 +1602,59 @@ final class _Exchange {
   final String location;
 }
 
+/// An answer that is a file. The bytes are what the answer gave, because a file
+/// is not text: decoding the pieces of a bencoded file as a charset would
+/// change them. The name is the one the answer carried, which is the id it is
+/// for (`ai/pornolab_upload.md` §9).
+final class _FileExchange {
+  const _FileExchange(this.status, this.bytes, this.name, {this.location = ''});
+
+  final int status;
+  final List<int> bytes;
+  final String name;
+  final String location;
+}
+
+/// The token, or the reason there is none. Both are one type because a call
+/// cannot be made without a token, and the code that reads the page for one
+/// does not know which of the two it has until the page is read.
+final class _TokenAnswer {
+  const _TokenAnswer({this.token, this.failure});
+
+  final String? token;
+  final PornolabFailure? failure;
+}
+
+/// One part of the form the app is filling (`ai/pornolab_upload.md` §3): the
+/// name, and either the value or the file. A file part is not a field, which is
+/// why it is its own shape rather than a value, and why the log records it as a
+/// name and a size.
+final class FormPart {
+  const FormPart(
+    this.name, {
+    this.value = '',
+    this.fileName = '',
+    this.contentType = '',
+    this.bytes = const [],
+  });
+
+  final String name;
+  final String value;
+
+  /// The name the sender gives the file with: the name the app's own run wrote
+  /// it under, not the name the site will give it later. Whether the name
+  /// matters to the site is an open question (§12).
+  final String fileName;
+
+  /// The type a browser writes for a part it did not choose: the form's file
+  /// field carries `application/x-bittorrent` for a .torrent.
+  final String contentType;
+
+  final List<int> bytes;
+
+  bool get isFile => fileName.isNotEmpty;
+}
+
 /// What a call to the site can end with: a saved draft, the cookie a login
 /// gives, or a failure. Both features read this one set, so the words for the
 /// failures are one set shared by them rather than a set per feature
@@ -892,6 +1679,33 @@ final class DraftSaved extends PornolabResult {
   /// link pointed at. The link the release holds changes, so the section says
   /// which of the two happened (`ai/uploading_draft.md` §6).
   final bool recreated;
+}
+
+final class Posted extends PornolabResult {
+  const Posted(this.topicId, {required this.topicUrl, this.filePath});
+
+  final int topicId;
+
+  /// The link the section shows and the release stores, built from the id the
+  /// answer carried (`ai/pornolab_upload.md` §5).
+  final String topicUrl;
+
+  /// The path the file the site serves was written at, relative to the release
+  /// directory, which is the shape a path inside a release is recorded as
+  /// (`ai/release_structure.md` §2, `lib/service/torrent/torrent_path.dart`).
+  /// Null when the file was not written — the download failed or the write
+  /// failed — which the section says apart from the file being written, because
+  /// the topic exists either way (`ai/pornolab_upload.md` §6, §8).
+  final String? filePath;
+}
+
+/// The name the page gives for the forum the field's value names. It is shown
+/// on the row and not stored: a run works from the id the value names, so a
+/// name is a label (`ai/pornolab_upload.md` §5).
+final class ForumNameRead extends PornolabResult {
+  const ForumNameRead(this.name);
+
+  final String name;
 }
 
 final class LoggedIn extends PornolabResult {
@@ -957,6 +1771,17 @@ enum PornolabFailureKind {
 
   /// A value that is not a full URL on the site with an `f` parameter.
   badForumUrl,
+
+  /// No file to send. Checked before the request, and the same rule the section
+  /// gates its publish button on: the file is the point of this feature, so a
+  /// post is not made for a release that has none (`ai/pornolab_upload.md` §7).
+  noFile,
+
+  /// A file outside what the form declares: over the size, or not one of the
+  /// extensions. The app checks it before the request because it has the file,
+  /// and the answer for such a file is a shape the recording does not have, so
+  /// it is one result until one is seen (`ai/pornolab_upload.md` §3, §8).
+  fileRefused,
 
   /// The answer was the login page: the credentials were not accepted.
   loginRefused,

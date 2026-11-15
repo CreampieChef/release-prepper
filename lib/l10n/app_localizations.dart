@@ -314,6 +314,24 @@ abstract class AppLocalizations {
   /// **'Ctrl+O'**
   String get openReleaseShortcut;
 
+  /// No description provided for @openReleaseOnTracker.
+  ///
+  /// In en, this message translates to:
+  /// **'Open release'**
+  String get openReleaseOnTracker;
+
+  /// No description provided for @openTorrentFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Open torrent'**
+  String get openTorrentFile;
+
+  /// No description provided for @openTorrentFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Open torrent folder'**
+  String get openTorrentFolder;
+
   /// No description provided for @chooseReleaseFolder.
   ///
   /// In en, this message translates to:
@@ -1682,6 +1700,12 @@ abstract class AppLocalizations {
   /// **'Could not open the folder.'**
   String get folderOpenFailed;
 
+  /// No description provided for @fileOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the file.'**
+  String get fileOpenFailed;
+
   /// No description provided for @draftSectionTitle.
   ///
   /// In en, this message translates to:
@@ -1706,11 +1730,23 @@ abstract class AppLocalizations {
   /// **'{label} must be a full forum URL with an f parameter.'**
   String parentForumInvalid(String label);
 
+  /// No description provided for @parentForumName.
+  ///
+  /// In en, this message translates to:
+  /// **'The site names this forum: {name}'**
+  String parentForumName(String name);
+
   /// No description provided for @draftLinkLabel.
   ///
   /// In en, this message translates to:
   /// **'Draft link on tracker'**
   String get draftLinkLabel;
+
+  /// No description provided for @topicLinkLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Topic link on tracker'**
+  String get topicLinkLabel;
 
   /// No description provided for @draftNeedsMessageFirst.
   ///
@@ -1735,6 +1771,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The draft the stored link pointed to is no longer on the site, so a new one was created.'**
   String get draftRecreated;
+
+  /// No description provided for @publishButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Publish'**
+  String get publishButton;
+
+  /// No description provided for @publishTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to upload this release?'**
+  String get publishTitle;
+
+  /// No description provided for @publishNames.
+  ///
+  /// In en, this message translates to:
+  /// **'Parent forum: {forum}\nRelease title: {title}'**
+  String publishNames(String forum, String title);
+
+  /// No description provided for @publishCheck.
+  ///
+  /// In en, this message translates to:
+  /// **'I have verified the draft and want to upload it unchanged, and I understand the post cannot be taken back.'**
+  String get publishCheck;
+
+  /// No description provided for @publishConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload'**
+  String get publishConfirm;
+
+  /// No description provided for @publishNeedsFileFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Make the torrent first'**
+  String get publishNeedsFileFirst;
+
+  /// No description provided for @publishFileRefused.
+  ///
+  /// In en, this message translates to:
+  /// **'The site did not accept the file: it is over the size the form declares, or not one of the extensions it accepts.'**
+  String get publishFileRefused;
+
+  /// No description provided for @publishFileWritten.
+  ///
+  /// In en, this message translates to:
+  /// **'The file the site served was written as {name}.'**
+  String publishFileWritten(String name);
+
+  /// No description provided for @publishFileNotWritten.
+  ///
+  /// In en, this message translates to:
+  /// **'The topic was made, but the file could not be written as {name}. The topic exists either way.'**
+  String publishFileNotWritten(String name);
 
   /// No description provided for @pornolabNeedsCredentials.
   ///

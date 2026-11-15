@@ -280,8 +280,9 @@ So the exit code is not enough on its own. Success is decided by the `success`
 field in the JSON, and an unknown hoster is recognised by the absence of a
 result.
 
-The app records every call in `<release_dir>/logs/`, as `ai/upload_images.md`
-describes.
+The app records every call in `<release_dir>/_rp_logs/`, as
+`ai/upload_images.md` describes. The folder is the app's own, so it carries the
+app's prefix, as the app's files inside a release do.
 
 ## Test host and test hosters
 

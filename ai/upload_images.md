@@ -105,8 +105,10 @@ Every interaction with uptooda is logged. The tool is run with `Process.start`,
 so each output line is recorded as it arrives rather than at the end of the
 call; `Process.run` would buffer everything until the process exits.
 
-The log is `<release_dir>/logs/log_<first_log_date>.json`, one JSON object per
-line, because entries are appended as they happen. A file is named after the
+The log is `<release_dir>/_rp_logs/log_<first_log_date>.json`, one JSON object
+per line, because entries are appended as they happen. The folder is the app's
+own, so it carries the app's prefix, as the app's files inside a release do. A
+file is named after the
 first entry it holds and every later entry goes into the same file. Writes are
 serialised, since several hosters write at the same time and a JSON Lines file
 cannot be appended to from two places at once.

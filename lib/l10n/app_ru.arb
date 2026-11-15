@@ -43,6 +43,9 @@
     "clonePosterNotUploadedWarning": "Постер не был загружен, поэтому его ссылки не будут скопированы. Лучше сначала загрузить постер, чтобы один и тот же постер не загружать несколько раз.",
     "openRelease": "Открыть релиз",
     "openReleaseShortcut": "Ctrl+O",
+    "openReleaseOnTracker": "Открыть релиз",
+    "openTorrentFile": "Открыть торрент",
+    "openTorrentFolder": "Открыть папку торрента",
     "chooseReleaseFolder": "Выберите папку релиза",
     "releaseManifestNotFound": "В выбранной папке отсутствует файл release.json.",
     "releaseMetadataInvalid": "Файл release.json недействителен.",
@@ -517,6 +520,7 @@
         }
     },
     "folderOpenFailed": "Не удалось открыть папку.",
+    "fileOpenFailed": "Не удалось открыть файл.",
     "draftSectionTitle": "Загрузка черновика на трекер",
     "draftUploadButton": "Загрузить",
     "parentForumLabel": "Родительский форум",
@@ -528,11 +532,53 @@
             }
         }
     },
+    "parentForumName": "Сайт называет этот форум так: {name}",
+    "@parentForumName": {
+        "placeholders": {
+            "name": {
+                "type": "String"
+            }
+        }
+    },
     "draftLinkLabel": "Ссылка на черновик на трекере",
+    "topicLinkLabel": "Ссылка на тему на трекере",
     "draftNeedsMessageFirst": "Сначала создайте сообщение",
     "draftNeedsLoginFirst": "Войдите на сайт в разделе «Настройки → Интеграции»",
     "draftNeedsForumFirst": "Укажите родительский форум",
     "draftRecreated": "Черновика, на который указывала сохранённая ссылка, на сайте больше нет, поэтому создан новый.",
+    "publishButton": "Опубликовать",
+    "publishTitle": "Вы уверены, что хотите загрузить этот релиз?",
+    "publishNames": "Родительский форум: {forum}\nНазвание релиза: {title}",
+    "@publishNames": {
+        "placeholders": {
+            "forum": {
+                "type": "String"
+            },
+            "title": {
+                "type": "String"
+            }
+        }
+    },
+    "publishCheck": "Подтверждаю: черновик проверен, загружаю его без изменений. Понимаю, что публикацию нельзя отменить.",
+    "publishConfirm": "Загрузить",
+    "publishNeedsFileFirst": "Сначала создайте торрент",
+    "publishFileRefused": "Сайт не принял файл: он больше размера, который объявляет форма, или не из принятых расширений.",
+    "publishFileWritten": "Файл, который сайт дал, записан как {name}.",
+    "@publishFileWritten": {
+        "placeholders": {
+            "name": {
+                "type": "String"
+            }
+        }
+    },
+    "publishFileNotWritten": "Тема создана, но файл записать как {name} не удалось. Тема есть в любом случае.",
+    "@publishFileNotWritten": {
+        "placeholders": {
+            "name": {
+                "type": "String"
+            }
+        }
+    },
     "pornolabNeedsCredentials": "Введите имя пользователя и пароль",
     "pornolabLoginAccepted": "Вход принят.",
     "pornolabLoginRefused": "Сайт не принял имя пользователя и пароль.",

@@ -1,10 +1,9 @@
 import 'dart:io';
 
-import 'package:path/path.dart' as p;
-
-import '../../service/launcher/folder_opener.dart';
+import '../../service/launcher/path_opener.dart';
 import '../../service/native_tools/mkbrr.dart';
 import '../../service/torrent/torrent_file.dart';
+import '../../service/torrent/torrent_path.dart';
 import '../release/release.dart';
 
 /// The Torrent feature: a torrent for what the release is made of
@@ -18,24 +17,29 @@ class TorrentController {
   TorrentController({
     required this.release,
     required this.mkbrr,
-    required this.folderOpener,
+    required this.pathOpener,
   });
 
   final Release release;
   final Mkbrr mkbrr;
-  final FolderOpener folderOpener;
+  final PathOpener pathOpener;
 
-  /// The file the app writes: `<release name>.torrent` in the release directory.
-  /// The name is the release name rather than the source basename, so a torrent
-  /// made from a picked folder is named after the release.
+  /// The file the app writes: `<release name>.torrent` in the release
+  /// directory. The name is the release name rather than the source basename,
+  /// so a torrent made from a picked folder is named after the release.
   ///
-  /// The file is an output, not a record: nothing is written to `release.json` or
-  /// `images.json` about whether a run happened, so the file is the only thing
-  /// that says one did, and a run writes over whatever is there. The Private flag
-  /// is the one thing the app does record for this feature, because it is a
-  /// choice the user makes rather than a result of a run (`ai/torrents.md`).
-  String outputPath() =>
-      p.join(release.directoryPath, '${release.name}.torrent');
+  /// The file is an output, not a record: nothing is written to `release.json`
+  /// or `images.json` about whether a run happened, so the file is the only
+  /// thing that says one did, and a run writes over whatever is there. The
+  /// Private flag is the one thing the app does record for this feature,
+  /// because it is a choice the user makes rather than a result of a run
+  /// (`ai/torrents.md`).
+  ///
+  /// After a post the release also has the file the tracker served, under the
+  /// name the site gives it (`ai/pornolab_upload.md` §6). This is still the
+  /// name this feature writes and shows, because the file it made is not taken
+  /// away by a post.
+  String outputPath() => torrentPath(release.directoryPath, release.name);
 
   /// The same file when it is already there, which is what a release opened
   /// again can have: the app records nothing for it, so the file is the only
@@ -45,15 +49,12 @@ class TorrentController {
   /// It is the path the app would write, not any `.torrent` in the folder: a
   /// file left under an older release name is not the one this release would
   /// write, and a run would write over it.
-  String? existingTorrent() {
-    final path = outputPath();
-
-    return File(path).existsSync() ? path : null;
-  }
+  String? existingTorrent() =>
+      existingTorrentFile(release.directoryPath, release.name);
 
   /// The folder the file is in, for the link the section shows next to the path.
-  Future<OpenFolderResult> openDirectory() =>
-      folderOpener.open(release.directoryPath);
+  Future<OpenPathResult> openDirectory() =>
+      pathOpener.open(release.directoryPath);
 
   /// The Private flag as the file on disk states it (`ai/torrents.md`).
   ///

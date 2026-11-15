@@ -4,6 +4,8 @@ import 'package:path/path.dart' as p;
 
 import '../../feature/screenshots/images.dart';
 import '../../feature/screenshots/images_store.dart';
+import '../../service/launcher/path_opener.dart';
+import '../../service/launcher/url_opener.dart';
 import '../../service/native_tools/ffmpeg.dart';
 import '../../service/native_tools/ffprobe.dart';
 import '../../service/native_tools/tool_runner.dart';
@@ -27,6 +29,8 @@ class ReleaseEditorController {
     required this.ffmpeg,
     required this.downloader,
     required this.images,
+    required this.urlOpener,
+    required this.pathOpener,
     required this.tabId,
   });
 
@@ -39,6 +43,11 @@ class ReleaseEditorController {
 
   /// `images.json`, for the poster record the Upload section needs.
   final ImagesStore images;
+
+  /// The link the heading's first button opens, and the path the other two open
+  /// (`ai/pornolab_upload.md` §11).
+  final UrlOpener urlOpener;
+  final PathOpener pathOpener;
 
   final String tabId;
 
@@ -63,6 +72,24 @@ class ReleaseEditorController {
   /// the file the user picked; per-item forms are the part not built yet.
   ReleaseItem? singleItem() =>
       release.items.isEmpty ? null : release.items.first;
+
+  /// The three things the heading row opens: the topic the post made, the file
+  /// the post wrote, and the folder that file is in. They are opened from what
+  /// the record holds, so a button is drawn disabled while its value is empty —
+  /// the record is the only thing that says a post happened, and the values the
+  /// buttons use are the two a post writes (`ai/pornolab_upload.md` §5, §11).
+  Future<OpenUrlResult> openTopic() => urlOpener.open(fields.value('topicUrl'));
+
+  Future<OpenPathResult> openTorrentFile() => pathOpener.open(torrentFile());
+
+  Future<OpenPathResult> openTorrentFolder() =>
+      pathOpener.open(p.dirname(torrentFile()));
+
+  /// The recorded path joined with the release directory: a path inside a
+  /// release is recorded relative to it, so the widget has to join it to open
+  /// anything (`ai/release_structure.md` §2).
+  String torrentFile() =>
+      p.join(release.directoryPath, fields.value('trackerTorrentFile'));
 
   /// Records a field value and marks the tab dirty — the tab record is the only
   /// place that state lives (rule 7). Returns whether the value changed, so the

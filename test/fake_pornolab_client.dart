@@ -13,10 +13,14 @@ class FakePornolabClient implements PornolabClient {
   FakePornolabClient({
     this.loginResult = const PornolabFailure(PornolabFailureKind.loginRefused),
     this.saveResult = const PornolabFailure(PornolabFailureKind.noCredentials),
+    this.postResult = const PornolabFailure(PornolabFailureKind.noFile),
+    this.nameResult = const PornolabFailure(PornolabFailureKind.badForumUrl),
   });
 
   PornolabResult loginResult;
   PornolabResult saveResult;
+  PornolabResult postResult;
+  PornolabResult nameResult;
 
   /// A test that wants a call not to finish gives a completer instead of a
   /// result, so what a widget holds while a call is running is observable.
@@ -30,6 +34,13 @@ class FakePornolabClient implements PornolabClient {
   /// What each save was given, as the cookie, the forum id, the draft id, the
   /// subject and the message.
   final saveCalls = <List<Object>>[];
+
+  /// What each post was given, as the cookie, the forum id, the draft id, the
+  /// subject, the message and the path of the file to send.
+  final postCalls = <List<Object>>[];
+
+  /// What each read for a name was given, as the cookie and the URL.
+  final nameCalls = <List<String>>[];
 
   @override
   Future<PornolabResult> login({
@@ -62,5 +73,31 @@ class FakePornolabClient implements PornolabClient {
     saveCalls.add([cookie, forumId, draftId, subject, message]);
 
     return saveResult;
+  }
+
+  @override
+  Future<PornolabResult> postTopic({
+    required String releaseDirectory,
+    required String cookie,
+    required int forumId,
+    required int draftId,
+    required String subject,
+    required String message,
+    required String filePath,
+  }) async {
+    postCalls.add([cookie, forumId, draftId, subject, message, filePath]);
+
+    return postResult;
+  }
+
+  @override
+  Future<PornolabResult> forumName({
+    required String releaseDirectory,
+    required String cookie,
+    required String url,
+  }) async {
+    nameCalls.add([cookie, url]);
+
+    return nameResult;
   }
 }

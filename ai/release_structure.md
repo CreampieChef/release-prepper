@@ -52,6 +52,9 @@ Rules:
 - `source` is the only absolute path in the format, and it is knowingly not portable. Every
   path inside the release stays relative, so the manifest remains valid if the release folder
   is moved.
+- A field value that is a path is stored relative to the release directory, as
+  an image record path is. `trackerTorrentFile` is the one such value, and it is
+  written by the Upload draft feature's post (`ai/pornolab_upload.md` §6).
 - IDs do not depend on where images are placed inside the release: the ID is the
   path whatever the placement gives, so the format does not encode the policy.
   Moving a file that is already recorded changes its ID, which is the rename rule

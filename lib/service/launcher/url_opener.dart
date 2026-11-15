@@ -1,8 +1,8 @@
 import 'package:url_launcher/url_launcher.dart';
 
 /// Opens a link in the browser the OS uses. This is the second job for
-/// url_launcher — `FolderOpener` is the first — so the rule that scopes the
-/// package to opening a folder now covers opening a link as well
+/// url_launcher — `PathOpener` is the first — so the rule that scopes the
+/// package to opening a path now covers opening a link as well
 /// (`ai/uploading_draft.md` §5).
 class UrlOpener {
   const UrlOpener();

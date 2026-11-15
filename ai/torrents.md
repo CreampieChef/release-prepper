@@ -38,7 +38,10 @@ The file is an output, not a record: nothing is written to `release.json` or
 is there. Re-running is what a user expects after a file in the release changes.
 The one thing the app does record for this feature is the Private flag, because
 that is a choice the user makes rather than a result of a run (§The Private
-flag).
+flag). The other recorded value belongs to another feature: the path its post
+wrote the tracker's file at, `trackerTorrentFile`, because a release opened
+again cannot otherwise say which file the post wrote, and that path is what the
+editor's heading opens (`ai/pornolab_upload.md` §6, §11).
 
 ## Progress
 
@@ -89,6 +92,14 @@ not rebuild the editor, so the section registers its rebuild with the editor —
 the widget that owns that row — and the editor calls it when the row is written
 to. A plain callback, not a listener (rule 3).
 
+Both of this feature's runs write a file: a create makes one, a flag change
+rewrites one that is already there. So a run ends by telling the editor what it
+wrote, as an upload run ends by telling it what it wrote to `images.json`. The
+Upload draft section gates its publish action on the file being there, and that
+gate is read while it builds, so a file made here is not something it can see
+without building again (rule 3). A run that wrote nothing says nothing, because
+the notice is about what a run wrote.
+
 Below the title row is the Private flag row, drawn only when the flag applies to
 something (§The Private flag), then the bar and the percentage, then the rate and
 the time left as two labelled lines, then what the run ended with — the path
@@ -104,13 +115,23 @@ the one this release would write, and a run would write over it. The check is
 synchronous, because the widget asks while it builds, the same way the poster
 box asks for its file.
 
+The name is one rule, in `lib/service/torrent/torrent_path.dart`, because two
+features need it: this one writes the file, and the Upload draft feature sends
+it (`ai/pornolab_upload.md` §7). After a post the release holds both — the file
+this feature wrote under the release name, and the tracker's copy named by the
+topic id, which is what the site says the account must seed — because nothing in
+the app deletes a file. The path the section shows is still the first, because
+that is the name this feature writes and the one a run would write over.
+
 Next to the path the section shows a link whose text is the release directory
 itself — a path is data, not a string, so it needs no key of its own — and which
 opens that folder in the file manager the OS uses. Flutter cannot do this on its
-own, so this is the app's only use of `url_launcher`, behind `FolderOpener`
-(`lib/service/launcher/folder_opener.dart`) as a provider entry with a typed
-result; a failure is shown as a message rather than swallowed. The link is drawn
-only when the section has a path to be next to.
+own, so this is the app's use of `url_launcher` for a path, behind `PathOpener`
+(`lib/service/launcher/path_opener.dart`) as a provider entry with a typed
+result; a failure is shown as a message rather than swallowed. It also opens a
+file with the handler the OS registers for its type, which is what the editor's
+heading does for the file a post wrote (`ai/pornolab_upload.md` §11). The link
+is drawn only when the section has a path to be next to.
 
 The section has no dirty flag and is not part of Ctrl+S: it does not edit a
 field. The Private flag row is not a field either, but it is part of the record,

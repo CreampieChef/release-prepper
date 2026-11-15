@@ -12,11 +12,14 @@ List<Hoster> get hosters => devMode ? mockHosters : realHosters;
 /// with the mock ones so a development run uploads to the Python test server
 /// instead of to a real hoster (`ai/upload_images.md`).
 ///
-/// This is the one top-level variable in the app, and the one exception to rule
-/// 10. It is set once by `main()` before the app is built and nothing writes it
-/// afterwards, so the registry stays the single place the app and the tests
-/// read the hosters from, and the message reads it for the poster hoster name
-/// that applies to the run.
+/// This is one of the three top-level variables in the app, the exceptions to
+/// rule 10. It is set once by `main()` before the app is built and nothing
+/// writes it afterwards, so the registry stays the single place the app and the
+/// tests read the hosters from, and the message reads it for the poster hoster
+/// name that applies to the run. The others are the flag that chooses the base
+/// the tracker requests are made to (`service/network/pornolab_client.dart`)
+/// and the flag that decides whether the plain text copy of the tracker's calls
+/// is written at all (`service/logging/debug_text_log.dart`).
 bool devMode = false;
 
 /// The hosters a normal run uses.

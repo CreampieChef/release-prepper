@@ -46,10 +46,12 @@ menu bar.
   §7). `archive` is the third: it is used only to read ZIP archives in the
   photoset scan, because the parts a hand-written reader gets wrong are the ones
   real archives have (see §5 and rule 12). `url_launcher` is the fourth: it is
-  used only to open a folder in the file manager the OS uses, which Flutter
-  cannot do on its own, and only for the link the Torrent section shows next to
-  the path it wrote, and for the draft link the Upload draft section shows,
-  which opens the browser the OS uses for it (see §5 and rule 12).
+  used only to open a path with the handler the OS uses for it — a folder in the
+  file manager, a file in the application registered for its type — and to open
+  a link in the browser, which Flutter cannot do on its own, and only for the
+  link the Torrent section shows next to the path it wrote, the draft link the
+  Upload draft section shows, and the three buttons the editor's heading has
+  (see §5 and rule 12).
   `enough_convert` is the fifth: it is used only to read a response in the
   charset the site declares, because `dart:convert` has UTF-8 and Latin-1 and
   the pages of this site are in neither (see §5 and rule 12). No routing,
@@ -157,7 +159,19 @@ What is left unfinished is not a compile error but missing behaviour:
   poster first is that the same poster is not uploaded twice for two releases.
 - The editor is the Single video field form (`ai/release_editor.md`). The
   release name is the heading, with a tracker badge (its icon and name) and a
-  release-type badge after it at a gap, because they say what the name is for.
+  release-type badge after it at a gap, because they say what the name is for,
+  and the three buttons that open what a post recorded — the topic, the file the
+  run wrote, and the folder that file is in — at the right edge of the same row,
+  because the row is the page's title and what is at its right is what can be
+  done with the release, the same way a section puts its action at the right of
+  its title row. A button is drawn disabled while the record has no value for
+  it, because the record is the only thing that says a post happened. The row is
+  one line when its parts fit and the buttons are the line below when they do
+  not, because the point where a row stops is what its parts need rather than a
+  page breakpoint, the same rule §3 states for the settings page's rows; the
+  widths are measured with `TextPainter`, which is the shared helper in
+  `lib/feature/text_width.dart`. A failed open is said in a snackbar, because
+  the heading is the page's title and has no body to say an outcome in.
   The heading has 12 px below it before the form: the gap a section title has
   before its content, because the heading titles the page and not a column. The
   form is as many columns of at least 430 px as the window has room for — the
@@ -458,7 +472,10 @@ What is left unfinished is not a compile error but missing behaviour:
   with it and calls
   them when something one of them shows changes: a run that writes images.json,
   or the source the
-  Torrent section runs on. Writing or removing a poster is such a change,
+  Torrent section runs on, or the file a run of that section writes — the Upload
+  draft section's publish action is gated on that file being there, and the gate
+  is read while the section builds, so the notice is what lets that section see
+  a file it could not otherwise. Writing or removing a poster is such a change,
   because the poster is a
   record in that file, so the poster path calls the same notice: without it a
   poster added after a
@@ -991,7 +1008,10 @@ data (`ai/release_structure.md` §4). The URLs are stored per image and per
   owns, read with
   `MessageStore.loadSync`, not the text in the box. Whether a message exists is
   state that
-  section changes, so this one registers its rebuild with the editor (rule 3). A
+  section changes, so this one registers its rebuild with the editor (rule 3).
+  The file is state the same way, because another feature's run writes it, so a
+  run that wrote a file tells the editor, which builds this section again and
+  reads the gate again. A
   link the
   release already holds is shown even when the row is not: it is the result a
   run wrote, not
@@ -1247,7 +1267,16 @@ data (`ai/release_structure.md` §4). The URLs are stored per image and per
 lib/
   main.dart entry point: reads `--dev`, which is what makes the app use
                               the mock hosters instead of the real ones
-                              (`ai/upload_images.md`), then runApp(const App())
+                              (`ai/upload_images.md`), and `--dev-tracker-stub`,
+                              which is what makes the tracker client build its
+                              requests and its links from the stub
+                              (`ai/pornolab_upload.md` §10), and
+                              `--unsafe-verbose-tracker-logging`, which decides
+                              whether the plain text copy of the tracker's calls
+                              is written at all (`ai/uploading_draft.md` §8). All
+                              three are flags read here and nowhere else, before
+                              the app is built, for the reason rule 10 gives;
+                              then runApp(const App())
   app/app.dart App + AppRoot (MaterialApp, the theme, the l10n delegates,
                               the app locale) + TabsPage. Composition only:
   installs the
@@ -1483,7 +1512,18 @@ lib/
   settings page shows
                               it — a run has nothing to show for one, its
   success is the link it
-                              was given — so that word is the page's own string
+                              was given — so that word is the page's own string.
+                              `postFileText` is the same shape for a post: the
+  words for what a post ended with are only the file, and the two cases are said
+  apart, because the topic exists either way and the user needs to know which of
+  the two the release has. The file is named by the path it was written at
+  rather than by its name, because that path is what the record holds and a name
+  alone would not say which folder the file is in.
+    text_width.dart           measuredTextWidth(): the width a string needs at a
+                              style. Two widgets decide where a row stops
+                              fitting from it — the settings page's login row
+                              and the editor's heading — so the measurement is
+                              one function rather than a copy in each.
     release/
       release.dart              Release (name, directoryPath, tracker,
                                 releaseType, source, fields, items, createdDate,
@@ -1552,7 +1592,11 @@ lib/
   for the fields the
                                  app fills + the item types + the field names
   with no form row
-                                 (`sceneUrl`, `parentForum`, and a video pack's
+                                 (`sceneUrl`, the four names the Upload
+  draft feature stores (`parentForum`, `draftUrl`, `topicUrl`,
+  `trackerTorrentFile`), the one whose value is a path, recorded relative to the
+  release directory (`ai/release_structure.md` §2), and a video
+  pack's
   item fields until
                                  the per-item form exists) + the marker for a
   field no template
@@ -1633,6 +1677,10 @@ lib/
                                 format check, writing and removing a poster, and
   a poster
                                 from a pasted link
+                                + the two openers the heading's three buttons
+                                call, and the three opens: the link the record
+                                holds, the path it holds joined with the release
+                                directory, and the folder that path is in
       release_editor.dart editor UI: the title with the tracker and release-type
                                badges after it, the field form built from the
                                release type's field list, in as many columns of
@@ -1689,7 +1737,16 @@ lib/
                                section cannot mark a row it does not build (rule
                                3). A column is empty for a type with no field
                                the user writes, so the image folder form is the
-                               poster box and the right column. screenshots/
+                               poster box and the right column.
+                               The three buttons the heading row has open what a
+                               post recorded: the link the record holds, the
+                               path it holds joined with the release directory,
+                               and the folder that path is in. Each is drawn
+                               disabled while the record has no value for it,
+                               and the row puts them at its right edge when its
+                               parts fit and on the line below when they do not,
+                               the point measured with `text_width.dart` above.
+                               screenshots/
       images.dart ImageKind + ImageRecord (the item it belongs to, the kind, the
                                 file path relative to the release directory, the
                                 photo-hosting urls per hoster and per URL type)
@@ -2172,7 +2229,11 @@ lib/
                                 write is the editor's: the section reports the
                                 change path for a value with no file, and the
                                 write path for a flag whose file a run changed
-                                there: then there is nothing left to save.
+                                there: then there is nothing left to save. A run
+                                that wrote a file tells the editor at the end of
+                                it, because the Upload draft section's publish
+                                action is gated on the file being there, and the
+                                gate is read while that section builds.
                                 No dirty flag of its own, not part of Ctrl+S
     message/
       message_store.dart MessageStore (load/loadSync/save/delete) for the two
@@ -2344,7 +2405,11 @@ lib/
                                 page's action, because the site asks for a
   captcha after a few
                                 logins and the app cannot read one
-  (`ai/pornolab_login.md` §7)
+  (`ai/pornolab_login.md` §7). The second action is the post
+  (`ai/pornolab_upload.md`): the same checks with the file added, in the order
+  a run can be missing them. The file a post carries is the one the app's own
+  run wrote, so its name is read through service/torrent/torrent_path.dart
+  rather than written again here.
       draft_section.dart DraftSection: the title row with the Upload button at
   the right, the
                                 parent forum row, and the link the release holds
@@ -2359,9 +2424,11 @@ lib/
   a run wrote. The
                                 button is disabled while a run cannot be made
   and its tooltip says
-                                which of the three is missing, in the order a
+                                which of the four is missing, in the order a
   run needs them: the
-                                message, a stored cookie, the forum. The row
+                                message, a stored cookie, the forum, and — for
+  the publish action, the
+                                only one that needs it — a file to send. The row
   shows the shape rule
                                 with the words the form's rows use, and the
   words for a result are
@@ -2393,7 +2460,23 @@ lib/
   reads the settings
                                 feature through the provider, because the gate
   is the credentials
-                                rather than the cookie
+                                rather than the cookie. The publish button is
+  drawn only for a release with a stored draft link, and not for one that
+  already has a topic, because a second post would be a second topic for the
+  same text. Its popup names the forum and the title the post is made from, and
+  is capped at 1000 px so a title longer than the cap is lines rather than a
+  popup as wide as the window. Its confirm is gated by a checkbox whose words
+  are the user's own statement about the draft: that it has been verified and is
+  to be uploaded unchanged. The result cannot be taken back, so the answer is
+  asked for as an agreement rather than as a click, and a dismissed popup is not
+  one. The row shows the name the site
+  gives for the forum the value names — what a page said, so widget state
+  and nothing stored — and nothing is asked for a value the shape rule
+  refuses. A post says the file, because that is the part of a run the link
+  cannot show (`ai/pornolab_upload.md` §8). A gate that is read while the
+  section builds is read again only when the editor builds it, so the section
+  registers its rebuild for the message and for the file: the file is what a
+  Torrent run ends by telling the editor about (rule 3).
     settings/
       settings.dart               AppLanguage + SettingsField + Settings (the
                                   app language, the default release directory,
@@ -2497,7 +2580,10 @@ lib/
                                   label at a width the label does not fit in, so
                                   where a row stops fitting is what its controls
                                   need measured from the labels the app shows,
-                                  which moves with the language. The Integration
+                                  which moves with the language, measured with
+                                  the shared helper `text_width.dart`, the same
+                                  one the editor's heading uses for its three
+                                  buttons. The Integration
                                   section obscures a field from the flag on its
                                   entry rather than masking every field in its
                                   loop, and the two credentials and the button
@@ -3121,6 +3207,14 @@ lib/
                                 header, so the rule can be tested without a
   file.
                                 + the typed read result.
+      torrent_path.dart         torrentPath(): the name the app writes a
+                                release's torrent under, and
+                                existingTorrentFile(): the same file when it is
+                                already there. One rule because two features
+                                need it: this one writes the file, the Upload
+                                draft feature sends it (`ai/pornolab_upload.md`
+                                §7), and a second copy of the name would be a
+                                second rule.
     template/
       style.dart Style: a parsed style file — key = value, one rule per
                                 line, `{content}` as the slot body, `{token}` as
@@ -3164,13 +3258,15 @@ lib/
   service reads no
                                 static.
     logging/
-      tool_log.dart             ToolLog: the JSON Lines log under
-                                `<release_dir>/logs/`, one entry per output
-                                line, named with the date of the first entry,
-                                writes serialized with a lock. The directory is
-                                the one the caller gives per call, so the System
-                                Check writes to the app data directory, where
-                                there is no release.
+      tool_log.dart           ToolLog: the JSON Lines log under
+                              `<release_dir>/_rp_logs/`, one entry per output
+                              line, named with the date of the first entry,
+                              writes serialized with a lock. The folder is the
+                              app's own, so it carries the app's prefix as the
+                              app's files inside a release do. The directory is
+                              the one the caller gives per call, so the System
+                              Check writes to the app data directory, where
+                              there is no release.
       tool_log_entry.dart the shape of one entry: date, tool, the input repeated
                                 on every entry, stream, line — and the exit
   entry that
@@ -3187,6 +3283,22 @@ lib/
                                 entry carries the headers too, as the rule that
   says which of
                                 them belong in a log file left them
+      debug_text_log.dart       DebugTextLog: the plain text copy of the same
+                                calls, written only for a run started with
+                                `--unsafe-verbose-tracker-logging`, so a normal
+                                run writes nothing (`ai/uploading_draft.md` §8):
+                                the cookie as its value, and a page in full,
+                                which the app's log keeps as markers for the
+                                reason the flag is called unsafe. Writes
+                                serialized, as there. Its own service, so that
+                                the decision to write is one place and the call
+                                sites stay with the client, and the shape of a
+                                block is its own: the marker 80 times, then 10
+                                of it with the date, then 10 of it with the
+                                line the block is about, then a blank line,
+                                then the headers as `name: value` and what was
+                                sent or answered, with one entry point per kind
+                                of block.
     network/
       image_downloader.dart ImageDownloader: downloads one file, + the typed
   DownloadResult
@@ -3315,7 +3427,19 @@ lib/
   recorded: what the entry
                                 records as what was read is the cookie, which is
   never recorded as
-                                its value
+                                its value. The base the requests and the links
+                                are built from is the stub's when the flag
+                                `main()` read was passed, and the site's
+                                otherwise: one value, because a run and the link
+                                it shows have to agree (`ai/pornolab_upload.md`
+                                §10). The flag that chooses it is the second
+                                exception to rule 10. The page a name is read
+                                from is asked for at that base, as the other
+                                requests are, so a run against the stub shows
+                                the name the stub's page carries.
+                                The length of the body is declared as a browser
+                                declares it, because a server that is not a
+                                browser reads that header rather than the body.
     stashdb/
       domain_map.dart DomainMap: the domains the app writes in a form of its
   own,
@@ -3343,9 +3467,10 @@ lib/
   constructor
                                 parameter, so the service reads no static.
     launcher/
-      folder_opener.dart        FolderOpener: opens a folder in the file manager
-                                the OS uses, + the typed result. One of the two
-  uses of
+      path_opener.dart          PathOpener: opens a path with the handler the OS
+                                uses for it — a folder in the file manager, a
+                                file in the application registered for its type
+                                — + the typed result. One of the two uses of
                                 url_launcher, and one of the two services that
   call a
                                 platform plugin rather than a process or the
@@ -3390,7 +3515,18 @@ testing-tools/                    the tools that are run by hand and are not par
                                 count. The files are what the subsite and site test cases
                                 are built from. The rules are in
                                 `ai/bundled_native_tools.md`.
-dart_test.yaml                  test timeout: 30s, concurrency: 4
+  pornolab-stub/                `rp_pornolab_stub.py` answers as the site for
+                                the requests the app makes through the tracker
+                                client: the three a post is made of, and the
+                                page a forum name is read from. It keeps the
+                                file a POST is given under `posted/`, because
+                                the file that comes back is what the feature
+                                writes; what the server invents rather than
+                                reproduces is listed in its `README.md`. Its
+                                own checks, `test_stub.py`, are its own tests
+                                and are run by hand with python3. The app is
+                                pointed at it with `--dev-tracker-stub`. The
+                                rules are in `ai/pornolab_upload.md`.
 assets/icons/                   tracker icon assets; declared under
                                 `flutter: assets:` in pubspec.yaml, so they are
                                 bundled. `assets/icons/pornolab.svg` is the one
@@ -3580,11 +3716,23 @@ not treat those rules as describing the code as it is today).
    when another tab is selected, and a value it kept would be gone before the user comes
    back.
 10. **No static singletons.** Shared objects live only in the provider scope and
-    are reached through `context`, never through a top-level variable. The hoster registry
-    is the one exception, and it is a necessary one: it is data the tests read, so it stays
-    a top-level list, and the `--dev` flag that chooses between the real and the mock
-    hosters is a top-level bool set once by `main()` before the app is built — the message
-    reads it too, to decide which poster hoster applies.
+    are reached through `context`, never through a top-level variable. The
+    hoster registry is the one exception, and it is a necessary one: it is data
+    the tests read, so it stays a top-level list, and the `--dev` flag that
+    chooses between the real and the mock hosters is a top-level bool set once
+    by `main()` before the app is built — the message reads it too, to decide
+    which poster hoster applies.
+    The second exception is the `--dev-tracker-stub` bool the same part of
+    `main()` sets: the base a network client builds from has to be settled
+    before its first request, and no feature is the place that decides an
+    address, so there is nothing in the provider scope to put it in. The third
+    is the `--unsafe-verbose-tracker-logging` bool, which decides whether the
+    plain text copy of the tracker's calls is written at all
+    (`ai/uploading_draft.md` §8): the service that writes the copy is the part
+    that needs the decision, and no feature is the place that makes it, so there
+    is nothing in the provider scope to put it in either. All three are read
+    once before the app is built and nothing writes them afterwards, and none is
+    passed anywhere, because the value is a rule of the part that uses it.
 11. **All user-visible strings come from `AppLocalizations`.** No hardcoded
     English in widgets. A tracker name is the one exception, and it is a necessary one: it is
     the same in every language, so it is a field on `Tracker` rather than a key.
@@ -4627,15 +4775,16 @@ same call the Message section's copy buttons make, because the text is what a us
 another post, and it says nothing when it works, as they do.
 
 **The tool log:** every call `ToolRunner` runs is written to
-`<release_dir>/logs/log_<date of the first entry>.json`, one JSON object per line, as the
-tool speaks. An entry carries the date (ISO 8601 UTC), the tool, the input, the stream,
-and the line; the input is repeated on every entry so an entry stands on its own, and a
-final entry records the exit code. Lines are split on newlines only, so the carriage
-returns a tool uses to redraw a progress line stay inside the recorded text; the raw
-output is accumulated separately for parsing. The first existing log file is appended to,
-otherwise a new one is created named with today's date. Writes are serialized with a lock,
-because several hosters write to the same file at the same time. Recording every tool call
-rather than only uptooda is a deliberate broadening of the spec.
+`<release_dir>/_rp_logs/log_<date of the first entry>.json`, one JSON object per
+line, as the tool speaks. An entry carries the date (ISO 8601 UTC), the tool,
+the input, the stream, and the line; the input is repeated on every entry so an
+entry stands on its own, and a final entry records the exit code. Lines are
+split on newlines only, so the carriage returns a tool uses to redraw a progress
+line stay inside the recorded text; the raw output is accumulated separately for
+parsing. The first existing log file is appended to, otherwise a new one is
+created named with today's date. Writes are serialized with a lock, because
+several hosters write to the same file at the same time. Recording every tool
+call rather than only uptooda is a deliberate broadening of the spec.
 
 **Menu:** `MainMenu` is a `MenuBar` with `File` (`New Release`, `Open Release`,
 `Save`, `Close tab`) and `Help` (`About`). `New Release` calls
@@ -5113,6 +5262,12 @@ that run is `draftRecreated`, in the draft family above. `linkOpenFailed` is the
 words for the
 launcher failing, the same shape as `folderOpenFailed`, which is why a service
 that shows no messages has a key in the widget that calls it (rule 13).
+The three buttons the editor's heading has (`openReleaseOnTracker`,
+`openTorrentFile`, `openTorrentFolder`) are keys in both files, used by
+`release_editor.dart`. An open that failed says a sentence by what was
+attempted, because the three buttons open three different things:
+`linkOpenFailed` and `folderOpenFailed` are the two the draft and Torrent
+families already have, and `fileOpenFailed` is the new one for a file.
 `pornolabUsernameLabel` and `pornolabPasswordLabel` are the two fields the
 Integration section shows for the site, and `loginButton` and `logoutButton` are
 the button on that row; the other settings keys are not listed here because the
@@ -5807,6 +5962,15 @@ test that needs a run to be over waits for the end of it — there is nothing el
 for such a test to wait for, because the block draws no list for a run. What a
 test that looks at a run while it is going waits on is the progress row, which
 is drawn only while a run is running.
+The three open buttons the heading has are tested with the two fake openers the
+draft and Torrent tests use, because the widget calls them. The record's values
+are put on directly, because a test about the buttons is not a test of the run
+that writes them. The tests read the row as it is drawn — the three buttons at
+its right edge when the row has room for them, and as the line below when it
+does not, at a window narrow enough that the measured parts do not fit — a
+button drawn disabled while the record has no value for it, an open asking the
+fake for the link the record holds, the path joined with the release directory,
+and the folder that path is in, and a failed open naming what was attempted.
 
 `test/tab_navigation_test.dart` covers the content area's page keys. It runs on
 `TargetPlatform.linux`, because a widget test reports a mobile platform where a
@@ -6030,8 +6194,14 @@ the version the app sends are the ones the app has, and the name as one word
 rather than as the display name. A request that gets no answer is checked
 through a fake `HttpClient` that answers with an error instead of a connection —
 it has only a factory constructor, so it cannot be extended — and the test reads
-the log back to see the request entry and then the failure entry with the
-reason, so the log is what shows why a run could not be made. It also covers the
+the test reads the log back to see the request entry and then the failure entry
+with the reason, so the log is what shows why a run could not be made. The plain
+text copy is checked in `test/debug_text_log_test.dart`: a run that was not
+started with `--unsafe-verbose-tracker-logging` writes nothing, and a run that
+was writes the block, appends the block after it in the order the calls were
+made, and writes the frame the shape describes — the marker lines, the date, the
+line the block is about, a header as `name: value` — for each of the three kinds
+of block. It also covers the
 login: the form body encoded from its Windows-1251 bytes, including the word the
 site's own form uses for its submit button, a value with non-ASCII characters, a
 character the codepage cannot represent, and an escape for a byte under 0x10,

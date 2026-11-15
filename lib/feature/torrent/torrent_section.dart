@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../service/launcher/folder_opener.dart';
+import '../../service/launcher/path_opener.dart';
 import '../../service/native_tools/mkbrr.dart';
 import '../../service/torrent/torrent_file.dart';
 import '../release/release.dart';
@@ -84,6 +84,7 @@ class TorrentSection extends StatefulWidget {
     required this.subscribeSourceChanged,
     required this.onPrivateChanged,
     required this.onPrivateSaved,
+    required this.onFileWritten,
     super.key,
   });
 
@@ -108,6 +109,16 @@ class TorrentSection extends StatefulWidget {
   /// a change and the tab does not become dirty. The section is the one that knows
   /// which of the two cases it is in, so the two write paths are two callbacks.
   final Future<void> Function(bool private) onPrivateSaved;
+
+  /// Tells the editor that a run wrote the file, as an upload run ends by
+  /// telling it what it wrote. Both of this section's runs write it: a create
+  /// makes the file, a flag change rewrites one that is already there. The
+  /// Upload draft section gates its publish action on the file being there
+  /// (`ai/pornolab_upload.md` §7), and a file that appears is not something
+  /// that section can see without building again, so the editor is where the
+  /// two meet (rule 3). A run that did not write a file reports nothing, as the
+  /// notice says what a run wrote.
+  final void Function() onFileWritten;
 
   @override
   State<TorrentSection> createState() => _TorrentSectionState();
@@ -143,7 +154,7 @@ class _TorrentSectionState extends State<TorrentSection> {
     _controller = TorrentController(
       release: widget.release,
       mkbrr: context.read<Mkbrr>(),
-      folderOpener: context.read<FolderOpener>(),
+      pathOpener: context.read<PathOpener>(),
     );
 
     widget.subscribeSourceChanged(_rebuild);
@@ -176,6 +187,12 @@ class _TorrentSectionState extends State<TorrentSection> {
     );
 
     if (!mounted) return;
+
+    // Only a run that wrote the file is reported, because the notice says what
+    // a run wrote rather than that one happened.
+    if (result is MkbrrCreated) {
+      widget.onFileWritten();
+    }
 
     setState(() {
       _busy = false;
@@ -221,6 +238,9 @@ class _TorrentSectionState extends State<TorrentSection> {
       await widget.onPrivateSaved(value);
 
       if (!mounted) return;
+
+      // The file was rewritten, so the same notice a create makes is made here.
+      widget.onFileWritten();
     }
 
     setState(() {
@@ -263,7 +283,7 @@ class _TorrentSectionState extends State<TorrentSection> {
 
     if (!mounted) return;
 
-    setState(() => _openFailed = result is FolderOpenFailed);
+    setState(() => _openFailed = result is PathOpenFailed);
   }
 
   /// What the section says about the file: what a run wrote, what a flag change

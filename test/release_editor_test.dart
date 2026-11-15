@@ -29,7 +29,7 @@ import 'package:release_prepper/feature/settings/settings_store.dart';
 import 'package:release_prepper/feature/tab/tab_manager.dart';
 import 'package:release_prepper/l10n/app_localizations.dart';
 import 'package:release_prepper/service/images/masonry.dart';
-import 'package:release_prepper/service/launcher/folder_opener.dart';
+import 'package:release_prepper/service/launcher/path_opener.dart';
 import 'package:release_prepper/service/launcher/url_opener.dart';
 import 'package:release_prepper/service/native_tools/ffmpeg.dart';
 import 'package:release_prepper/service/native_tools/ffprobe.dart';
@@ -46,6 +46,7 @@ import 'package:release_prepper/service/photosets/photoset_scanner.dart';
 import 'package:release_prepper/service/stashdb/domain_map.dart';
 import 'package:release_prepper/service/template/template_renderer.dart';
 import 'package:release_prepper/service/template/template_store.dart';
+import 'package:release_prepper/service/torrent/torrent_path.dart';
 import 'package:release_prepper/service/videos/image_generator.dart';
 import 'package:release_prepper/service/videos/video_scanner.dart';
 
@@ -104,13 +105,15 @@ List<SingleChildWidget> stashProviders() => [
 ];
 
 // The editor renders the Upload draft section, so every test that builds it has
-// to provide its client and the launcher the draft link uses. The client answers
-// with nothing and the settings hold no credentials, so none of these tests
-// reach the Upload button or the link; the draft behaviour is in
-// `test/draft_section_test.dart`.
-List<SingleChildWidget> draftProviders() => [
+// to provide its client and the launcher the draft link uses. The client
+// answers with nothing and the settings hold no credentials, so none of these
+// tests reach the Upload button or the link; the draft behaviour is in
+// `test/draft_section_test.dart`. The same launcher is what the heading's
+// buttons call, so a test that presses one gives the fake that says what the
+// handler answered.
+List<SingleChildWidget> draftProviders({UrlOpener? urlOpener}) => [
   Provider<PornolabClient>(create: (_) => FakePornolabClient()),
-  Provider<UrlOpener>(create: (_) => const UrlOpener()),
+  Provider<UrlOpener>(create: (_) => urlOpener ?? const UrlOpener()),
 ];
 
 // The Screenshots section and the Video pack section build their controllers
@@ -131,14 +134,48 @@ List<SingleChildWidget> imageGeneratorProviders() => [
 ];
 
 // The editor renders the Torrent section, so every test that builds it has to
-// provide its tool and the folder opener the section's link uses. The test
-// runner resolves nothing, so a call through it says the tool is not present;
-// none of these tests reach the Create button or the link, and the torrent
-// behaviour is in `test/torrent_section_test.dart`.
-List<SingleChildWidget> torrentProviders() => [
+// provide its tool and the opener its link and the heading's buttons use. The
+// test runner resolves nothing, so a call through the tool says it is not
+// present, and the test binding has no OS handler, so an opener answers with
+// what the test gives it. None of these tests reach the Create button, and the
+// torrent behaviour is in `test/torrent_section_test.dart`.
+List<SingleChildWidget> torrentProviders({PathOpener? pathOpener}) => [
   Provider<Mkbrr>(create: (_) => Mkbrr(runner: testRunner())),
-  Provider<FolderOpener>(create: (_) => const FolderOpener()),
+  Provider<PathOpener>(create: (_) => pathOpener ?? const PathOpener()),
 ];
+
+// The two openers call the OS handlers, which the test binding cannot answer
+// for. A fake answers with the result the test gives and records what each call
+// asked for.
+class _FakePathOpener extends PathOpener {
+  _FakePathOpener(this.result);
+
+  final OpenPathResult result;
+
+  final calls = <String>[];
+
+  @override
+  Future<OpenPathResult> open(String path) async {
+    calls.add(path);
+
+    return result;
+  }
+}
+
+class _FakeUrlOpener extends UrlOpener {
+  _FakeUrlOpener(this.result);
+
+  final OpenUrlResult result;
+
+  final calls = <String>[];
+
+  @override
+  Future<OpenUrlResult> open(String url) async {
+    calls.add(url);
+
+    return result;
+  }
+}
 
 class _FakeStashClient implements StashClient {
   @override
@@ -297,6 +334,11 @@ void main() {
     // answers with nothing under the test binding, so a test that reaches the
     // poster path through a link has to give the fake.
     ImageDownloader? downloader,
+    // The two openers the heading's buttons call. The defaults are the real
+    // ones, which answer with a failure under the test binding, so a test that
+    // presses a button gives the fake.
+    UrlOpener? urlOpener,
+    PathOpener? pathOpener,
   }) async {
     await tester.pumpWidget(
       MultiProvider(
@@ -306,8 +348,8 @@ void main() {
           Provider<ImagesStore>(create: (_) => ImagesStore()),
           ...messageProviders(messageBundle),
           ...stashProviders(),
-          ...draftProviders(),
-          ...torrentProviders(),
+          ...draftProviders(urlOpener: urlOpener),
+          ...torrentProviders(pathOpener: pathOpener),
           Provider<Uptooda>(create: (_) => Uptooda(runner: testRunner())),
           Provider<Ffprobe>(create: (_) => Ffprobe(runner: testRunner())),
           Provider<Ffmpeg>(
@@ -2349,6 +2391,248 @@ void main() {
     expect(title.top - heading.bottom, 12);
   });
 
+  // A post's two recorded values. A test about the buttons is not also about
+  // the run that writes them, so the values are put on the record directly.
+  const topicUrl = 'https://pornolab.net/forum/viewtopic.php?t=3000111';
+  const recordedPath = '_rp_torrent/[pornolab.net].t3000111.torrent';
+
+  // The three buttons the heading row offers for the release: the link a post
+  // made, the file it wrote, and the folder that file is in. They read the two
+  // values a post records rather than anything the user typed, so a release
+  // that has not been posted has nothing to open (`ai/pornolab_upload.md` §11).
+  //
+  // Setting the values is the state a run leaves, so these tests do not run
+  // one: the record is the only thing that says a post happened, and the write
+  // path a run goes through is tested in `test/draft_section_test.dart`.
+  FieldValues postedFields() {
+    final fields = FieldValues();
+
+    fields.setValue('topicUrl', topicUrl);
+    fields.setValue('trackerTorrentFile', recordedPath);
+
+    return fields;
+  }
+
+  FilledButton openButton(WidgetTester tester, String key) =>
+      tester.widget<FilledButton>(find.byKey(ValueKey(key)));
+
+  // The order the record's two values are read: the link, then the file, then
+  // the folder the file is in, so the buttons are in that order at the right.
+  testWidgets('the heading row offers the three open buttons at its right edge', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    await openEditor(tester, testRelease('/tmp/x', fields: postedFields()));
+
+    Rect button(String key) => tester.getRect(find.byKey(ValueKey(key)));
+    Rect badge(String text) => tester.getRect(
+      find.ancestor(of: find.text(text), matching: find.byType(Container)),
+    );
+
+    final type = badge('Single video');
+
+    expect(button('openTopicButton').left, greaterThan(type.right));
+    expect(
+      button('openTorrentFileButton').left,
+      greaterThan(button('openTopicButton').right),
+    );
+    expect(
+      button('openTorrentFolderButton').left,
+      greaterThan(button('openTorrentFileButton').right),
+    );
+
+    // The spacer pushes them to the right edge of the row, which is the content
+    // width inside the page padding the editor draws with.
+    // The spacer pushes them to the right edge of the row, which is the content
+    // width inside the page padding the editor draws with.
+    expect(button('openTorrentFolderButton').right, closeTo(2000 - 24, 0.5));
+  });
+
+  // Below the width where the parts fit, the buttons are the line below, in the
+  // same order. The width where the row stops is what the parts need rather
+  // than a page breakpoint, so it is the same width in the language the app is
+  // in, and a row that stops does not overflow (`ai/doc.md` §3).
+  testWidgets('the buttons are the line below when the row cannot hold them', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    await openEditor(tester, testRelease('/tmp/x', fields: postedFields()));
+
+    Rect button(String key) => tester.getRect(find.byKey(ValueKey(key)));
+    Rect badge(String text) => tester.getRect(
+      find.ancestor(of: find.text(text), matching: find.byType(Container)),
+    );
+
+    final name = tester.getRect(find.text('x'));
+    final tracker = badge('PornoLab');
+    final type = badge('Single video');
+
+    // The name and the badges do fit, so they are still one line.
+    expect(tracker.center.dy, equals(name.center.dy));
+    expect(type.center.dy, equals(tracker.center.dy));
+
+    expect(button('openTopicButton').top, greaterThan(type.bottom));
+
+    // The line below is the three buttons in the order the record's values are
+    // read.
+    expect(
+      button('openTorrentFileButton').top,
+      equals(button('openTopicButton').top),
+    );
+    expect(
+      button('openTorrentFileButton').left,
+      greaterThan(button('openTopicButton').right),
+    );
+    expect(
+      button('openTorrentFolderButton').left,
+      greaterThan(button('openTorrentFileButton').right),
+    );
+  });
+
+  // A button is drawn disabled while the record has no value for it, because a
+  // post that did not happen left nothing to open.
+  testWidgets('the open buttons are disabled while the record is empty', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    await openEditor(tester, testRelease('/tmp/x'));
+
+    for (final key in [
+      'openTopicButton',
+      'openTorrentFileButton',
+      'openTorrentFolderButton',
+    ]) {
+      expect(
+        openButton(tester, key).onPressed,
+        isNull,
+        reason: 'the record has no value for $key',
+      );
+    }
+  });
+
+  // A run that made the topic and failed at the file left nothing on disk, so
+  // the link alone does not make the two file buttons usable (`§8`).
+  testWidgets('the file buttons are disabled when only the link is recorded', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    final fields = FieldValues();
+    fields.setValue('topicUrl', topicUrl);
+
+    await openEditor(tester, testRelease('/tmp/x', fields: fields));
+
+    expect(openButton(tester, 'openTopicButton').onPressed, isNotNull);
+
+    for (final key in ['openTorrentFileButton', 'openTorrentFolderButton']) {
+      expect(
+        openButton(tester, key).onPressed,
+        isNull,
+        reason: 'no file was written',
+      );
+    }
+  });
+
+  // Pressing a button opens what the record names, and a run that opened
+  // something has nothing to say about it.
+  testWidgets('the release button opens the link the record holds', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    final urlOpener = _FakeUrlOpener(const UrlOpened());
+    final pathOpener = _FakePathOpener(const PathOpened());
+
+    await openEditor(
+      tester,
+      testRelease('/tmp/x', fields: postedFields()),
+      urlOpener: urlOpener,
+      pathOpener: pathOpener,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('openTopicButton')));
+    await tester.pumpAndSettle();
+
+    expect(urlOpener.calls, [topicUrl]);
+    expect(pathOpener.calls, isEmpty);
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
+  // The recorded path is relative to the release directory, so the widget joins
+  // it before it asks the handler for it (`ai/release_structure.md` §2).
+  testWidgets('the torrent buttons open the recorded path and its folder', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    final pathOpener = _FakePathOpener(const PathOpened());
+
+    await openEditor(
+      tester,
+      testRelease('/tmp/x', fields: postedFields()),
+      pathOpener: pathOpener,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('openTorrentFileButton')));
+    await tester.pumpAndSettle();
+
+    expect(pathOpener.calls, [p.join('/tmp/x', recordedPath)]);
+
+    await tester.tap(find.byKey(const ValueKey('openTorrentFolderButton')));
+    await tester.pumpAndSettle();
+
+    expect(pathOpener.calls, [
+      p.join('/tmp/x', recordedPath),
+      p.join('/tmp/x', trackerDirectory),
+    ]);
+  });
+
+  // A failed open is said, and the words name what was attempted, because the
+  // three buttons open three different things. The heading is the page's title
+  // rather than a section with a body to say an outcome in, so this is the one
+  // place the app says a result in a snackbar for an action in the page
+  // (`ai/torrents.md`).
+  testWidgets('a failed open from the heading names what was attempted', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    await openEditor(
+      tester,
+      testRelease('/tmp/x', fields: postedFields()),
+      urlOpener: _FakeUrlOpener(const UrlOpenFailed()),
+      pathOpener: _FakePathOpener(const PathOpenFailed()),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('openTopicButton')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Could not open the link in the browser.'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('openTorrentFileButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Could not open the file.'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('openTorrentFolderButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Could not open the folder.'), findsOneWidget);
+  });
+
   // Each column of the form is titled by what it holds, with the same title
   // style the sections use: at the top of the column and as wide as it. A
   // column has no action, so it is the text on its own.
@@ -2521,6 +2805,8 @@ void main() {
         DownloadSuccess('', ContentType('image', 'jpeg')),
       ),
       images: ImagesStore(),
+      urlOpener: _FakeUrlOpener(const UrlOpened()),
+      pathOpener: _FakePathOpener(const PathOpened()),
       tabId: tabId,
     );
 
@@ -2589,6 +2875,8 @@ void main() {
         DownloadSuccess('', ContentType('image', 'jpeg')),
       ),
       images: ImagesStore(),
+      urlOpener: _FakeUrlOpener(const UrlOpened()),
+      pathOpener: _FakePathOpener(const PathOpened()),
       tabId: tabId,
     );
 
@@ -2659,6 +2947,8 @@ void main() {
         DownloadSuccess('', ContentType('image', 'jpeg')),
       ),
       images: images,
+      urlOpener: _FakeUrlOpener(const UrlOpened()),
+      pathOpener: _FakePathOpener(const PathOpened()),
       tabId: tabId,
     );
 
@@ -2749,6 +3039,8 @@ void main() {
       ffmpeg: ffmpeg,
       downloader: downloader,
       images: ImagesStore(),
+      urlOpener: _FakeUrlOpener(const UrlOpened()),
+      pathOpener: _FakePathOpener(const PathOpened()),
       tabId: tabId,
     );
 
@@ -2854,6 +3146,8 @@ void main() {
       ffmpeg: ffmpeg,
       downloader: downloader,
       images: ImagesStore(),
+      urlOpener: _FakeUrlOpener(const UrlOpened()),
+      pathOpener: _FakePathOpener(const PathOpened()),
       tabId: tabId,
     );
 
@@ -2979,6 +3273,8 @@ void main() {
         DownloadSuccess('', ContentType('image', 'jpeg')),
       ),
       images: ImagesStore(),
+      urlOpener: _FakeUrlOpener(const UrlOpened()),
+      pathOpener: _FakePathOpener(const PathOpened()),
       tabId: tabId,
     );
 
@@ -3025,6 +3321,8 @@ void main() {
           DownloadSuccess('', ContentType('image', 'jpeg')),
         ),
         images: ImagesStore(),
+        urlOpener: _FakeUrlOpener(const UrlOpened()),
+        pathOpener: _FakePathOpener(const PathOpened()),
         tabId: tabId,
       );
 
@@ -3065,6 +3363,8 @@ void main() {
           DownloadSuccess('', ContentType('image', 'jpeg')),
         ),
         images: ImagesStore(),
+        urlOpener: _FakeUrlOpener(const UrlOpened()),
+        pathOpener: _FakePathOpener(const PathOpened()),
         tabId: tabId,
       );
 
@@ -3106,6 +3406,8 @@ void main() {
           DownloadSuccess('', ContentType('image', 'jpeg')),
         ),
         images: ImagesStore(),
+        urlOpener: _FakeUrlOpener(const UrlOpened()),
+        pathOpener: _FakePathOpener(const PathOpened()),
         tabId: tabId,
       );
 
@@ -3161,6 +3463,8 @@ void main() {
           DownloadSuccess('', ContentType('image', 'jpeg')),
         ),
         images: ImagesStore(),
+        urlOpener: _FakeUrlOpener(const UrlOpened()),
+        pathOpener: _FakePathOpener(const PathOpened()),
         tabId: tabId,
       );
 
@@ -3218,6 +3522,8 @@ void main() {
         DownloadSuccess('', ContentType('image', 'jpeg')),
       ),
       images: ImagesStore(),
+      urlOpener: _FakeUrlOpener(const UrlOpened()),
+      pathOpener: _FakePathOpener(const PathOpened()),
       tabId: tabId,
     );
 
@@ -3736,6 +4042,8 @@ void main() {
         DownloadSuccess('', ContentType('image', 'jpeg')),
       ),
       images: ImagesStore(),
+      urlOpener: _FakeUrlOpener(const UrlOpened()),
+      pathOpener: _FakePathOpener(const PathOpened()),
       tabId: tabId,
     );
 

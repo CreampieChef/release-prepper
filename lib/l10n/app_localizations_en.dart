@@ -128,6 +128,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get openReleaseShortcut => 'Ctrl+O';
 
   @override
+  String get openReleaseOnTracker => 'Open release';
+
+  @override
+  String get openTorrentFile => 'Open torrent';
+
+  @override
+  String get openTorrentFolder => 'Open torrent folder';
+
+  @override
   String get chooseReleaseFolder => 'Choose a release folder';
 
   @override
@@ -912,6 +921,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get folderOpenFailed => 'Could not open the folder.';
 
   @override
+  String get fileOpenFailed => 'Could not open the file.';
+
+  @override
   String get draftSectionTitle => 'Upload draft to tracker';
 
   @override
@@ -926,7 +938,15 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String parentForumName(String name) {
+    return 'The site names this forum: $name';
+  }
+
+  @override
   String get draftLinkLabel => 'Draft link on tracker';
+
+  @override
+  String get topicLinkLabel => 'Topic link on tracker';
 
   @override
   String get draftNeedsMessageFirst => 'Generate a message first';
@@ -940,6 +960,41 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get draftRecreated =>
       'The draft the stored link pointed to is no longer on the site, so a new one was created.';
+
+  @override
+  String get publishButton => 'Publish';
+
+  @override
+  String get publishTitle => 'Are you sure you want to upload this release?';
+
+  @override
+  String publishNames(String forum, String title) {
+    return 'Parent forum: $forum\nRelease title: $title';
+  }
+
+  @override
+  String get publishCheck =>
+      'I have verified the draft and want to upload it unchanged, and I understand the post cannot be taken back.';
+
+  @override
+  String get publishConfirm => 'Upload';
+
+  @override
+  String get publishNeedsFileFirst => 'Make the torrent first';
+
+  @override
+  String get publishFileRefused =>
+      'The site did not accept the file: it is over the size the form declares, or not one of the extensions it accepts.';
+
+  @override
+  String publishFileWritten(String name) {
+    return 'The file the site served was written as $name.';
+  }
+
+  @override
+  String publishFileNotWritten(String name) {
+    return 'The topic was made, but the file could not be written as $name. The topic exists either way.';
+  }
 
   @override
   String get pornolabNeedsCredentials => 'Enter the username and the password';

@@ -39,11 +39,13 @@ class _FakeUrlOpener extends UrlOpener {
   }
 }
 
-// The editor registers this section's rebuild. A test that does not look at what
-// the Message section changes does not need it, so it ignores it. A default
-// parameter must be a constant, so this is a named function rather than a
-// lambda.
+// The editor registers this section's rebuild. A test that does not look at
+// what the Message section or a Torrent run changes does not need it, so it
+// ignores it. A default parameter must be a constant, so this is a named
+// function rather than a lambda.
 void ignoreMessageChanged(void Function() rebuild) {}
+
+void ignoreFileWritten(void Function() rebuild) {}
 
 void main() {
   late Directory directory;
@@ -97,8 +99,11 @@ void main() {
     return fields;
   }
 
+  // The name is not the directory: a release's folder is named after it, so the
+  // tests that need a file the app's own run wrote get one under this name,
+  // which is what the path rule gives (`ai/torrents.md`).
   Release release({Map<String, String> fields = const {}}) => Release(
-    name: directory.path,
+    name: 'the-release',
     directoryPath: directory.path,
     tracker: Tracker.pornolab,
     releaseType: ReleaseType.singleVideo,
@@ -123,6 +128,7 @@ void main() {
     UrlOpener opener = const UrlOpener(),
     void Function(void Function()) subscribeMessageChanged =
         ignoreMessageChanged,
+    void Function(void Function()) subscribeFileWritten = ignoreFileWritten,
   }) async {
     client.saveResult = result;
 
@@ -156,6 +162,7 @@ void main() {
                   }
                 },
                 subscribeMessageChanged: subscribeMessageChanged,
+                subscribeFileWritten: subscribeFileWritten,
               ),
             ),
           ),
@@ -653,5 +660,483 @@ void main() {
     expect(find.text('Generate a message first'), findsNothing);
     expect(find.byKey(const ValueKey('draftForumInput')), findsOneWidget);
     expect(find.byKey(const ValueKey('draftUploadButton')), findsOneWidget);
+  });
+
+  // A post carries the file the app's own run wrote, so a test that wants one
+  // to be possible writes it under the name the path rule gives it
+  // (`ai/pornolab_upload.md` §7).
+  String torrent() {
+    final path = p.join(directory.path, 'the-release.torrent');
+
+    File(path).writeAsBytesSync([1, 2, 3]);
+
+    return path;
+  }
+
+  FilledButton publishButton(WidgetTester tester) =>
+      tester.widget<FilledButton>(find.byKey(const ValueKey('publishButton')));
+
+  const confirmKey = ValueKey('publishConfirmButton');
+
+  TextButton confirmButton(WidgetTester tester) =>
+      tester.widget<TextButton>(find.byKey(confirmKey));
+
+  // The post through the popup: the box is checked, and only then is the
+  // confirm a button that can be pressed.
+  Future<void> post(WidgetTester tester) async {
+    await tester.tap(find.byKey(const ValueKey('publishButton')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('publishCheck')));
+    await tester.pump();
+
+    await tester.tap(find.byKey(confirmKey));
+    await tester.pumpAndSettle();
+  }
+
+  // The publish action is offered only for a release that has a draft to post,
+  // because a post is made from a draft (`ai/pornolab_upload.md` §5).
+  testWidgets('the publish action is not offered for a release with no draft', (
+    tester,
+  ) async {
+    write(MessageStore.messageFile, 'the message');
+    await cookie();
+    torrent();
+
+    await section(
+      tester,
+      release: release(fields: {'parentForum': forumUrl}),
+      result: saved,
+      applied: [],
+    );
+
+    expect(find.byKey(const ValueKey('publishButton')), findsNothing);
+    expect(find.byKey(const ValueKey('draftUploadButton')), findsOneWidget);
+  });
+
+  // Nor for a release that already has a topic: a second post would be a second
+  // topic for the same text.
+  testWidgets('the publish action is not offered twice for the same release', (
+    tester,
+  ) async {
+    write(MessageStore.messageFile, 'the message');
+    await cookie();
+    torrent();
+
+    await section(
+      tester,
+      release: release(
+        fields: {
+          'parentForum': forumUrl,
+          'draftUrl': saved.draftUrl,
+          'topicUrl': 'https://pornolab.net/forum/viewtopic.php?t=3000111',
+        },
+      ),
+      result: saved,
+      applied: [],
+    );
+
+    expect(find.byKey(const ValueKey('publishButton')), findsNothing);
+  });
+
+  // The file is the last thing the gate needs, and only a post needs it: the
+  // word names the action that makes the file, as the word for the login names
+  // the page that makes the cookie (`ai/pornolab_upload.md` §7).
+  testWidgets('the publish action names the file it is missing', (
+    tester,
+  ) async {
+    write(MessageStore.messageFile, 'the message');
+    await cookie();
+
+    await section(
+      tester,
+      release: release(
+        fields: {'parentForum': forumUrl, 'draftUrl': saved.draftUrl},
+      ),
+      result: saved,
+      applied: [],
+    );
+
+    expect(publishButton(tester).onPressed, isNull);
+    expect(
+      tester
+          .widget<Tooltip>(
+            find.ancestor(
+              of: find.byKey(const ValueKey('publishButton')),
+              matching: find.byType(Tooltip),
+            ),
+          )
+          .message,
+      'Make the torrent first',
+    );
+  });
+
+  // The file is what a run of the Torrent feature wrote, so a section that has
+  // it has nothing left to say: the gate is the file being there, and the app
+  // reads it the same way the Torrent section reads its own path.
+  testWidgets('the publish action is offered when the file is there', (
+    tester,
+  ) async {
+    write(MessageStore.messageFile, 'the message');
+    await cookie();
+    torrent();
+
+    await section(
+      tester,
+      release: release(
+        fields: {'parentForum': forumUrl, 'draftUrl': saved.draftUrl},
+      ),
+      result: saved,
+      applied: [],
+    );
+
+    expect(publishButton(tester).onPressed, isNotNull);
+    expect(
+      find.ancestor(
+        of: find.byKey(const ValueKey('publishButton')),
+        matching: find.byType(Tooltip),
+      ),
+      findsNothing,
+    );
+  });
+
+  // Whether the file is there is state a Torrent run changes, so this section
+  // sees it only through the rebuild the editor registered, as it sees the
+  // message: a gate that is read while the widget builds cannot be read again
+  // by itself (`ai/pornolab_upload.md` §7).
+  testWidgets('the section is rebuilt when the file a run wrote appears', (
+    tester,
+  ) async {
+    final rebuilds = <void Function()>[];
+
+    write(MessageStore.messageFile, 'the message');
+    await cookie();
+
+    await section(
+      tester,
+      release: release(
+        fields: {'parentForum': forumUrl, 'draftUrl': saved.draftUrl},
+      ),
+      result: saved,
+      applied: [],
+      subscribeFileWritten: rebuilds.add,
+    );
+
+    expect(publishButton(tester).onPressed, isNull);
+
+    torrent();
+    rebuilds.first();
+    await tester.pump();
+
+    expect(publishButton(tester).onPressed, isNotNull);
+  });
+
+  // The result of a post cannot be taken back, so the popup names what it is
+  // made from, and its confirm is not an answer until the box is checked
+  // (`ai/pornolab_upload.md` §5).
+  testWidgets(
+    'the popup names what the post is made from, and its confirm is gated',
+    (tester) async {
+      write(MessageStore.titleFile, 'the title');
+      write(MessageStore.messageFile, 'the message');
+      await cookie();
+      torrent();
+
+      client.nameResult = const ForumNameRead('SiteRip 2022 (HD Video)');
+
+      client.postResult = const Posted(
+        3000111,
+        topicUrl: 'https://pornolab.net/forum/viewtopic.php?t=3000111',
+        filePath: '_rp_torrent/[pornolab.net].t3000111.torrent',
+      );
+
+      final applied = <Map<String, String>>[];
+
+      await section(
+        tester,
+        release: release(
+          fields: {'parentForum': forumUrl, 'draftUrl': saved.draftUrl},
+        ),
+        result: saved,
+        applied: applied,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('publishButton')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Are you sure you want to upload this release?'),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Parent forum: SiteRip 2022 (HD Video)\nRelease title: the title',
+        ),
+        findsOneWidget,
+      );
+
+      // The checkbox is the user's own statement, so its words are what the
+      // popup shows.
+      expect(
+        find.text(
+          'I have verified the draft and want to upload it unchanged, and I '
+          'understand the post cannot be taken back.',
+        ),
+        findsOneWidget,
+      );
+
+      expect(confirmButton(tester).onPressed, isNull);
+      expect(client.postCalls, isEmpty);
+
+      await tester.tap(find.byKey(const ValueKey('publishCheck')));
+      await tester.pump();
+
+      expect(confirmButton(tester).onPressed, isNotNull);
+
+      await tester.tap(find.byKey(confirmKey));
+      await tester.pumpAndSettle();
+
+      // A post is made from the values the gate has, and the file is the one
+      // the app's own run wrote.
+      expect(client.postCalls, [
+        [
+          'the-cookie',
+          1013,
+          42,
+          'the title',
+          'the message',
+          p.join(directory.path, 'the-release.torrent'),
+        ],
+      ]);
+
+      // The link a post makes is stored through the same write path a field is
+      // stored through, because it is what a run wrote, and the path is stored
+      // with it because it is what a run wrote too.
+      expect(applied, [
+        {
+          'topicUrl': 'https://pornolab.net/forum/viewtopic.php?t=3000111',
+          'trackerTorrentFile': '_rp_torrent/[pornolab.net].t3000111.torrent',
+        },
+      ]);
+    },
+  );
+
+  // The popup is capped at 1000 px, so a title longer than that does not make
+  // it as wide as the window (`ai/pornolab_upload.md` §5).
+  testWidgets('the popup is capped at 1000 px wide', (tester) async {
+    // A title wider than the cap, so the width the dialog gets is the cap
+    // rather than the text.
+    write(MessageStore.titleFile, 'x' * 200);
+    write(MessageStore.messageFile, 'the message');
+    await cookie();
+    torrent();
+
+    await section(
+      tester,
+      release: release(
+        fields: {'parentForum': forumUrl, 'draftUrl': saved.draftUrl},
+      ),
+      result: saved,
+      applied: [],
+    );
+
+    await tester.tap(find.byKey(const ValueKey('publishButton')));
+    await tester.pumpAndSettle();
+
+    // The dialog's own box rather than the area the route centres it in, which
+    // is the whole window: the ConstrainedBox is the one the dialog builds from
+    // the constraints it is given.
+    expect(
+      tester
+          .getSize(
+            find.byWidgetPredicate(
+              (widget) =>
+                  widget is ConstrainedBox &&
+                  widget.constraints.maxWidth == 1000,
+            ),
+          )
+          .width,
+      1000,
+    );
+  });
+
+  // A dismissed popup is not an agreement, so nothing is asked for.
+  testWidgets('a popup that is dismissed is not an agreement', (tester) async {
+    write(MessageStore.messageFile, 'the message');
+    await cookie();
+    torrent();
+
+    await section(
+      tester,
+      release: release(
+        fields: {'parentForum': forumUrl, 'draftUrl': saved.draftUrl},
+      ),
+      result: saved,
+      applied: [],
+    );
+
+    await tester.tap(find.byKey(const ValueKey('publishButton')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(client.postCalls, isEmpty);
+    expect(
+      find.text('Are you sure you want to upload this release?'),
+      findsNothing,
+    );
+  });
+
+  // The name on the row is what a page said, so it is shown and nothing is
+  // stored: the run works from the id the value names, which is why a page with
+  // no name leaves the row as it is (`ai/pornolab_upload.md` §5).
+  testWidgets(
+    'the row shows the name the page gives for the forum the value names',
+    (tester) async {
+      write(MessageStore.messageFile, 'the message');
+      await cookie();
+
+      client.nameResult = const ForumNameRead('SiteRip 2022 (HD Video)');
+
+      await section(
+        tester,
+        release: release(fields: {'parentForum': forumUrl}),
+        result: saved,
+        applied: [],
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('The site names this forum: SiteRip 2022 (HD Video)'),
+        findsOneWidget,
+      );
+      expect(client.nameCalls, [
+        ['the-cookie', forumUrl],
+      ]);
+    },
+  );
+
+  // A value the shape rule refuses is not asked for at all, and a page that
+  // gives no name is not said: the row already shows the value the run uses.
+  testWidgets('a value the shape rule refuses is not asked for', (
+    tester,
+  ) async {
+    write(MessageStore.messageFile, 'the message');
+    await cookie();
+
+    await section(tester, release: release(), result: saved, applied: []);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('draftForumInput')),
+      '1013',
+    );
+    await tester.pumpAndSettle();
+
+    expect(client.nameCalls, isEmpty);
+    expect(find.textContaining('The site names this forum'), findsNothing);
+  });
+
+  // What a post ended with is said apart, because the topic exists either way
+  // and the user needs to know which of the two the release has (§8).
+  testWidgets('a post that wrote the file says the path it wrote it at', (
+    tester,
+  ) async {
+    write(MessageStore.messageFile, 'the message');
+    await cookie();
+    torrent();
+
+    client.postResult = const Posted(
+      3000111,
+      topicUrl: 'https://pornolab.net/forum/viewtopic.php?t=3000111',
+      filePath: '_rp_torrent/[pornolab.net].t3000111.torrent',
+    );
+
+    await section(
+      tester,
+      release: release(
+        fields: {'parentForum': forumUrl, 'draftUrl': saved.draftUrl},
+      ),
+      result: saved,
+      applied: [],
+    );
+
+    await post(tester);
+
+    expect(
+      find.text(
+        'The file the site served was written as '
+        '_rp_torrent/[pornolab.net].t3000111.torrent.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+    'a post whose file was not written says the topic exists either way',
+    (tester) async {
+      write(MessageStore.messageFile, 'the message');
+      await cookie();
+      torrent();
+
+      client.postResult = const Posted(
+        3000111,
+        topicUrl: 'https://pornolab.net/forum/viewtopic.php?t=3000111',
+      );
+
+      await section(
+        tester,
+        release: release(
+          fields: {'parentForum': forumUrl, 'draftUrl': saved.draftUrl},
+        ),
+        result: saved,
+        applied: [],
+      );
+
+      await post(tester);
+
+      expect(
+        find.text(
+          // The path is named either way: it is the same path the run would
+          // have written the file at (`ai/pornolab_upload.md` §6).
+          'The topic was made, but the file could not be written as '
+          '_rp_torrent/[pornolab.net].t3000111.torrent. '
+          'The topic exists either way.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  // A path is recorded only for a run that wrote a file, because a run that
+  // made the topic and failed at the file wrote nothing, so there is nothing to
+  // record (§8).
+  testWidgets('a run that wrote no file records only the link', (tester) async {
+    write(MessageStore.messageFile, 'the message');
+    await cookie();
+    torrent();
+
+    client.postResult = const Posted(
+      3000111,
+      topicUrl: 'https://pornolab.net/forum/viewtopic.php?t=3000111',
+    );
+
+    final applied = <Map<String, String>>[];
+
+    await section(
+      tester,
+      release: release(
+        fields: {'parentForum': forumUrl, 'draftUrl': saved.draftUrl},
+      ),
+      result: saved,
+      applied: applied,
+    );
+
+    await post(tester);
+
+    expect(applied, [
+      {'topicUrl': 'https://pornolab.net/forum/viewtopic.php?t=3000111'},
+    ]);
   });
 }

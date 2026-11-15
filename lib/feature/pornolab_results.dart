@@ -1,5 +1,6 @@
 import '../l10n/app_localizations.dart';
 import '../service/network/pornolab_client.dart';
+import '../service/torrent/torrent_path.dart';
 import 'settings/settings_controller.dart';
 
 /// The words for a result the site gave, in the shape the app reads it.
@@ -32,6 +33,11 @@ String pornolabResultText(
   PornolabFailureKind.badForumUrl => l10n.parentForumInvalid(
     l10n.parentForumLabel,
   ),
+  // The gate word and the result word for the file are the same string, as they
+  // are for the login and for the field: the tooltip says it before the run and
+  // the section says it after (`ai/pornolab_upload.md` §8).
+  PornolabFailureKind.noFile => l10n.publishNeedsFileFirst,
+  PornolabFailureKind.fileRefused => l10n.publishFileRefused,
   PornolabFailureKind.loginRefused => l10n.pornolabLoginRefused,
   PornolabFailureKind.captchaRequired => l10n.pornolabNeedsCaptcha,
   PornolabFailureKind.loginNoCookie => l10n.pornolabLoginNoCookie,
@@ -54,3 +60,19 @@ String pornolabResultText(
   PornolabFailureKind.requestFailed => l10n.pornolabRequestFailed,
   PornolabFailureKind.timedOut => l10n.pornolabTimeout,
 };
+
+/// The words for what a post ended with. A post that worked has nothing to say
+/// for itself beyond the link (`ai/pornolab_upload.md` §8), so this is only the
+/// file, and the two cases are said apart: the topic exists either way, and the
+/// user needs to know which of the two the release has.
+///
+/// The path is the one the record holds, so it is said the same way whether the
+/// file was written or not: the same run, the same place, and a name alone
+/// would not say which folder the file is in.
+String postFileText(Posted result, AppLocalizations l10n) {
+  final path = result.filePath ?? trackerTorrentPath(result.topicId);
+
+  return result.filePath == null
+      ? l10n.publishFileNotWritten(path)
+      : l10n.publishFileWritten(path);
+}
