@@ -48,6 +48,17 @@ none, which is the same asymmetry:
   `onedrive`, `vk`, `bit.ly`). It is committed for parity with the tool's own
   Windows package.
 
+## libc
+
+The Linux binary is dynamically linked, and its highest symbol version is
+GLIBC_2.38. That is the floor a Linux build of the app has: a binary cannot
+need a libc newer than the one it was built against, so building the app
+against 2.38 or older keeps the floor at what this binary already sets, and
+that is what `.github/workflows/linux-build.yml` pins itself to
+(`ai/doc.md` §9). `mkbrr` is statically linked and references no libc symbols
+at all, so it adds nothing to the floor, and the Windows build has no
+equivalent of either.
+
 ## Resolution
 
 uptooda is resolved from the app bundle only, with no fallback to PATH. A tool

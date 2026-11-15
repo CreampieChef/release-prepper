@@ -5727,6 +5727,35 @@ The publish step gives `gh` the run's token as `GH_TOKEN`, and
 `permissions: contents: write` is what lets that token push the commit and
 create the release.
 
+The Linux build is made by `.github/workflows/linux-build.yml`, which runs
+`flutter build linux` on a Linux runner and packages the output as an AppImage.
+It is run by hand from the Actions tab and uploads the file as a build
+artifact; it publishes nothing, so the version in the file name is the one the
+tree already carries, read from the `appVersion` const, and the run changes
+nothing on the branch.
+
+What the artifact holds is the app and the two tools it ships. The install
+output is kept as one directory, because the RPATH is `$ORIGIN/lib` and the
+tools the app ships are resolved as directories relative to the executable it
+runs from (`ai/bundled_native_tools.md`); the icon stays in the icon theme
+directory the install step puts it in, because that is where the runner looks
+it up, and the desktop file and the icon that desktop file names also go at
+the top level, which is where the AppImage format reads them from. `AppRun`
+points the icon theme at the copy inside the artifact, since a mounted
+AppImage is not in the theme and the window would otherwise get the default
+icon. The media tools are not in it, so a user's system supplies them from
+PATH, and the toolkit is the host's: the app is a desktop app, so GTK is
+present on any desktop install, and what the artifact needs from the host is a
+libc, fontconfig for the glyphs Flutter draws, a D-Bus session for the
+credential store, and a compositor.
+
+The build is pinned to glibc 2.38, which is the highest symbol version the
+committed `uptooda` binary references (`ai/bundled_native_tools.md`) and is
+therefore the version every user of the artifact needs. Building against a
+newer libc would let the app reference symbols newer than that and raise the
+floor above the tool the app ships, so the run uses a base image whose libc is
+2.38 and stops if any binary in the output references a newer version.
+
 The suite runs on both platforms, so a test that names a file by the folder it
 came from reads that name with `p.basename`, not by splitting the path on `/`.
 For the same reason a test builds a path with `p.join` rather than by

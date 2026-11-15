@@ -1,0 +1,274 @@
+# The Linux build: `flutter build linux` on a Linux host, as an AppImage.
+# Nothing is published here. No version is written, no tag is made, no release
+# is opened, because that is what the release workflow does. The version is read
+# from the `appVersion` const in `lib/app/app_info.dart`, the single source of
+# truth, so the artifact is named for what the tree already says and the run
+# changes nothing on the branch (`ai/doc.md` §9).
+#
+# The build is pinned to glibc 2.38. That is the highest symbol version the
+# committed `native/uptooda/linux/uptooda-cli` references, so it is the version
+# every user of the artifact needs, and `mkbrr` is statically linked and asks
+# for nothing at all (`ai/bundled_native_tools.md`). Building against a newer
+# libc, which is what the runner image has, would let the app reference symbols
+# newer than that and raise the floor above the tool the app ships, so the job
+# runs in Fedora 39, the release that carried 2.38, and the run stops if
+# anything in the output references a newer version.
+#
+# What is in the artifact is the app and the two tools it ships. ffmpeg, ffprobe
+# and mtn are the user's packages, and GTK is the host's: the app is a desktop
+# app, so the toolkit is present on any desktop install. What the artifact needs
+# from the host is glibc 2.38, fontconfig for the glyphs Flutter draws, a D-Bus
+# session for the credential store, and a compositor. Bundling GTK's libraries
+# would put the app on a Qt-only or minimal desktop, at several times the size,
+# which is not what this workflow is for.
+
+name: linux-build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    container:
+      image: fedora:39
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      # The image is a plain Fedora base, so everything is installed rather than
+      # assumed. `pkgconf-pkg-config` is the `pkg-config` command
+      # `pkg_check_modules` in `linux/CMakeLists.txt` runs, and `gtk3-devel` is
+      # what it finds. `binutils` is the check below. `squashfs-tools` and
+      # `desktop-file-utils` are what appimagetool calls. `git` is what the
+      # checkout and the Flutter tool both use, and `xz` unpacks the SDK.
+      #
+      # Four more are here because the image has none of them, and all are
+      # reached as programs rather than as shell builtins. `which` is a
+      # program the Flutter tool runs during its startup. `clang` is the
+      # compiler CMake is told to use, because the tool names `clang++`
+      # through the `CXX` variable. `libsecret-devel` carries the `.pc` file
+      # that `pkg_check_modules` resolves for `flutter_secure_storage_linux`,
+      # the plugin that reaches the credential store. `file` is one of the two
+      # programs appimagetool requires outright, `mksquashfs` being the other.
+      - name: Install the build tools
+        run: |
+          dnf install -y \
+            git curl tar xz unzip which file \
+            cmake ninja-build pkgconf-pkg-config gtk3-devel clang \
+            libsecret-devel binutils squashfs-tools desktop-file-utils
+
+      - uses: actions/checkout@v7
+
+      # The version the project is developed against, the one that ships the
+      # Dart 3.13.5 `pubspec.yaml` requires, taken from the release archive
+      # rather than from a setup action, so the version in the log is the
+      # version asked for. The libc is reported for the same reason as the pin:
+      # what the build was made against is what the artifact then needs, so the
+      # log should say which one this run used.
+      - name: Install the Flutter SDK
+        run: |
+          version="3.47.7"
+          archive="flutter_linux_${version}-stable.tar.xz"
+          curl -fsSL -o "$RUNNER_TEMP/${archive}" \
+            "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/${archive}"
+          tar -xf "$RUNNER_TEMP/${archive}" -C "$RUNNER_TEMP"
+
+          # The SDK ships as a git repository, and `flutter` runs git inside it.
+          # The temp directory is mounted into the container from the host, so
+          # inside it the files belong to a uid that is not the one running the
+          # steps, and git will not work in a repository it does not own. The
+          # exception goes in the global config so the later steps that call git
+          # from the SDK see it too.
+          git config --global --add safe.directory "$RUNNER_TEMP/flutter"
+
+          echo "${RUNNER_TEMP}/flutter/bin" >> "$GITHUB_PATH"
+
+      - name: Check the toolchain
+        run: |
+          flutter --version
+
+          # Only the first line, with `sed` rather than `head`: glibc prints the
+          # warranty paragraph after its banner, so a reader that stops early
+          # closes the pipe, the writer dies of SIGPIPE, and the runner's
+          # pipefail turns that into a failed step.
+          ldd --version | sed -n '1p'
+
+      - name: Get the packages
+        run: flutter pub get
+
+      # The version the tree carries, read from the single source of truth, in
+      # the same three numeric components the project writes. Nothing is written
+      # back: this run publishes nothing, so the version only names the file.
+      - name: Read the version
+        run: |
+          version=$(sed -n "s/^const appVersion = '\([0-9.]*\)';/\1/p" \
+            lib/app/app_info.dart)
+
+          if [ -z "$version" ]; then
+            echo "no appVersion const in lib/app/app_info.dart"
+            exit 1
+          fi
+          pattern='^[0-9]+\.[0-9]+\.[0-9]+$'
+          if ! printf '%s\n' "$version" | grep -Eq "$pattern"; then
+            echo "$version: the project writes three numeric components"
+            exit 1
+          fi
+
+          echo "APP_VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: flutter build linux
+
+      # The build output is checked before anything is packaged, and the bundle
+      # path is found rather than written, because the arch segment of it is the
+      # toolchain's, not the project's. The first match is taken with `sed`, not
+      # `head`, for the reason given in the toolchain step.
+      #
+      # Two things are checked. That the tools the app ships are there with the
+      # execute bits, since `ToolLocator` accepts a file in the bundle only on
+      # the same terms as one on PATH, and the install step gives them with
+      # `install(PROGRAMS)` (`ai/bundled_native_tools.md`): a copy that lost
+      # them would be an artifact that reports the tools as unavailable, with
+      # nothing in the run to say why. And that nothing in the output references
+      # a symbol version newer than the libc the run is pinned to, because the
+      # versions a binary references are what decides whether a system with an
+      # older libc can run it. A statically linked binary references none, which
+      # is the case for mkbrr.
+      - name: Check the build output
+        run: |
+          bundle=$(find build/linux -path '*/release/bundle' -type d \
+            | sed -n '1p')
+          if [ -z "$bundle" ]; then
+            echo "no release bundle under build/linux"
+            exit 1
+          fi
+
+          for tool in uptooda/uptooda-cli mkbrr/mkbrr; do
+            if [ ! -x "${bundle}/${tool}" ]; then
+              echo "${bundle}/${tool}: not there, or without the execute bits"
+              exit 1
+            fi
+          done
+
+          target='2.38'
+          highest=''
+          highest_file=''
+
+          for f in $(find "$bundle" -type f); do
+            version=$(objdump -T "$f" 2>/dev/null \
+              | sed -n 's/.*GLIBC_\([0-9.]*\).*/\1/p' \
+              | sort -uV | tail -1) || true
+
+            if [ -z "$version" ]; then
+              continue
+            fi
+
+            newer=$(printf '%s\n%s\n' "$version" "$target" | sort -V | tail -1)
+            if [ "$newer" != "$target" ]; then
+              echo "${f}: references GLIBC_${version}, above the pinned libc"
+              exit 1
+            fi
+
+            over=$(printf '%s\n%s\n' "$highest" "$version" | sort -V | tail -1)
+            if [ "$over" = "$version" ]; then
+              highest="$version"
+              highest_file="$f"
+            fi
+          done
+
+          if [ -z "$highest" ]; then
+            echo "nothing in the output references a libc symbol version"
+            exit 1
+          fi
+
+          echo "highest libc version in the output: GLIBC_${highest}"
+          echo "  referenced by ${highest_file}"
+
+          echo "APP_BUNDLE=${bundle}" >> "$GITHUB_ENV"
+
+      # The install output is the app: the executable with `data/`, `lib/`,
+      # `uptooda/` and `mkbrr/` beside it, because the runner's RPATH is
+      # `$ORIGIN/lib` and `ToolLocator` resolves a tool the app ships as a
+      # directory relative to the directory it runs from
+      # (`ai/bundled_native_tools.md`). So the whole thing is copied as one
+      # directory rather than sorted into the places an FHS package would put
+      # the parts, and `cp -a` is what keeps the execute bits.
+      #
+      # The AppImage format reads the AppRun, the desktop file, and the icon the
+      # desktop file names from the top level of the filesystem, so those two
+      # files are put there as well: appimagetool requires a desktop file at the
+      # top level, and builds `.DirIcon` from the icon named there. The icon is
+      # kept in the theme directory too, because that is where the app itself
+      # looks it up by the application id. squashfs stores an identical file
+      # once, so the copies are names rather than bytes.
+      - name: Assemble the AppImage root
+        run: |
+          root="${RUNNER_TEMP}/root"
+          apps="${root}/usr/share/applications"
+          theme="${root}/usr/share/icons/hicolor/512x512/apps"
+
+          mkdir -p "${root}/usr/bin" "${apps}" "${theme}"
+
+          cp -a "${APP_BUNDLE}/release_prepper" "${APP_BUNDLE}/data" \
+            "${APP_BUNDLE}/lib" "${APP_BUNDLE}/uptooda" "${APP_BUNDLE}/mkbrr" \
+            "${root}/usr/bin/"
+          cp -a "${APP_BUNDLE}/share/." "${root}/usr/share/"
+
+          # Both copied from the install output rather than written again here.
+          cp -a "${apps}/com.example.release_prepper.desktop" "${root}/"
+          cp -a "${theme}/com.example.release_prepper.png" "${root}/"
+
+          cat > "${root}/AppRun" <<'APP_RUN'
+          #!/bin/sh
+          # The AppImage is mounted read-only at a path that changes with every
+          # run, so everything here is resolved from AppRun's own directory.
+          root="$(dirname "$(readlink -f "$0")")"
+
+          # The window icon is resolved through the icon theme by the
+          # application id, and a mounted AppImage is not in that theme. The
+          # theme searches the icon directory under each entry of
+          # XDG_DATA_DIRS, so the copy inside the artifact is put on that path.
+          data="${root}/usr/share"
+          if [ -n "$XDG_DATA_DIRS" ]; then
+            data="${data}:${XDG_DATA_DIRS}"
+          fi
+          export XDG_DATA_DIRS="$data"
+
+          exec "${root}/usr/bin/release_prepper" "$@"
+          APP_RUN
+          chmod 0755 "${root}/AppRun"
+
+      # appimagetool is distributed as an AppImage, and a container has no FUSE
+      # to mount it with, so it is extracted and the binary inside it is run.
+      # That binary calls mksquashfs and desktop-file-validate through PATH,
+      # which the first step installed. The architecture is named because the
+      # root holds a shell script as well as binaries, the AppStream check is
+      # turned off because the app has no appstream metadata, and the version is
+      # given because appimagetool writes it into the desktop entry, so the
+      # artifact says what it is. The name follows the Windows artifact's.
+      - name: Build the AppImage
+        env:
+          VERSION: ${{ env.APP_VERSION }}
+        run: |
+          cd "$RUNNER_TEMP"
+
+          base="https://github.com/AppImage/appimagetool/releases"
+          curl -fsSL -o appimagetool.AppImage \
+            "${base}/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool.AppImage
+          ./appimagetool.AppImage --appimage-extract
+
+          ARCH=x86_64 squashfs-root/usr/bin/appimagetool --no-appstream root \
+            "release_prepper_linux_x64_${APP_VERSION}.AppImage"
+
+      # The file is what a user runs, and it is the app: inside it the tools are
+      # read from the directories beside the executable.
+      - name: Upload the AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: release_prepper_linux_x64_${{ env.APP_VERSION }}
+          path: ${{ runner.temp }}/release_prepper_linux_x64_${{ env.APP_VERSION }}.AppImage
