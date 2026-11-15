@@ -37,6 +37,16 @@ import 'package:flutter/services.dart';
 /// which are not focusable — has no node below this one to be asked from, so
 /// without holding focus itself these keys would reach nothing there. It is not
 /// a stop for traversal, so Tab still goes to the first field.
+///
+/// Being the default focus is only the start of it, because that is a one-time
+/// thing: a field that takes focus keeps it, and the keys stay the field's
+/// until something asks for them back. A tap inside the content area that no
+/// widget of its own claims — the empty space of a page — is what asks, which
+/// is what a click on an empty part of a browser page does. A tap on a field or
+/// a button is that widget's, because the recognizer nearer in the arena is
+/// asked first, so the field keeps its focus and the caret keys stay with it.
+/// The handler is translucent, because the gap between two rows is part of the
+/// page as well as the rows are.
 class TabNavigation extends StatefulWidget {
   const TabNavigation({required this.child, super.key});
 
@@ -49,8 +59,16 @@ class TabNavigation extends StatefulWidget {
 class _TabNavigationState extends State<TabNavigation> {
   final ScrollController _controller = ScrollController();
 
+  /// The node these keys are handled through, and the node a tap on the empty
+  /// space of a page asks focus back for. It is the widget's own, disposed by
+  /// the widget, as the fields' `FocusNode`s are (`ai/doc.md` §4): being the
+  /// default focus of the subtree is decided at the first build, so after a
+  /// field has taken focus this is the only node that can ask for it back.
+  final FocusNode _focusNode = FocusNode();
+
   @override
   void dispose() {
+    _focusNode.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -137,13 +155,22 @@ class _TabNavigationState extends State<TabNavigation> {
   @override
   Widget build(BuildContext context) {
     return Focus(
+      focusNode: _focusNode,
       autofocus: true,
       skipTraversal: true,
       onKeyEvent: _handleKey,
-      child: PrimaryScrollController(
-        controller: _controller,
-        automaticallyInheritForPlatforms: TargetPlatform.values.toSet(),
-        child: widget.child,
+      // The tap that no widget of its own claims is the content area's, and it
+      // is what moves focus back to the node the keys are handled through. It
+      // has to be reached for a point with nothing under it, so the behaviour
+      // is translucent: the gaps between rows are part of the page.
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => _focusNode.requestFocus(),
+        child: PrimaryScrollController(
+          controller: _controller,
+          automaticallyInheritForPlatforms: TargetPlatform.values.toSet(),
+          child: widget.child,
+        ),
       ),
     );
   }

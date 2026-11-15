@@ -8,6 +8,8 @@ import 'package:release_prepper/service/photosets/directory_reader.dart';
 import 'package:release_prepper/service/photosets/photoset_scanner.dart';
 import 'package:release_prepper/service/photosets/zip_reader.dart';
 
+import 'test_photo.dart';
+
 void main() {
   late Directory directory;
 
@@ -18,39 +20,6 @@ void main() {
   tearDown(() {
     directory.deleteSync(recursive: true);
   });
-
-  // The bytes a PNG header has. The dimensions are the ones the test declares.
-  List<int> pngPhoto(int width, int height) => [
-    0x89,
-    0x50,
-    0x4E,
-    0x47,
-    0x0D,
-    0x0A,
-    0x1A,
-    0x0A,
-    0x00,
-    0x00,
-    0x00,
-    0x0D,
-    0x49,
-    0x48,
-    0x44,
-    0x52,
-    (width >> 24) & 0xFF,
-    (width >> 16) & 0xFF,
-    (width >> 8) & 0xFF,
-    width & 0xFF,
-    (height >> 24) & 0xFF,
-    (height >> 16) & 0xFF,
-    (height >> 8) & 0xFF,
-    height & 0xFF,
-    0x08,
-    0x06,
-    0x00,
-    0x00,
-    0x00,
-  ];
 
   // The bytes a JPEG has at the start of it: a metadata segment, then the
   // frame. The dimensions are not at a fixed offset, which is why the markers

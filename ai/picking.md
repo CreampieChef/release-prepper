@@ -267,6 +267,10 @@ of sets, and a single set's do not, because the count of one item is the item
   what its run wrote in the state the editor holds and tells the editor for each photo, so the area
   builds as each photo is written rather than after the run — the generation cannot be the block's own
   counter here for the same reason it is not a widget's counter in `AGENTS.md` §5.
+  What it tells the editor is the notice the sections that read `images.json` register with it
+  (`ai/upload_images.md`), so a run that records photos is a change the Upload section reads too:
+  without it, a pick that completes the pair its placeholder waits for leaves that section saying
+  what has to happen first.
 
 - The picked photos are one grid, not one column per set.
   For both types the grid is split by kind instead of being one set of columns: the portraits are drawn

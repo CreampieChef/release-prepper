@@ -26,6 +26,7 @@ import 'package:release_prepper/service/photosets/directory_reader.dart';
 import 'package:release_prepper/service/photosets/photoset_picker.dart';
 import 'package:release_prepper/service/photosets/photoset_scanner.dart';
 
+import 'test_photo.dart';
 import 'test_runner.dart';
 
 void main() {
@@ -39,39 +40,7 @@ void main() {
     directory.deleteSync(recursive: true);
   });
 
-  // A photo fixture: the bytes a PNG header has.
-  List<int> pngPhoto(int width, int height) => [
-    0x89,
-    0x50,
-    0x4E,
-    0x47,
-    0x0D,
-    0x0A,
-    0x1A,
-    0x0A,
-    0x00,
-    0x00,
-    0x00,
-    0x0D,
-    0x49,
-    0x48,
-    0x44,
-    0x52,
-    (width >> 24) & 0xFF,
-    (width >> 16) & 0xFF,
-    (width >> 8) & 0xFF,
-    width & 0xFF,
-    (height >> 24) & 0xFF,
-    (height >> 16) & 0xFF,
-    (height >> 8) & 0xFF,
-    height & 0xFF,
-    0x08,
-    0x06,
-    0x00,
-    0x00,
-    0x00,
-  ];
-
+  // A photo fixture: the shared header, written as a file inside a set folder.
   void writePhoto(String setName, String name, int width, int height) {
     File(p.join(directory.path, setName, name))
         .writeAsBytesSync(pngPhoto(width, height));

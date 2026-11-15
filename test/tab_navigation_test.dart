@@ -301,6 +301,78 @@ void main() {
     });
   });
 
+  // Being the default focus of the subtree is decided at the first build, so
+  // once a field has taken focus something has to ask for it back. A tap inside
+  // the content area that no widget of its own claims — the empty space of a
+  // page — is what asks, which is what a click on an empty part of a browser
+  // page does. Without it the field keeps the focus it took, and these keys are
+  // its caret keys rather than the page's.
+  testWidgets('a tap on the empty space gives the content area focus', (
+    tester,
+  ) async {
+    await onLinux(tester, () async {
+      final text = TextEditingController(text: 'first line\nsecond line');
+      final focusNode = FocusNode();
+
+      final controller = await showFieldPage(
+        tester,
+        text: text,
+        focusNode: focusNode,
+      );
+
+      // A point with no widget of its own under it: the handler is translucent,
+      // so the gap between the rows is part of the page too.
+      expect(fieldHasFocus(), isTrue);
+
+      await tester.tapAt(const Offset(400, 200));
+      await tester.pumpAndSettle();
+
+      expect(fieldHasFocus(), isFalse);
+      expect(
+        FocusManager.instance.primaryFocus?.context
+            ?.findAncestorWidgetOfExactType<TabNavigation>(),
+        isNotNull,
+      );
+
+      // The keys are read through the content area again, so the page moves.
+      await tester.sendKeyEvent(LogicalKeyboardKey.end);
+      await tester.pumpAndSettle();
+
+      expect(controller.position.pixels, controller.position.maxScrollExtent);
+    });
+  });
+
+  // That tap is only the one no widget claims for itself: a tap on a field is
+  // the field's, because the nearer recognizer is asked first in the arena.
+  // Without that, the tap that gave the field focus would take it back and the
+  // caret the test above reads would not be the field's.
+  testWidgets('a tap on a field keeps the field its focus', (tester) async {
+    await onLinux(tester, () async {
+      final text = TextEditingController(text: 'first line\nsecond line');
+      final focusNode = FocusNode();
+
+      final controller = await showFieldPage(
+        tester,
+        text: text,
+        focusNode: focusNode,
+      );
+
+      await tester.tap(find.byType(TextField));
+      await tester.pumpAndSettle();
+
+      expect(fieldHasFocus(), isTrue);
+
+      final pageWasAt = controller.position.pixels;
+      expect(pageWasAt, greaterThan(0.0));
+
+      // The key is still the field's: the caret moves and the page stays.
+      await tester.sendKeyEvent(LogicalKeyboardKey.home);
+
+      expect(text.selection.baseOffset, 11);
+      expect(controller.position.pixels, pageWasAt);
+    });
+  });
+
   testWidgets('a modifier keeps the key with the field too', (tester) async {
     await onLinux(tester, () async {
       final text = TextEditingController(text: 'first line\nsecond line');

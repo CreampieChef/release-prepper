@@ -111,7 +111,15 @@ What is left unfinished is not a compile error but missing behaviour:
   `TabNavigation` is the default focus of its subtree — a page with nothing
   focusable in it, such as the recent list, has no node below it to be asked
   from — and it is not a stop for traversal, so Tab still reaches the first
-  field.
+  field. Being the default focus is only the start of it, because that is
+  decided at the first build: a field that takes focus keeps it, so these keys
+  stay the field's until something asks for them back. A tap inside the content
+  area that no widget of its own claims — the empty space of a page — is what
+  asks, the same as a click on an empty part of a browser page. A tap on a field
+  is that field's, because the nearer recognizer in the arena is asked first, so
+  the field keeps its focus and the caret stays with it. The handler is
+  translucent, because the gap between two rows is part of the page as well as
+  the rows are.
 - Open Release covers the happy path and the invalid-folder error (error popup
   with
   `Close` / `Choose another folder`, which repeats the pick). Cancel is not
@@ -1376,7 +1384,12 @@ lib/
                                 declines a key when a text input is focused or
                                 when the key has a modifier, and it is not asked
                                 at all when the focus is outside the content
-                                area.
+                                area. It owns the node its keys are read
+                                through, and a tap inside the content area that
+                                no widget claims asks focus back for it; a tap
+                                on a field is the field's, since the nearer
+                                recognizer wins the arena. It is translucent,
+                                because a gap between rows is part of the page.
       app_close.dart            AppCloseHandler: keeps the window open when the
                                 close button is pressed (prevent-close), runs
                                 the popup once per dirty tab, and closes the app
@@ -3847,7 +3860,9 @@ not treat those rules as describing the code as it is today).
   to own here: the widget holds the one object its subtree resolves to, as
   `SettingsPage` and `StashSection` hold the `FocusNode`s of the fields they own
   — a widget's own `Listenable`, disposed by the widget, which is not the shared
-  state rule 7 is about. Rule 7 stays intact for tab state.
+  state rule 7 is about. `TabNavigation` holds such a node too: the one its keys
+  are read through, and the one a tap on the empty space of a page asks focus
+  back for. Rule 7 stays intact for tab state.
 - Rule 10: `TabNavigation` reads `FocusManager.instance` to answer whether a
   text input is focused, because the focus chain gives the widget its own node
   and the focused one is elsewhere. It is the same kind of exception as
@@ -3903,7 +3918,8 @@ tool wrappers and the app data directory as a function, for the same reason
 `Expanded(TabNavigation(TabView))`. It builds nothing and resolves nothing; the
 two wrappers are feature widgets that own the window-close and the page-key
 behaviour, and the default focus of the content area, which is what a page with
-nothing focusable in it is reached from. The Ctrl keys are not placed here:
+nothing focusable in it is reached from, and what a tap on its empty space asks
+focus back for. The Ctrl keys are not placed here:
 `AppShortcuts` is placed by `AppRoot` in `MaterialApp.builder`, which is the
 only place that is an ancestor of every focus scope in the app, a popup route's
 included — `home` is below the `Navigator`, so a key that comes from a route

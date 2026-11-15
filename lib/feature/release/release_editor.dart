@@ -201,11 +201,17 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
 
   /// A photoset run wrote files. The block that runs and the pictures that show
   /// what it wrote are two widgets in two grid cells, so the generation the
-  /// pictures are keyed with lives in the state this widget built, and the only way
-  /// the gallery sees a run is for this widget to build again — the same as the
-  /// sections that show images being told when a run ends (`AGENTS.md` §5).
+  /// pictures are keyed with lives in the state this widget built, and the only
+  /// way the gallery sees a run is for this widget to build again — the same as
+  /// the sections that show images being told when a run ends (`AGENTS.md` §5).
+  /// A run that records photos changes what the registered sections read, so
+  /// this is such a change too: the notice is the same one they call, and
+  /// without it the run that completes the pair the Upload placeholder waits
+  /// for never reaches that section (`ai/picking.md` §7).
   void _photosetsRunWritten() {
     setState(() {});
+
+    _imagesChanged();
   }
 
   /// Which fields are in which column is the widget's layout, not the field

@@ -53,6 +53,7 @@ import 'package:release_prepper/service/videos/video_scanner.dart';
 import 'fake_pornolab_client.dart';
 import 'test_fields.dart';
 import 'test_font_store.dart';
+import 'test_photo.dart';
 import 'test_runner.dart';
 
 // The editor also draws the Upload section's hoster icons, and those are
@@ -422,6 +423,41 @@ void main() {
         .evaluate()
         .map((element) => (element.widget as Text).data!)
         .toList();
+  }
+
+  // A scan and a pick run on another isolate and write files, so a test that
+  // clicks one can only wait for it inside `runAsync`, where the event loop is
+  // real, and with a bound: a fixed delay is what fails when the whole suite
+  // runs at once (`test/photosets_test.dart`). What this test waits for is a
+  // state rather than a widget, because the states are what the runs reach:
+  // Pick being enabled is the end of a scan, and what the Upload section shows
+  // is the end of the notice a pick sent. A run that never reaches it is the
+  // failure this test is about, so it reports the bound rather than passing by
+  // luck.
+  Future<bool> waitUntil(WidgetTester tester, bool Function() condition) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+
+    while (DateTime.now().isBefore(deadline)) {
+      await tester.pump();
+
+      if (condition()) {
+        return true;
+      }
+
+      await Future.delayed(const Duration(milliseconds: 10));
+    }
+
+    return false;
+  }
+
+  // Pick is disabled until a scan has run, so its button being enabled is the
+  // end of the scan.
+  bool pickEnabled(WidgetTester tester) {
+    final button = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('photosetPickButton')),
+    );
+
+    return button.onPressed != null;
   }
 
   // Real file IO cannot be awaited inside a widget test: the test body runs in
@@ -1522,6 +1558,91 @@ void main() {
       reason: 'the release no longer has the poster the pair waits for',
     );
     expect(find.byType(LinearProgressIndicator), findsNothing);
+
+    directory.deleteSync(recursive: true);
+  });
+
+  // A pick run records photos, so it is a change the Upload section shows as
+  // well as the pictures the gallery draws: the block reports each photo
+  // through the editor's notice, and that is the path the section reads its
+  // gate through (`ai/picking.md` §7). A notice that only rebuilds the editor —
+  // which is what the gallery needs — leaves the section saying what has to
+  // happen first after a run that wrote photos.
+  testWidgets('a pick run shows the hoster list for a single photoset', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    final directory = Directory.systemTemp.createTempSync(
+      'release_prepper_test',
+    );
+
+    // The poster half is already recorded, so the run is the only thing the
+    // section is waiting for. The write goes through `runAsync` like every disk
+    // access here, because the test body runs in a fake-async zone.
+    await tester.runAsync(() => writePosterRecord(directory.path));
+
+    // For this type the folder the user picked is the set itself, so the
+    // fixture is what the scan reads and what the pick copies. Its header is
+    // one the reader understands, so the run is not also about a photo it
+    // could not read.
+    final source = p.join(directory.path, 'set01');
+    Directory(source).createSync(recursive: true);
+    File(p.join(source, 'a.png')).writeAsBytesSync(pngPhoto(100, 100));
+
+    final release = testSinglePhotosetRelease(directory.path, source: source);
+
+    await openEditor(tester, release);
+
+    // The search is scoped to the section. The bar a run of the block draws
+    // while it is going is the same widget the section draws per hoster, so an
+    // unscoped search would find the run rather than the section.
+    final upload = find.byKey(const ValueKey('uploadSection'));
+    final placeholder = find.descendant(
+      of: upload,
+      matching: find.text('Add a poster and generate screenshots first'),
+    );
+    final hosters = find.descendant(
+      of: upload,
+      matching: find.byType(LinearProgressIndicator),
+    );
+
+    expect(placeholder, findsOneWidget);
+
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('photosetScanButton')));
+
+      expect(await waitUntil(tester, () => pickEnabled(tester)), isTrue);
+
+      await tester.tap(find.byKey(const ValueKey('photosetPickButton')));
+
+      expect(
+        await waitUntil(
+          tester,
+          () => find
+              .byKey(const ValueKey('pickOptionsDialog'))
+              .evaluate()
+              .isNotEmpty,
+        ),
+        isTrue,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('pickConfirmButton')));
+
+      // The end of the run is the point the notice reaches the section, so the
+      // hoster list appearing is the whole run plus the notice, and nothing
+      // before it: the records a run wrote are not in `images.json` until the
+      // run ends, so the placeholder is still what the section shows while it
+      // goes.
+      expect(
+        await waitUntil(tester, () => hosters.evaluate().isNotEmpty),
+        isTrue,
+        reason: 'the run that recorded the photos reached the Upload section',
+      );
+
+      expect(placeholder, findsNothing);
+    });
 
     directory.deleteSync(recursive: true);
   });
