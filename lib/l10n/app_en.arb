@@ -432,6 +432,9 @@
     "systemCheck": "System Check",
     "systemCheckToolLabel": "Tool",
     "systemCheckResultLabel": "Result",
+    "systemCheckSecretStoreTitle": "Credential store",
+    "systemCheckSecretStoreWorks": "Credential store is working",
+    "systemCheckSecretStoreNotAvailable": "Credential store is not available",
     "systemCheckToolNotFound": "{tool} not found.",
     "@systemCheckToolNotFound": {
         "placeholders": {

@@ -422,6 +422,9 @@
     "systemCheck": "Проверка системы",
     "systemCheckToolLabel": "Инструмент",
     "systemCheckResultLabel": "Результат",
+    "systemCheckSecretStoreTitle": "Хранилище ключей",
+    "systemCheckSecretStoreWorks": "Хранилище ключей работает",
+    "systemCheckSecretStoreNotAvailable": "Хранилище ключей недоступно",
     "systemCheckToolNotFound": "{tool} не найден.",
     "@systemCheckToolNotFound": {
         "placeholders": {

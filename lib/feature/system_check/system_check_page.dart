@@ -5,10 +5,14 @@ import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../service/native_tools/tool_locator.dart';
+import 'secret_store_section.dart';
+import 'status_mark.dart';
 import 'system_check_controller.dart';
 
 /// The System Check tab: its title, then one row per tool the app calls,
-/// showing the version the tool reported or the reason it could not be run.
+/// showing the version the tool reported or the reason it could not be run, and
+/// below the table the credential store section — which is drawn only on Linux,
+/// because the store is not one of the tools and has no row in this table.
 ///
 /// The check runs once when the tab opens, because a tool does not become
 /// installed while the app is open (`ai/doc.md` §2); reopening the tab runs it
@@ -16,9 +20,12 @@ import 'system_check_controller.dart';
 /// as it arrives, so a tool that hangs does not hold up the rows that already
 /// have an answer. The results are widget state; the controller owns the tool
 /// list and the calls, and the widget maps a result to localized text and to a
-/// status icon (rule 13). The page holds nothing the user edits, so it has no
-/// dirty flag, is not part of Ctrl+S, and closes without the unsaved-changes
-/// popup.
+/// status icon (rule 13). The page decides only whether the store section is
+/// drawn: the check is made by the section itself, and the flag here is the one
+/// the controller was given rather than one read from `Platform`, so both
+/// branches can be tested on a machine that is not Linux. The page holds nothing
+/// the user edits, so it has no dirty flag, is not part of Ctrl+S, and closes
+/// without the unsaved-changes popup.
 class SystemCheckPage extends StatefulWidget {
   const SystemCheckPage({super.key});
 
@@ -38,16 +45,6 @@ class _SystemCheckPageState extends State<SystemCheckPage> {
   /// names are short and the same in every row; a flex column would make them
   /// take a quarter of a wide window and push the values away from the names.
   static const _toolColumnWidth = 120.0;
-
-  /// The column the status icon is drawn in: the icon plus the gap to the name.
-  /// The header and the rows share it, so the names start at the same line.
-  static const _iconColumnWidth = 22.0;
-
-  static const _iconSize = 16.0;
-
-  /// The height of one line of the tool name (`labelMedium`), so the mark in
-  /// the icon column sits on the same line as the name rather than above it.
-  static const _markCellHeight = 16.0;
 
   late final SystemCheckController _controller;
 
@@ -84,42 +81,16 @@ class _SystemCheckPageState extends State<SystemCheckPage> {
           result is SystemCheckRunTimeout ||
           result is SystemCheckNoOutput);
 
-  /// The state the row is in, as an icon: a tool that reported a version is a
-  /// check, and every reason is the same mark. The text already says which
-  /// reason it was, so the icon is only there to make the state readable down
-  /// the column. A row whose check has not come back yet has no state to show,
-  /// and the spinner in the same column is what says so.
-  IconData? _icon(SystemCheckResult? result) => result == null
-      ? null
-      : _isError(result)
-      ? Icons.error_outline
-      : Icons.check_circle_outline;
-
   /// The mark the icon column holds: the status icon, or the spinner while the
-  /// check is still running. Both are drawn in the same cell, so a row keeps
-  /// its shape while it is waiting and the mark stays on the line of the tool
-  /// name.
-  Widget _mark(SystemCheckResult? result, ThemeData theme) => SizedBox(
-    width: _iconColumnWidth,
-    height: _markCellHeight,
-    child: result == null
-        ? const Center(
-            child: SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          )
-        : Center(
-            child: Icon(
-              _icon(result)!,
-              size: _iconSize,
-              color: _isError(result)
-                  ? theme.colorScheme.error
-                  : theme.colorScheme.primary,
-            ),
-          ),
-  );
+  /// check is still running. Both are drawn in the same cell, so a row keeps its
+  /// shape while it is waiting and the mark stays on the line of the tool name.
+  /// A tool that reported a version is a check, and every reason is the same
+  /// mark; the text already says which reason it was, so the icon is only there
+  /// to make the state readable down the column. The same mark is what the
+  /// credential store section draws, so a check that answered and a check that is
+  /// waiting read the same way in both.
+  Widget _mark(SystemCheckResult? result) =>
+      StatusMark(isError: _isError(result), pending: result == null);
 
   String _value(SystemCheckResult result, AppLocalizations l10n) =>
       switch (result) {
@@ -150,7 +121,8 @@ class _SystemCheckPageState extends State<SystemCheckPage> {
 
   /// The header of the two columns. The icon column has no label, because the
   /// icons are not a column of information; the two labels are the columns the
-  /// rows have.
+  /// rows have. The column is the width `StatusMark` is drawn at, so the header,
+  /// the rows and the section's row start at the same line.
   Widget _header(AppLocalizations l10n) {
     final theme = Theme.of(context);
 
@@ -159,7 +131,7 @@ class _SystemCheckPageState extends State<SystemCheckPage> {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          const SizedBox(width: _iconColumnWidth),
+          const SizedBox(width: StatusMark.cellWidth),
           SizedBox(
             width: _toolColumnWidth,
             child: Text(
@@ -200,7 +172,7 @@ class _SystemCheckPageState extends State<SystemCheckPage> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _mark(result, theme),
+            _mark(result),
             SizedBox(
               width: _toolColumnWidth,
               child: Text(tool.name, style: theme.textTheme.labelMedium),
@@ -247,6 +219,14 @@ class _SystemCheckPageState extends State<SystemCheckPage> {
               _header(l10n),
               for (final (index, (tool, _)) in _controller.calls().indexed)
                 _row(tool, _results[tool.name], index, l10n),
+              // The credential store is not one of the tools, so it is not a row
+              // of this table: it is its own section, and only on Linux. The gap
+              // is the one a section title has before its content, the same as
+              // the gap between the page title and the table.
+              if (_controller.isLinux) ...[
+                const SizedBox(height: 12),
+                const SecretStoreSection(),
+              ],
             ],
           ),
         ),

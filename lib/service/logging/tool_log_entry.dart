@@ -188,3 +188,40 @@ final class ToolLogFailure extends ToolLogEntry {
     'error': error,
   };
 }
+
+/// One check the System Check page made that is not a call to a tool or a site
+/// (`ai/doc.md` §2): the credential store. The log is the app's log, so `tool`
+/// names what was checked, as the request entries name the site, and `input` is
+/// the key the check wrote.
+///
+/// The outcome is recorded whatever it was, so the log reads as a record of what
+/// the app checked and not only of what failed. What went wrong is recorded as
+/// the exception reported it, because that is the part a user can read back to
+/// find out why the store was not reached; the page shows only the state.
+final class ToolLogCheck extends ToolLogEntry {
+  const ToolLogCheck({
+    required super.date,
+    required super.tool,
+    required super.input,
+    required this.passed,
+    this.error,
+  });
+
+  static const checkStream = 'check';
+
+  /// Whether the check passed. A passed check has nothing to record as an error,
+  /// because nothing went wrong.
+  final bool passed;
+
+  final String? error;
+
+  @override
+  Map<String, Object?> toJson() => {
+    'date': date.toIso8601String(),
+    'tool': tool,
+    'input': input,
+    'stream': checkStream,
+    'passed': passed,
+    'error': error,
+  };
+}

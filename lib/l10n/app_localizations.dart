@@ -1550,6 +1550,24 @@ abstract class AppLocalizations {
   /// **'Result'**
   String get systemCheckResultLabel;
 
+  /// No description provided for @systemCheckSecretStoreTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Credential store'**
+  String get systemCheckSecretStoreTitle;
+
+  /// No description provided for @systemCheckSecretStoreWorks.
+  ///
+  /// In en, this message translates to:
+  /// **'Credential store is working'**
+  String get systemCheckSecretStoreWorks;
+
+  /// No description provided for @systemCheckSecretStoreNotAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Credential store is not available'**
+  String get systemCheckSecretStoreNotAvailable;
+
   /// No description provided for @systemCheckToolNotFound.
   ///
   /// In en, this message translates to:

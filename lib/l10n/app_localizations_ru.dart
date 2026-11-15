@@ -819,6 +819,16 @@ class AppLocalizationsRu extends AppLocalizations {
   String get systemCheckResultLabel => 'Результат';
 
   @override
+  String get systemCheckSecretStoreTitle => 'Хранилище ключей';
+
+  @override
+  String get systemCheckSecretStoreWorks => 'Хранилище ключей работает';
+
+  @override
+  String get systemCheckSecretStoreNotAvailable =>
+      'Хранилище ключей недоступно';
+
+  @override
   String systemCheckToolNotFound(String tool) {
     return '$tool не найден.';
   }

@@ -1257,7 +1257,43 @@ data (`ai/release_structure.md` §4). The URLs are stored per image and per
   edits, so it has no dirty flag, is not part of Ctrl+S, and closes without the
   unsaved-changes popup. Its calls are
   logged in the app data directory, because `ToolRunner` needs a directory per
-  call and outside a release there is no release directory.
+  call and outside a release there is no release directory, and the store check
+  writes its entry to the same place, because a check that is not a tool call
+  has no release either.
+- The credential store section of the page, drawn on Linux, is its own section
+  rather than a sixth row, because the store is not one of the tools the app
+  calls: the name column and its header are `Tool`, so a store row would sit
+  under a header that does not name it, and its result is not one of the tool
+  results — there is no version line, no exit code and no timeout here, only
+  whether the store answered. It has its own name and its own result type, and
+  it titles itself with `SectionTitle`, the row every section titles itself
+  with, which the table does not use because its title is a page title. Its
+  text is a localized string, as every user-visible string is, and only the
+  tool names are proper nouns.
+- The check the section makes writes a value under `systemCheckProbe` and
+  deletes it again: it is the one thing the page writes to the store, so it
+  reads no setting value and leaves the store as it found it. Writing is what
+  shows the store answers, because nothing can be asked whether a store is
+  running — every call to a store that is not there answers with an exception.
+  The row shows only the state, the store is working or it is not available, and
+  what the store answered with is not shown on the page, so the log is where the
+  reason is read back: both outcomes are written as a `check` entry, which keeps
+  the log a record of what the app checked rather than only of what failed, and
+  names what was checked in the place that names a tool, as its request entries
+  name the site.
+- The section is drawn only on Linux, the platform this project targets (§1),
+  and on another platform the check is not made, so nothing is written there.
+  The platform is a flag the controller is given rather than one it reads, for
+  the same reason `ToolLocator.isWindows` is a parameter: a rule that reads the
+  platform can only be tested on the platform it reads. The check is made when
+  the section is built, which is the same moment the page starts its calls, so
+  it runs with them rather than after them, and its row is the mark as a spinner
+  until the answer arrives, as a tool row is. The mark is the one in
+  `status_mark.dart`, shared with the tool rows, so a check that answered and a
+  check that is waiting read the same way in both, and which result is an error
+  is decided by whoever draws the row, because the two kinds of check have
+  different results. A failure is drawn with `colorScheme.error`, as an error
+  row is.
 - The two dropdowns' options are the enum values, `ReleaseType` and `Tracker`,
   so an option cannot
   exist without the field list and label behind it. A template is not required
@@ -2837,7 +2873,13 @@ lib/
                                    is passed to a callback the page gives it, so
                                    a tool that hangs does not hold up the rows
   of
-                                   the tools that answered
+                                   the tools that answered. The store check is
+                                   not one of these calls, because it is not a
+                                   call to a tool: it is its own method with its
+                                   own result type. The store, the log, and the
+                                   platform flag are given to it as parameters,
+                                   so the check and the branch the page draws it
+                                   on are testable on one machine
       system_check_page.dart    SystemCheckPage: its title, then a header and
                                 one row per tool, showing the version the tool
                                 reported or the reason it could not be run. The
@@ -2869,7 +2911,35 @@ lib/
                                 rows take surfaceContainerHigh as the recent
                                 table does. A status icon is the state at a
                                 glance: a check for a tool that reported a
-                                version, the same mark for each reason
+                                version, the same mark for each reason, taken
+                                from status_mark.dart so the tool rows and the
+                                store section show one shape. Below the table
+                                the page draws the credential store section, and
+                                only when the platform flag it was given says
+                                Linux: the page decides nothing about that check
+                                but whether it is drawn, because the section
+                                makes the call itself
+      secret_store_section.dart  SecretStoreSection: the section the page draws
+                                on Linux — its title row, then the state the
+                                check ended with. It is a section rather than a
+                                row of the table because the store is not a
+                                tool, so it has its own name, its own result
+                                type, and its own title row. The check is made
+                                when the section is built, the result is its own
+                                widget state, and the row is the shared mark as
+                                a spinner until the answer arrives. A failure is
+                                drawn with colorScheme.error, as an error row
+                                is. It holds nothing the user edits, so it is
+                                not part of Ctrl+S and closes without the
+                                unsaved-changes popup, as the page does
+      status_mark.dart           StatusMark: the mark a check row begins with,
+                                the icon for a result that has come back or the
+                                spinner for one that has not. The tool rows and
+                                the store section draw it, so the cell and the
+                                sizes are one place rather than the same numbers
+                                written out twice. Which result is an error is
+                                decided by the caller, because the two kinds of
+                                check have different results
   service/
     fonts/
       font_store.dart FontStore: the font the app ships, written into the app
@@ -3287,8 +3357,12 @@ lib/
   entries a
                                 network call is recorded with: the request, the
   response, and
-                                the failure that closes a call with no answer. A
-  value that
+                                the failure that closes a call with no answer,
+                                and the entry a check that is neither a tool run
+                                nor a request is recorded with: what was
+                                checked, whether it passed, and what it failed
+                                with. The page shows only the state, so the log
+                                is where the reason is read back. A value that
                                 does not belong in a log file is written as the
   redacted
                                 marker, which is what the cookie is recorded as.
@@ -6470,9 +6544,28 @@ reported, including the mtn row showing the version it printed to stderr, the
 status icon each result maps to, the capped and centred block with the centred
 title while the text inside the table stays at the start, and a row that shows
 the spinner in the icon column until its own result arrives while the rows that
-answered show what they reported. The tool wrappers are fakes that answer with a
-result the test gives, so these tests do not need the tools installed; the one
-test that checks where the log is written runs the real ffmpeg through
+answered show what they reported. It also covers the store check: a store that
+answers is reported as working and the probe key it wrote is gone again, a store
+that cannot be reached is reported as not available, and both outcomes are
+written to the log as a `check` entry with what the store answered as the error,
+because the page shows only the state. The store is
+`test/fake_secret_store.dart`, the credential-store fake the settings tests
+already use, because the plugin is a method channel and cannot be reached from a
+test: what these tests say is what the check does with the store it is given,
+and for the app the precondition is a running Secret Service (§7). The widget
+test covers the section as its own widget: that it is drawn on Linux only — on
+another platform the tool table is the same, no check is made, and nothing is
+written to the store or to the log — and on Linux that it titles itself with
+`SectionTitle`, shows the state the check ended with, draws a failure with the
+error colour, and is the shared mark as a spinner until the answer arrives while
+the tool rows show what they reported. The log these tests are given is
+`test/fake_tool_log.dart`, the fake that keeps the entries instead of writing
+them: a widget test runs in a fake async where a real file write never
+completes, so a test that shows what a check reported cannot be given the real
+log, and a test that needs the entries as the log file holds them reads them
+through `toJson()`. The tool wrappers are fakes that answer with a result the
+test gives, so these tests do not need the tools installed; the one test that
+checks where the log is written runs the real ffmpeg through
 `testRunner()`, as the native tool tests do. `test/torrent_file_test.dart`
 covers the bencode reader: the flag is read from the `info` dictionary, a flag
 of 0 is false, a file whose `info` has no `private` key is not private, a value
@@ -6700,7 +6793,10 @@ From `lib/TODO.MD` (deduplicated) and the gaps in §2:
   it draws one row per entry, but the controller gains the wrapper as a
   constructor parameter, which means a provider entry in `app_providers.dart`,
   and the fakes in the other test files that implement the interface gain
-  `version()`.
+  `version()`. A check that is not a call to a tool is not added to that list,
+  because the list is what the page draws rows from and its header column names
+  a tool: such a check is its own method with its own result type and its own
+  section.
 - Do not commit `.widget_preview/` (it is gitignored).
 - `name` in a loaded `Release` comes from the directory basename; do not rely on
   a stored `name` field.

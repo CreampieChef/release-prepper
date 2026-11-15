@@ -7,11 +7,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import 'package:release_prepper/feature/section_title.dart';
+import 'package:release_prepper/feature/settings/secret_store.dart';
 import 'package:release_prepper/feature/system_check/system_check_controller.dart';
 import 'package:release_prepper/feature/system_check/system_check_page.dart';
 import 'package:release_prepper/feature/tab/tab_manager.dart';
 import 'package:release_prepper/l10n/app_localizations.dart';
 import 'package:release_prepper/service/logging/tool_log.dart';
+import 'package:release_prepper/service/logging/tool_log_entry.dart';
 import 'package:release_prepper/service/native_tools/ffprobe.dart';
 import 'package:release_prepper/service/native_tools/ffmpeg.dart';
 import 'package:release_prepper/service/native_tools/mkbrr.dart';
@@ -20,6 +23,8 @@ import 'package:release_prepper/service/native_tools/tool_locator.dart';
 import 'package:release_prepper/service/native_tools/tool_runner.dart';
 import 'package:release_prepper/service/native_tools/uptooda.dart';
 
+import 'fake_secret_store.dart';
+import 'fake_tool_log.dart';
 import 'test_runner.dart';
 
 // A wrapper that answers with the result the test gives instead of running the
@@ -101,19 +106,54 @@ void main() {
     }
   });
 
-  SystemCheckController controller({
-    required ToolRunResult ffmpeg,
-    required ToolRunResult ffprobe,
-    required ToolRunResult mtn,
-    required ToolRunResult uptooda,
-    required ToolRunResult mkbrr,
+  // A test that does not use the store gets one that answers: the store is the
+  // fake, because the plugin is a method channel and cannot be reached from a
+  // test, so what a test can say is what the check does with the store it is
+  // given and what it reports. `isLinux` is the flag the page draws the store
+  // section on, so a test can ask for either branch.
+  //
+  // The wrappers are given rather than the results, so the one place that builds
+  // a controller is this, and a test that needs a wrapper of its own — one that
+  // records what it was given, or one that does not answer — is still built
+  // through it.
+  SystemCheckController systemCheckController({
+    required Ffmpeg ffmpeg,
+    required Ffprobe ffprobe,
+    required Mtn mtn,
+    required Uptooda uptooda,
+    required Mkbrr mkbrr,
+    SecretStore? secretStore,
+    ToolLog? log,
+    bool isLinux = false,
   }) => SystemCheckController(
-    ffmpeg: FakeFfmpeg(ffmpeg),
-    ffprobe: FakeFfprobe(ffprobe),
-    mtn: FakeMtn(mtn),
-    uptooda: FakeUptooda(uptooda),
-    mkbrr: FakeMkbrr(mkbrr),
+    ffmpeg: ffmpeg,
+    ffprobe: ffprobe,
+    mtn: mtn,
+    uptooda: uptooda,
+    mkbrr: mkbrr,
     appDirectory: () async => appDirectory,
+    secretStore: secretStore ?? FakeSecretStore(available: true),
+    // The fake, because a widget test runs in a fake async where a real file
+    // write never completes. The test that reads the log back passes its own.
+    log: log ?? FakeToolLog(),
+    isLinux: isLinux,
+  );
+
+  // The controller a store check is made with: the tools are the fakes that print
+  // nothing, because a test about the store makes no tool call.
+  SystemCheckController storeController(
+    SecretStore store, {
+    ToolLog? log,
+    bool isLinux = true,
+  }) => systemCheckController(
+    ffmpeg: FakeFfmpeg(const ToolRunSuccess(stdout: '', stderr: '')),
+    ffprobe: FakeFfprobe(const ToolRunSuccess(stdout: '', stderr: '')),
+    mtn: FakeMtn(const ToolRunSuccess(stdout: '', stderr: '')),
+    uptooda: FakeUptooda(const ToolRunSuccess(stdout: '', stderr: '')),
+    mkbrr: FakeMkbrr(const ToolRunSuccess(stdout: '', stderr: '')),
+    secretStore: store,
+    log: log,
+    isLinux: isLinux,
   );
 
   // The check as the page uses it: the results as they are reported, keyed by
@@ -129,12 +169,12 @@ void main() {
   }) async {
     final results = <String, SystemCheckResult>{};
 
-    await controller(
-      ffmpeg: ffmpeg,
-      ffprobe: ffprobe,
-      mtn: mtn,
-      uptooda: uptooda,
-      mkbrr: mkbrr,
+    await systemCheckController(
+      ffmpeg: FakeFfmpeg(ffmpeg),
+      ffprobe: FakeFfprobe(ffprobe),
+      mtn: FakeMtn(mtn),
+      uptooda: FakeUptooda(uptooda),
+      mkbrr: FakeMkbrr(mkbrr),
     ).check(onResult: (result) => results[result.tool.name] = result);
 
     return results;
@@ -172,15 +212,17 @@ void main() {
   });
 
   // The page draws one row per entry of `calls()`, so that list is the order
-  // the check runs the tools in and the order the rows appear in.
+  // the check runs the tools in and the order the rows appear in. The credential
+  // store is not in it: it is not a tool, so it has no row here and is drawn as
+  // its own section instead.
   test('the tools are listed in the order the page shows them', () {
     expect(
-      controller(
-        ffmpeg: const ToolRunSuccess(stdout: '', stderr: ''),
-        ffprobe: const ToolRunSuccess(stdout: '', stderr: ''),
-        mtn: const ToolRunSuccess(stdout: '', stderr: ''),
-        uptooda: const ToolRunSuccess(stdout: '', stderr: ''),
-        mkbrr: const ToolRunSuccess(stdout: '', stderr: ''),
+      systemCheckController(
+        ffmpeg: FakeFfmpeg(const ToolRunSuccess(stdout: '', stderr: '')),
+        ffprobe: FakeFfprobe(const ToolRunSuccess(stdout: '', stderr: '')),
+        mtn: FakeMtn(const ToolRunSuccess(stdout: '', stderr: '')),
+        uptooda: FakeUptooda(const ToolRunSuccess(stdout: '', stderr: '')),
+        mkbrr: FakeMkbrr(const ToolRunSuccess(stdout: '', stderr: '')),
       ).calls().map((entry) => entry.$1.name),
       ['ffmpeg', 'ffprobe', 'mtn', 'uptooda-cli', 'mkbrr'],
     );
@@ -307,7 +349,7 @@ void main() {
 
     final results = <String, SystemCheckResult>{};
 
-    await SystemCheckController(
+    await systemCheckController(
       ffmpeg: Ffmpeg(runner: runner),
       ffprobe: FakeFfprobe(const ToolRunNotAvailable()),
       mtn: FakeMtn(const ToolRunSuccess(stdout: 'mtn 3.5.0', stderr: '')),
@@ -315,7 +357,7 @@ void main() {
       mkbrr: FakeMkbrr(
         const ToolRunSuccess(stdout: 'mkbrr version: 1.27.0', stderr: ''),
       ),
-      appDirectory: () async => appDirectory,
+      log: ToolLog(),
     ).check(onResult: (result) => results[result.tool.name] = result);
 
     expect(
@@ -349,7 +391,7 @@ void main() {
 
     final results = <String, SystemCheckResult>{};
 
-    final running = SystemCheckController(
+    final running = systemCheckController(
       ffmpeg: FakeFfmpeg(
         const ToolRunSuccess(stdout: 'ffmpeg version 6.1', stderr: ''),
       ),
@@ -359,7 +401,6 @@ void main() {
       mkbrr: FakeMkbrr(
         const ToolRunSuccess(stdout: 'mkbrr version: 1.27.0', stderr: ''),
       ),
-      appDirectory: () async => appDirectory,
     ).check(onResult: (result) => results[result.tool.name] = result);
 
     // The calls that answer are reported while the hanging one is still
@@ -379,6 +420,66 @@ void main() {
     expect(results['ffprobe'], isA<SystemCheckFound>());
   });
 
+  // The store is the fake, because the plugin is a method channel: a test here
+  // cannot reach a credential store, so what these tests say is what the check
+  // does with the store it is given. For the app the precondition is a running
+  // Secret Service (`ai/doc.md` §7).
+  test(
+    'a store that answers is reported as working, and the key is removed again',
+    () async {
+      final store = FakeSecretStore(available: true);
+
+      final result = await storeController(store).checkSecretStore();
+
+      expect(result, isA<SecretStoreWorks>());
+
+      // The key is removed by the same check that wrote it, so the check leaves
+      // the store as it found it.
+      expect(store.values, isEmpty);
+    },
+  );
+
+  test('a store that cannot be reached is reported as not available', () async {
+    final result = await storeController(FakeSecretStore(available: false))
+        .checkSecretStore();
+
+    expect(result, isA<SecretStoreNotAvailable>());
+  });
+
+  // The row shows only the state, so the reason is what the log keeps. Both
+  // outcomes are written, so the log is a record of what the app checked rather
+  // than only of what failed. The entries are read as the log file holds them,
+  // through `toJson()`.
+  test('the store check is logged whatever it found', () async {
+    final log = FakeToolLog();
+
+    await storeController(
+      FakeSecretStore(available: true),
+      log: log,
+    ).checkSecretStore();
+
+    await storeController(
+      FakeSecretStore(available: false),
+      log: log,
+    ).checkSecretStore();
+
+    expect(log.entries, hasLength(2));
+
+    final passed = log.entries.first.toJson();
+    final failed = log.entries.last.toJson();
+
+    expect(passed['stream'], ToolLogCheck.checkStream);
+    expect(passed['tool'], SystemCheckController.secretStoreLogName);
+    expect(passed['input'], [SystemCheckController.secretStoreProbeKey]);
+    expect(passed['passed'], true);
+    expect(passed['error'], isNull);
+
+    // What the store answered with is recorded as the exception reported it,
+    // because that is what a user reads to find out why it was not reached.
+    expect(failed['passed'], false);
+    expect(failed['error'], contains('the credential store is not reachable'));
+  });
+
   Widget app(SystemCheckController controller) => MultiProvider(
     providers: [Provider<SystemCheckController>(create: (_) => controller)],
     child: MaterialApp(
@@ -394,7 +495,7 @@ void main() {
 
     final l10n = await AppLocalizations.delegate.load(const Locale('en'));
 
-    final controller = SystemCheckController(
+    final controller = systemCheckController(
       ffmpeg: FakeFfmpeg(
         const ToolRunFailure(exitCode: 1, stdout: '', stderr: 'ffmpeg: error'),
       ),
@@ -413,7 +514,6 @@ void main() {
       mkbrr: FakeMkbrr(
         const ToolRunSuccess(stdout: 'mkbrr version: 1.27.0', stderr: ''),
       ),
-      appDirectory: () async => appDirectory,
     );
 
     await tester.pumpWidget(app(controller));
@@ -455,7 +555,7 @@ void main() {
 
       final l10n = await AppLocalizations.delegate.load(const Locale('en'));
 
-      final controller = SystemCheckController(
+      final controller = systemCheckController(
         ffmpeg: FakeFfmpeg(
           const ToolRunSuccess(stdout: 'ffmpeg version 6.1', stderr: ''),
         ),
@@ -467,7 +567,6 @@ void main() {
         mkbrr: FakeMkbrr(
           const ToolRunSuccess(stdout: 'mkbrr version: 1.27.0', stderr: ''),
         ),
-        appDirectory: () async => appDirectory,
       );
 
       await tester.pumpWidget(app(controller));
@@ -514,7 +613,7 @@ void main() {
 
       final hang = Completer<ToolRunResult>();
 
-      final controller = SystemCheckController(
+      final controller = systemCheckController(
         ffmpeg: FakeFfmpeg(
           const ToolRunSuccess(stdout: 'ffmpeg version 6.1', stderr: ''),
         ),
@@ -526,7 +625,6 @@ void main() {
         mkbrr: FakeMkbrr(
           const ToolRunSuccess(stdout: 'mkbrr version: 1.27.0', stderr: ''),
         ),
-        appDirectory: () async => appDirectory,
       );
 
       // One frame, not a settled one: no call has come back, so this is the
@@ -571,6 +669,122 @@ void main() {
       expect(find.text('ffprobe version 6.1'), findsOneWidget);
       expect(find.byIcon(Icons.check_circle_outline), findsNWidgets(5));
       expect(find.byType(CircularProgressIndicator), findsNothing);
+    },
+  );
+
+  testWidgets('the page does not draw the store section on another platform', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 1200);
+    tester.view.devicePixelRatio = 1.0;
+
+    final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+    final store = FakeSecretStore(available: true);
+    final log = FakeToolLog();
+
+    await tester.pumpWidget(
+      app(storeController(store, log: log, isLinux: false)),
+    );
+    await tester.pumpAndSettle();
+
+    // The tool table is the same as it is on Linux; what is not there is the
+    // section. On another platform the check is not made at all, so nothing
+    // was written to the store and nothing to the log.
+    expect(find.byKey(const ValueKey('secretStoreSection')), findsNothing);
+    expect(find.text(l10n.systemCheckSecretStoreTitle), findsNothing);
+    expect(find.byType(SectionTitle), findsNothing);
+
+    expect(store.values, isEmpty);
+    expect(log.entries, isEmpty);
+  });
+
+  testWidgets(
+    'the store section titles itself as a section and shows what the check found',
+    (tester) async {
+      tester.view.physicalSize = const Size(1200, 1200);
+      tester.view.devicePixelRatio = 1.0;
+
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+
+      final store = FakeSecretStore(available: false);
+
+      await tester.pumpWidget(
+        app(
+          systemCheckController(
+            ffmpeg: FakeFfmpeg(
+              const ToolRunSuccess(stdout: 'ffmpeg version 6.1', stderr: ''),
+            ),
+            ffprobe: FakeFfprobe(
+              const ToolRunSuccess(stdout: 'ffprobe version 6.1', stderr: ''),
+            ),
+            mtn: FakeMtn(const ToolRunSuccess(stdout: 'mtn 3.5.0', stderr: '')),
+            uptooda: FakeUptooda(
+              const ToolRunSuccess(stdout: '1.4.6', stderr: ''),
+            ),
+            mkbrr: FakeMkbrr(
+              const ToolRunSuccess(stdout: 'mkbrr version: 1.27.0', stderr: ''),
+            ),
+            secretStore: store,
+            isLinux: true,
+          ),
+        ),
+      );
+
+      // The check is made when the section is built, which is the same moment the
+      // page starts its calls, so at the first frame nothing has answered and
+      // every row — the five tool rows and the section's — is the mark as a
+      // spinner.
+      expect(find.byType(CircularProgressIndicator), findsNWidgets(6));
+
+      // Building again is what shows each row's own answer. The calls here are
+      // the fakes, so nothing waits on the filesystem, and settling is what lets
+      // each one come back.
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('secretStoreSection')), findsOneWidget);
+      expect(find.text(l10n.systemCheckSecretStoreTitle), findsOneWidget);
+      expect(
+        find.text(l10n.systemCheckSecretStoreNotAvailable),
+        findsOneWidget,
+      );
+
+      // The section titles itself with `SectionTitle`, the row every section
+      // titles itself with, rather than with the page title style the table
+      // follows, and a failure is drawn with the error colour as an error row is.
+      final title = tester.widget<Text>(
+        find.text(l10n.systemCheckSecretStoreTitle),
+      );
+
+      expect(
+        title.style?.fontSize,
+        Theme.of(tester.element(find.text(l10n.systemCheckSecretStoreTitle)))
+            .textTheme
+            .titleMedium!
+            .fontSize,
+      );
+
+      final value = tester.widget<Text>(
+        find.text(l10n.systemCheckSecretStoreNotAvailable),
+      );
+
+      expect(
+        value.style?.color,
+        Theme.of(tester.element(find.text(l10n.systemCheckSecretStoreTitle)))
+            .colorScheme
+            .error,
+      );
+
+      // The mark is the shared one: the tool rows all answered, so the error mark
+      // here is the section's, and the row keeps the shape a waiting row has once
+      // its answer arrives.
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      expect(find.byIcon(Icons.check_circle_outline), findsNWidgets(5));
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+
+      // What the check wrote is removed again, so the section's check leaves the
+      // store as it found it.
+      expect(store.values, isEmpty);
     },
   );
 

@@ -820,6 +820,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get systemCheckResultLabel => 'Result';
 
   @override
+  String get systemCheckSecretStoreTitle => 'Credential store';
+
+  @override
+  String get systemCheckSecretStoreWorks => 'Credential store is working';
+
+  @override
+  String get systemCheckSecretStoreNotAvailable =>
+      'Credential store is not available';
+
+  @override
   String systemCheckToolNotFound(String tool) {
     return '$tool not found.';
   }

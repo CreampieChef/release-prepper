@@ -95,11 +95,21 @@ List<SingleChildWidget> appProviders() => [
     create: (context) => Mkbrr(runner: context.read<ToolRunner>()),
   ),
 
+  // The credential store. The plugin instance is built here rather than inside
+  // the store, so the store builds no dependency of its own (rule 4). It is the
+  // settings feature's store, and the System Check page's store check reads it
+  // too, so the entry is above the page that uses it.
+  Provider<SecretStore>(
+    create: (_) => PluginSecretStore(storage: FlutterSecureStorage()),
+  ),
+
   // The System Check tab. It is app-level, so it is a provider entry like the
   // recent list. `ToolRunner` needs a directory to write the tool log to, and
   // outside a release there is no release directory, so the check's calls are
   // logged under the app data directory; the function is given here, the same
-  // reason `SettingsStore` is given one.
+  // reason `SettingsStore` is given one. The platform is read here and passed to
+  // the controller, the same reason `ToolLocator`'s is read here, so the
+  // Linux-only part of the page can be tested on a machine that is not Linux.
   Provider<SystemCheckController>(
     create: (context) => SystemCheckController(
       ffmpeg: context.read<Ffmpeg>(),
@@ -108,6 +118,9 @@ List<SingleChildWidget> appProviders() => [
       uptooda: context.read<Uptooda>(),
       mkbrr: context.read<Mkbrr>(),
       appDirectory: getApplicationSupportDirectory,
+      secretStore: context.read<SecretStore>(),
+      log: context.read<ToolLog>(),
+      isLinux: Platform.isLinux,
     ),
   ),
 
@@ -241,9 +254,8 @@ List<SingleChildWidget> appProviders() => [
 
   // The credential store. The plugin instance is built here rather than inside
   // the store, so the store builds no dependency of its own (rule 4).
-  Provider<SecretStore>(
-    create: (_) => PluginSecretStore(storage: FlutterSecureStorage()),
-  ),
+  // The credential store itself is the entry above, where the System Check page
+  // can read it.
 
   // The second Listenable in the app, recorded as a deviation in `ai/doc.md`
   // §4: the app language is read by `AppRoot`, and what the app shows cannot
