@@ -69,7 +69,7 @@ jobs:
 
           $version = $match.Groups[1].Value
           if ($version -notmatch '^\d+\.\d+\.\d+$') {
-            Write-Error "$version: pub needs three numeric components"
+            Write-Error "${version}: pub needs three numeric components"
             exit 1
           }
 

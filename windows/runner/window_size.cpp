@@ -1,8 +1,8 @@
 #include "window_size.h"
 
 #include <shlobj.h>
-#include <versionapi.h>
 #include <windows.h>
+#include <winver.h>
 
 #include <cwctype>
 #include <filesystem>
@@ -57,28 +57,29 @@ bool parse_whole(const std::string& token, int* value) {
   return true;
 }
 
-// One value of the VERSIONINFO resource's string table, read the way the
-// resource says it is encoded: the block names the language and the code page,
-// and the key is that pair followed by the value name.
+// One value of the VERSIONINFO resource's string table. The key is a block name
+// then the value name, and the block name is the language and the code page as
+// four hex digits each. path_provider_windows uses English (United States) with
+// CP1252, then Unicode, and that is what names the directory this file is read
+// from, so the same two keys are tried here in the same order rather than the
+// pair the resource declares. `Runner.rc` writes the first.
 std::wstring version_info_value(const void* block, const wchar_t* name) {
   void* value = nullptr;
   unsigned int length = 0;
 
-  if (!VerQueryValueW(block, L"\\", &value, &length)) {
-    return std::wstring();
+  // The block names path_provider_windows looks for, in its order.
+  const wchar_t* const blocks[] = {L"040904e4", L"040904b0"};
+
+  for (const wchar_t* block_id : blocks) {
+    const std::wstring key =
+        L"\\StringFileInfo\\" + std::wstring(block_id) + L"\\" + name;
+
+    if (VerQueryValueW(block, key.c_str(), &value, &length)) {
+      return std::wstring(static_cast<wchar_t*>(value));
+    }
   }
 
-  const VS_VERSIONINFO* info = static_cast<const VS_VERSIONINFO*>(value);
-  const unsigned int block_id = (info->wLanguage << 12) | info->wCodePage;
-
-  wchar_t key[64];
-  swprintf(key, 64, L"%08x\\%s", block_id, name);
-
-  if (!VerQueryValueW(block, key, &value, &length)) {
-    return std::wstring();
-  }
-
-  return std::wstring(static_cast<wchar_t*>(value));
+  return std::wstring();
 }
 
 // The same rules path_provider_windows uses for a directory component, so the

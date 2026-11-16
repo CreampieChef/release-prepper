@@ -12,12 +12,6 @@
 // rendering and input handling
 class Win32Window {
  public:
-  struct Point {
-    unsigned int x;
-    unsigned int y;
-    Point(unsigned int x, unsigned int y) : x(x), y(y) {}
-  };
-
   struct Size {
     unsigned int width;
     unsigned int height;
@@ -28,15 +22,16 @@ class Win32Window {
   Win32Window();
   virtual ~Win32Window();
 
-  // Creates a win32 window with |title| that is positioned and sized using
-  // |origin| and |size|. New windows are created on the default monitor. Window
-  // sizes are specified to the OS in physical pixels, hence to ensure a
-  // consistent size this function will scale the inputted width and height as
-  // as appropriate for the default monitor — unless |scale_size| is false,
-  // which is what a size that is already in physical pixels needs, such as the
-  // size the app recorded in its last run. The window is invisible until |Show|
-  // is called. Returns true if the window was created successfully.
-  bool Create(const std::wstring& title, const Point& origin, const Size& size,
+  // Creates a win32 window with |title| of |size|, placed on the primary
+  // monitor's work area: centred in it, or at its top-left corner when the
+  // window is larger than it, since a window whose title bar is off the screen
+  // has nothing left to drag. Window sizes are given to the OS in physical
+  // pixels, hence to ensure a consistent size this function scales the inputted
+  // width and height as appropriate for that monitor — unless |scale_size| is
+  // false, which is what a size that is already in physical pixels needs, such
+  // as the size the app recorded in its last run. The window is invisible until
+  // |Show| is called. Returns true if the window was created successfully.
+  bool Create(const std::wstring& title, const Size& size,
              bool scale_size = true);
 
   // Show the current window. Returns true if the window was successfully shown.

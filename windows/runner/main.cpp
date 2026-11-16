@@ -26,7 +26,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 
   FlutterWindow window(project);
-  Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
 
   // The size the window is created with is the one the app recorded in its last
@@ -44,8 +43,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   }
 
   // The last argument is Create's scale_size, and a recorded size is not
-  // scaled.
-  if (!window.Create(L"release_prepper", origin, size, !recorded)) {
+  // scaled. There is no position to pass: position is not recorded, so Create
+  // places the window on the primary monitor's work area (`ai/doc.md` §7).
+  if (!window.Create(L"release_prepper", size, !recorded)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

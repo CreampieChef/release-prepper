@@ -120,18 +120,18 @@ Win32Window::~Win32Window() {
   Destroy();
 }
 
-bool Win32Window::Create(const std::wstring& title,
-                         const Point& origin,
-                         const Size& size,
+bool Win32Window::Create(const std::wstring& title, const Size& size,
                          bool scale_size) {
   Destroy();
 
   const wchar_t* window_class =
       WindowClassRegistrar::GetInstance()->GetWindowClass();
 
-  const POINT target_point = {static_cast<LONG>(origin.x),
-                              static_cast<LONG>(origin.y)};
-  HMONITOR monitor = MonitorFromPoint(target_point, MONITOR_DEFAULTTONEAREST);
+  // The primary monitor is the one a desktop puts a new window on, so it is
+  // both the monitor the size is scaled for and the one the window is placed
+  // on.
+  HMONITOR monitor =
+      MonitorFromWindow(GetDesktopWindow(), MONITOR_DEFAULTTONEAREST);
   UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
   double scale_factor = dpi / 96.0;
 
@@ -139,11 +139,38 @@ bool Win32Window::Create(const std::wstring& title,
   // created at the size the app recorded is really that size.
   double size_factor = scale_size ? scale_factor : 1.0;
 
-  HWND window = CreateWindow(
-      window_class, title.c_str(), WS_OVERLAPPEDWINDOW,
-      Scale(origin.x, scale_factor), Scale(origin.y, scale_factor),
-      Scale(size.width, size_factor), Scale(size.height, size_factor),
-      nullptr, nullptr, GetModuleHandle(nullptr), this);
+  const int width = Scale(size.width, size_factor);
+  const int height = Scale(size.height, size_factor);
+
+  MONITORINFO work_area{};
+  work_area.cbSize = sizeof(MONITORINFO);
+
+  if (!GetMonitorInfoW(monitor, &work_area)) {
+    // There is nowhere to place the window, so there is no position to build.
+    return false;
+  }
+
+  const int work_width = work_area.rcWork.right - work_area.rcWork.left;
+  const int work_height = work_area.rcWork.bottom - work_area.rcWork.top;
+
+  int left = work_area.rcWork.left;
+  int top = work_area.rcWork.top;
+
+  // A window that does not fit the work area is put at its top-left corner
+  // rather than centred, so that the title bar stays on the screen: the title
+  // bar is the only part of a window there is to drag by, and a window that
+  // cannot be reached cannot be moved. The size is not changed by this.
+  if (width <= work_width && height <= work_height) {
+    left += (work_width - width) / 2;
+    top += (work_height - height) / 2;
+  }
+
+  // Monitor coordinates are physical pixels for a process the manifest declares
+  // PerMonitorV2 aware, which is the unit CreateWindow takes the size in too,
+  // so a position built from the work area is not scaled.
+  HWND window = CreateWindow(window_class, title.c_str(), WS_OVERLAPPEDWINDOW,
+                            left, top, width, height, nullptr, nullptr,
+                            GetModuleHandle(nullptr), this);
 
   if (!window) {
     return false;

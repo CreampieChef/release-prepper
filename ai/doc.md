@@ -3799,8 +3799,10 @@ windows/runner/                 the Win32 runner. `window_size.cpp` reads the
                                 `main.cpp` creates the window at it; a recorded
                                 size is in physical pixels, so it is not scaled
                                 to the monitor, which is the `scale_size`
-                                argument `Win32Window::Create` has for this
-                                (`ai/doc.md` §7).
+                                argument `Win32Window::Create` has for this. It
+                                then places the window, because position is not
+                                recorded: the runner centres it on the primary
+                                monitor's work area (`ai/doc.md` §7).
 windows/runner/resources/       `app_icon.ico`, the icon the Windows runner shows in
                                 the titlebar and the taskbar. It is the app's own
                                 icon, the same artwork as
@@ -5790,6 +5792,19 @@ the format version, the width, the height — with a trailing newline:
 - Position is not stored, and the maximized state is not part of the record, so
   a window closed maximized is remembered at the size it was maximized to. §10
   keeps both as open work.
+- With no position in the record, the placement is the runner's own. The Linux
+  runner asks for none, so the window manager places the window, which is the
+  centring. The Windows runner has no window manager to ask, so
+  `Win32Window::Create` places the window itself on the primary monitor's work
+  area: centred in it, or at its top-left corner when the window is larger,
+  because a window whose title bar is off the screen cannot be moved, and the
+  title bar is the only part there is to drag by. The size is not changed by the
+  placement, so a size that does not fit is not one the runner shrinks. A
+  position built from the work area is not scaled either: for a process the
+  manifest declares PerMonitorV2 aware, monitor coordinates are physical pixels,
+  the unit `CreateWindow` takes the size in. The primary monitor is the one a
+  desktop puts a new window on; a second monitor is not chosen, because nothing
+  in the record says which monitor the window was on.
 - A write that fails is reported to the caller rather than swallowed, but the
   caller is the close flow and there is no widget left that could say a file was
   not written, so it shows up on the next run as the size the runners read. The
