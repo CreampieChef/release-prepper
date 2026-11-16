@@ -21,7 +21,16 @@ holds their translations. Every field is a text box unless stated otherwise.
    `YYYY`, `YYYY-MM` or `YYYY`, and is stored as the text the field shows.
 7. Жанр (теги) — genre tags. The values are the tag names as StashDB holds
    them, which are always in English; the label is translated, the values are
-   not.
+   not. Under the box is a link, "Sort and deduplicate tags", that writes the
+   line in alphabetical order: the parts between the commas are the tags, and
+   the line is written back with them in that order. The link is under the box
+   rather than beside it, because a line of tags can be several lines long and a
+   button on the row would take the width the text needs. The spaces around a
+   part are not part of a tag, a part with nothing in it is dropped, a tag the
+   line already has is not written twice, and the order does not depend on case,
+   since one tag is one tag whatever the user capitalized it. The rule is
+   `lib/feature/release/tag_sort.dart`, and the link writes the answer through
+   the editor's write path, so it is a change like one the user typed.
 8. Продолжительность — duration in hh:mm:ss. Read from the movie file.
 9. Тип видео — video type, for example 2160p. Read from the movie file.
 10. Качество видео — video quality, for example SiteRip. The one field a new

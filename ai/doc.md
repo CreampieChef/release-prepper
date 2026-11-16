@@ -1683,6 +1683,14 @@ lib/
                                  section that owns its row asks for: the shape
   is its gate, and the
                                  required set of its type is not known
+      tag_sort.dart             the order a tag line is put in, as a pure rule
+                               over the value: the parts between the commas,
+                               the spaces around a part and an empty part
+                               dropped, in alphabetical order and joined as
+                               the app writes a tag line, a tag already in
+                               the line written once. Writes nothing and shows
+                               nothing; the link under the tag row calls it and
+                               writes the answer through the single write path.
       release_type.dart ReleaseType, the release types the app knows: the enum
   value is the
                                 technical name, so the manifest value, the
@@ -4368,9 +4376,10 @@ through one path: `setField()` on the controller, then the field showing the
 value. The field is only written back when the value did not come from that field
 itself: echoing what the user typed moves the caret to the end and clears the IME
 composition, which is what stops typing after one character. Writes from outside a
-field — the probe, the date picker, the file picker — do update it. The controller
-marks the tab dirty through `TabManager`, which is the only
-listener, so the widget does not listen to the controller at all.
+field — the probe, the date picker, the file picker, the link under the tag
+row — do update it. The controller marks the tab dirty through `TabManager`,
+which is the only listener, so the widget does not listen to the controller at
+all.
 
 Ctrl+S is handled by a `Focus` wrapper in the widget: key events reach it from
 the focused text field through the focus chain, and this is the nearer handler,
@@ -4382,11 +4391,20 @@ shows a localized message. `AppShortcuts` is an ancestor of every focus scope,
 so a popup route's focus scope reaches it too. The Stash row still takes focus
 back to its input when its popup closes, because it owns that input's focus.
 
-Every field is a text box except: the source row, which has a picker button at the end of the
-row — `FilePicker.pickFile()` for a type whose source is a file, `FilePicker.getDirectoryPath()`
-for one whose source is a directory — and the production date, which has a `showDatePicker()`
-button. The date is stored as the ISO
-`yyyy-MM-dd` text the field shows, so it round-trips without locale formatting.
+Every field is a text box except: the source row, which has a picker button at
+the end of the row — `FilePicker.pickFile()` for a type whose source is a file,
+`FilePicker.getDirectoryPath()` for one whose source is a directory — the
+production date, which has a `showDatePicker()` button, and the genre tags row,
+which has a link under the box instead of a button beside it, because the line
+can be several lines long and a button on the row takes the width the text
+needs. The link writes the line in alphabetical order through the same write
+path a keystroke goes through, so the value it writes marks the tab dirty and
+reaches the sections that read the values like a typed value does. The rule is
+the pure function in `tag_sort.dart`; the widget reads the value from the model
+rather than from the row, and the answer is written back, so a line already in
+order writes nothing and does not mark the tab dirty. The date is stored as the
+ISO `yyyy-MM-dd` text the field shows, so it round-trips without locale
+formatting.
 Description and additional information are multiline fields that grow with the
 text; genre stays on one line and grows below when the text does not fit.
 Additional information is labelled optional. Every field carries a `ValueKey` of its field name,
@@ -5935,7 +5953,11 @@ test joins the release directory to it rather than rewriting it.
 
 `test/release_editor_test.dart` covers the editor: a picked date reaches its
 field, the form fills from a manifest, a change marks the tab dirty, Ctrl+S
-writes the manifest and clears the flag, the fields the field model marks as
+writes the manifest and clears the flag, the link under the tag row writes the
+line in alphabetical order through the same write path a keystroke goes through
+and marks the tab dirty, that the link is below the box rather than beside it,
+and that a line already in order is not written and does not mark it, the fields
+the field model marks as
 filled by the app are read-only, typing keeps the caret where the user put it
 (the write path must not echo the value back), the size field shows the byte
 count in a human-friendly form while the model keeps the bytes — for a value
@@ -6114,6 +6136,14 @@ belongs to an item is not the poster. The name must differ from the source's
 while the folder-name rules still apply, the default save path is the folder the
 source is in, a copy that fails removes the folder the create made, and only a
 successful create is recorded in the recent list.
+
+`test/tag_sort_test.dart` covers the tag rule as a function over a line: the
+parts are put in alphabetical order, the spaces around a part are not part of it
+and an empty part is dropped, the order does not depend on case, a tag the line
+already has is written once with the first spelling, a line with nothing in it
+answers with nothing, and the parts are joined as the app writes a tag line
+elsewhere.
+
 `test/field_validation_test.dart` covers the rules as a function over a field
 list: a required field with no value, including one the app fills, the optional
 fields being allowed to be empty, the three shapes a date may hold, the spaces

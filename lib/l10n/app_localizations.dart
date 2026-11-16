@@ -476,6 +476,12 @@ abstract class AppLocalizations {
   /// **'Genre (tags)'**
   String get genreTagsLabel;
 
+  /// No description provided for @sortAndDeduplicateTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort and deduplicate tags'**
+  String get sortAndDeduplicateTags;
+
   /// No description provided for @fileSizeLabel.
   ///
   /// In en, this message translates to:

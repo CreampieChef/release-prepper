@@ -212,6 +212,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get genreTagsLabel => 'Жанр (теги)';
 
   @override
+  String get sortAndDeduplicateTags => 'Сортировать теги и убрать дубликаты';
+
+  @override
   String get fileSizeLabel => 'Размер файла';
 
   @override

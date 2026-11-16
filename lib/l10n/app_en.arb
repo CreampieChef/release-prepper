@@ -70,6 +70,7 @@
     "productionDateLabel": "Production date",
     "chooseDate": "Choose date",
     "genreTagsLabel": "Genre (tags)",
+    "sortAndDeduplicateTags": "Sort and deduplicate tags",
     "fileSizeLabel": "File size",
     "fileSizeDisplay": "{human} ({bytes} bytes)",
     "durationLabel": "Duration",

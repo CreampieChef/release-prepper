@@ -41,6 +41,7 @@ import 'release_editor_controller.dart';
 import 'release_fields.dart';
 import 'release_store.dart';
 import 'release_type.dart';
+import 'tag_sort.dart';
 import 'tracker.dart';
 
 /// The key of the row that shows the path the user picked. It is not a field,
@@ -771,9 +772,9 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
     );
   }
 
-  /// One field as the form shows it: the ones with a button, the one that
-  /// grows, and the plain text boxes. These are the shapes a row can have, so
-  /// they are the widget's, not the field model's.
+  /// One field as the form shows it: the ones with a button, the one with a
+  /// link under it, the one that grows, and the plain text boxes. These are the
+  /// shapes a row can have, so they are the widget's, not the field model's.
   Widget _fieldWidget(FieldSpec field, AppLocalizations l10n) {
     switch (field.name) {
       case 'productionDate':
@@ -784,7 +785,20 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
           onPressed: () => _pickProductionDate(l10n),
         );
       case 'genreTags':
-        return _field(field, l10n, grows: true);
+        // The link is under the box rather than a button beside it: the tag
+        // line can be several lines long, and a button on the row takes the
+        // width the text needs. The link takes none, being a line of its own.
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _field(field, l10n, grows: true),
+            const SizedBox(height: 4),
+            TextButton(
+              onPressed: () => _sortTags(field),
+              child: Text(l10n.sortAndDeduplicateTags),
+            ),
+          ],
+        );
       case 'duration':
         return _field(field, l10n, hint: l10n.durationHint);
       case 'description':
@@ -793,6 +807,16 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
       default:
         return _field(field, l10n);
     }
+  }
+
+  /// The link under the tag row: the line as the model holds it, in
+  /// alphabetical order. The value is read from the model rather than from the
+  /// row, and the answer is written back through the single write path, so the
+  /// tab becomes dirty and the sections that read the values are told, exactly
+  /// as for a keystroke. A line already in order is the same value, so nothing
+  /// is written: a control that changed nothing does not make the tab dirty.
+  void _sortTags(FieldSpec field) {
+    _writeField(field, sortedTagLine(_controller.fields.value(field.name)));
   }
 
   Widget _rowWithButton(

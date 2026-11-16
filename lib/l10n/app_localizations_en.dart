@@ -212,6 +212,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get genreTagsLabel => 'Genre (tags)';
 
   @override
+  String get sortAndDeduplicateTags => 'Sort and deduplicate tags';
+
+  @override
   String get fileSizeLabel => 'File size';
 
   @override

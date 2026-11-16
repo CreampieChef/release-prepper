@@ -342,12 +342,20 @@ void main() {
     // presses a button gives the fake.
     UrlOpener? urlOpener,
     PathOpener? pathOpener,
+    // The tab record the editor reports the dirty flag to. The default is a
+    // manager with the tab the release has in it, and that tab is the id the
+    // widget is built with, so a test that reads the flag gives the manager it
+    // reads.
+    TabManager? tabManager,
   }) async {
+    final tabs = tabManager ?? TabManager();
+    final tabId = tabs.addReleaseEditor(release);
+
     await tester.pumpWidget(
       MultiProvider(
         providers: [
           Provider<ReleaseStore>(create: (_) => ReleaseStore()),
-          ChangeNotifierProvider<TabManager>(create: (_) => TabManager()),
+          ChangeNotifierProvider<TabManager>(create: (_) => tabs),
           Provider<ImagesStore>(create: (_) => ImagesStore()),
           Provider<ToolLog>(create: (_) => FakeToolLog()),
           ...messageProviders(messageBundle),
@@ -376,7 +384,7 @@ void main() {
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: ReleaseEditor(release: release, tabId: 'tab-1'),
+            body: ReleaseEditor(release: release, tabId: tabId),
           ),
         ),
       ),
@@ -974,6 +982,75 @@ void main() {
     expect(controller.text, 'heXllo');
     expect(controller.selection, const TextSelection.collapsed(offset: 3));
   });
+
+  // The link under the tag row. It is under the box rather than beside it, so
+  // a line that takes several lines keeps its whole width, and the test says
+  // the shape as well as the write. The line is read from the model and the
+  // answer is written back through the single write path, so the row shows it,
+  // the model holds it, and the tab becomes dirty as it would for a keystroke.
+  testWidgets(
+    'the link under the tag row writes the line in alphabetical order',
+    (tester) async {
+      tester.view.physicalSize = const Size(2000, 2000);
+      tester.view.devicePixelRatio = 1.0;
+
+      final fields = FieldValues();
+      fields.setValue('genreTags', 'solo, Battle , anal,');
+
+      final tabManager = TabManager();
+
+      await openEditor(
+        tester,
+        testRelease('/tmp/x', fields: fields),
+        tabManager: tabManager,
+      );
+
+      final link = find.text('Sort and deduplicate tags');
+      final box = tester.getRect(find.byKey(const ValueKey('genreTags')));
+
+      // Below the box, not beside it: the box is as wide as the column.
+      expect(link, findsOneWidget);
+      expect(tester.getRect(link).top, greaterThanOrEqualTo(box.bottom));
+
+      await tester.tap(link);
+      await tester.pump();
+
+      expect(
+        fieldOf(tester, 'genreTags').controller?.text,
+        'anal, Battle, solo',
+      );
+      expect(fields.value('genreTags'), 'anal, Battle, solo');
+      expect(tabManager.tabs.single.hasUnsavedChanges, isTrue);
+    },
+  );
+
+  // A line that is already in order is the same value, so nothing is written: a
+  // control that changed nothing does not mark the tab dirty, the same rule as
+  // writing a field the same value again.
+  testWidgets(
+    'the link under the tag row writes nothing for a line already in order',
+    (tester) async {
+      tester.view.physicalSize = const Size(2000, 2000);
+      tester.view.devicePixelRatio = 1.0;
+
+      final fields = FieldValues();
+      fields.setValue('genreTags', 'anal, solo');
+
+      final tabManager = TabManager();
+
+      await openEditor(
+        tester,
+        testRelease('/tmp/x', fields: fields),
+        tabManager: tabManager,
+      );
+
+      await tester.tap(find.text('Sort and deduplicate tags'));
+      await tester.pump();
+
+      expect(fieldOf(tester, 'genreTags').controller?.text, 'anal, solo');
+      expect(tabManager.tabs.single.hasUnsavedChanges, isFalse);
+    },
+  );
 
   // The user's scenario: the path is submitted, the tool writes the file, and
   // the box shows it. The box builds an image only for a file that is on disk,
@@ -2345,7 +2422,18 @@ void main() {
 
       await openEditor(tester, testPackRelease('/tmp/x'));
 
+      // The field is as wide as the column, as a field the form builds plainly
+      // is. The gap before the section is from the bottom of the last row, and
+      // the last line of that row is its link, so the row ends there — at the
+      // widget that draws the link, whose touch target is taller than the words
+      // it shows.
       final lastField = tester.getRect(find.byKey(const ValueKey('genreTags')));
+      final linkRow = tester.getRect(
+        find.ancestor(
+          of: find.text('Sort and deduplicate tags'),
+          matching: find.byType(TextButton),
+        ),
+      );
       final section = tester.getRect(
         find.byKey(const ValueKey('torrentSection')),
       );
@@ -2356,7 +2444,7 @@ void main() {
 
       expect(section.width, closeTo(lastField.width, 0.5));
       expect(section.left, closeTo(lastField.left, 0.5));
-      expect(section.top - lastField.bottom, closeTo(columnGap, 0.5));
+      expect(section.top - linkRow.bottom, closeTo(columnGap, 0.5));
 
       // Above the Upload section, in the same column.
       expect(upload.top - section.bottom, closeTo(columnGap, 0.5));
