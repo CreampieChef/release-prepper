@@ -116,9 +116,13 @@ void main() {
 
   VideoScanner testScanner() => VideoScanner(probe: probe);
 
-  Future<VideoScanResult> scan(String sourcePath) => testScanner().scan(
+  Future<VideoScanResult> scan(
+    String sourcePath, {
+    void Function(VideoScanProgress progress)? onProgress,
+  }) => testScanner().scan(
     sourcePath: sourcePath,
     releaseDirectory: directory.path,
+    onProgress: onProgress,
   );
 
   // An item is a video file, wherever it is: the walk goes into the subfolders,
@@ -289,6 +293,65 @@ void main() {
       expect(result.videos.single.path, 'first.mp4');
     },
   );
+
+  // The two phases are what a progress report needs: the listing is the part
+  // that can be known before any file is read, so the total is real at the
+  // first report, and each item is reported after its own probe, in the order
+  // the listing gives the files (`ai/picking.md` §7, `ai/video_pack.md` §4).
+  test('the first report gives the total, and each item is reported after its probe', () async {
+    writeVideo('first.mp4');
+    writeVideo('videos/second.mkv');
+
+    final reports = <VideoScanProgress>[];
+
+    await scan(directory.path, onProgress: reports.add);
+
+    expect(reports.first.total, 2);
+    expect(reports.first.done, 0);
+    expect(reports.first.video, isNull);
+
+    expect(reports.skip(1).map((report) => report.video!.path), [
+      'first.mp4',
+      'videos/second.mkv',
+    ]);
+    expect(reports.map((report) => report.done), [0, 1, 2]);
+  });
+
+  // An item the probe cannot read is still an item, so the count moves for it
+  // as well: a report is what the listing decided, not what the tool answered.
+  test(
+    'a file the probe cannot read is reported like the items it can read',
+    () async {
+      writeVideo('first.mp4', probed: false);
+      writeVideo('second.mkv');
+
+      final reports = <VideoScanProgress>[];
+
+      await scan(directory.path, onProgress: reports.add);
+
+      expect(reports.last.total, 2);
+      expect(reports.last.done, 2);
+      expect(reports.skip(1).map((report) => report.video!.info), [
+        null,
+        isNotNull,
+      ]);
+    },
+  );
+
+  // A scan that cannot read the source reports nothing, because it cannot say
+  // what the source contains, and a section's rows are replaced at the report
+  // that only gives the total. So the items a section already has are left.
+  test('a scan that cannot read the source reports nothing', () async {
+    final reports = <VideoScanProgress>[];
+
+    final result = await scan(
+      p.join(directory.path, 'missing'),
+      onProgress: reports.add,
+    );
+
+    expect(result, isA<VideoScanFailure>());
+    expect(reports, isEmpty);
+  });
 
   test('a source that is not there is reported', () async {
     final result = await scan(p.join(directory.path, 'missing'));

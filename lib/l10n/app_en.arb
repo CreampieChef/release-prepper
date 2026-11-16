@@ -214,6 +214,17 @@
     "fileNameLabel": "File name",
     "scanVideos": "Scan",
     "noVideos": "There are no videos. Pick the folder and scan it.",
+    "videoScanProgress": "Videos scanned: {done} / {total}",
+    "@videoScanProgress": {
+        "placeholders": {
+            "done": {
+                "type": "int"
+            },
+            "total": {
+                "type": "int"
+            }
+        }
+    },
     "videoSkippedFiles": "Not videos: {names}",
     "@videoSkippedFiles": {
         "placeholders": {

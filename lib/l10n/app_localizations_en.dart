@@ -433,6 +433,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noVideos => 'There are no videos. Pick the folder and scan it.';
 
   @override
+  String videoScanProgress(int done, int total) {
+    return 'Videos scanned: $done / $total';
+  }
+
+  @override
   String videoSkippedFiles(String names) {
     return 'Not videos: $names';
   }

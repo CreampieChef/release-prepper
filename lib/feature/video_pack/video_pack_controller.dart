@@ -49,15 +49,32 @@ class VideoPackController {
   /// Reads the source and records what it finds. A re-scan replaces the items,
   /// because the scan is what says what the source contains, and the aggregates
   /// are recomputed from what it finds rather than from the values a user may
-  /// have corrected (`ai/video_pack.md` §4).
-  Future<VideoPackResult> scan() async {
+  /// have corrected (`ai/video_pack.md` §4). Each item is recorded as the scan
+  /// reports it, so the section can show a row before the run ends
+  /// (`ai/video_pack.md` §5). The items are replaced at the report that only
+  /// gives the total — the point the scan has decided what the source contains
+  /// — so a scan that cannot read the source replaces nothing.
+  Future<VideoPackResult> scan({
+    required void Function(VideoScanProgress progress) onProgress,
+  }) async {
     if (release.source.trim().isEmpty) {
       return const VideoPackFailure(VideoPackFailureKind.sourceEmpty);
     }
 
+    final fieldList = fieldListFor(release.releaseType);
+
     final result = await scanner.scan(
       sourcePath: release.source,
       releaseDirectory: release.directoryPath,
+      onProgress: (progress) {
+        if (progress.video == null) {
+          release.items.clear();
+        } else {
+          _recordItem(fieldList, progress.video!);
+        }
+
+        onProgress(progress);
+      },
     );
 
     if (result is VideoScanFailure) {
@@ -70,29 +87,10 @@ class VideoPackController {
     }
 
     final success = result as VideoScanSuccess;
-    final fieldList = fieldListFor(release.releaseType);
 
-    release.items.clear();
-
-    for (final video in success.videos) {
-      final item = ReleaseItem(
-        path: video.path,
-        type: fieldList.itemType,
-        fields: FieldValues(),
-      );
-
-      final info = video.info;
-
-      if (info != null) {
-        for (final field in fieldList.itemFields) {
-          item.fields.setValue(field.name, _probeValue(field.name, info));
-        }
-      }
-
-      release.items.add(item);
-    }
-
-    // The write path is the editor's for the aggregates; the items are written
+    // The items were recorded as the scan reported them; the aggregate values
+    // are the whole run's answer, so they are written here, at its end. The
+    // write path is the editor's for the aggregates; the items are written
     // here, so the tab is marked dirty here.
     tabManager.setUnsavedChanges(tabId, true);
 
@@ -215,6 +213,26 @@ class VideoPackController {
       written: written,
       failure: failure,
     );
+  }
+
+  /// One item, as the scan reported it. An item is what the scan produces, so
+  /// this is the controller's write, not the editor's.
+  void _recordItem(FieldList fieldList, ScannedVideo video) {
+    final item = ReleaseItem(
+      path: video.path,
+      type: fieldList.itemType,
+      fields: FieldValues(),
+    );
+
+    final info = video.info;
+
+    if (info != null) {
+      for (final field in fieldList.itemFields) {
+        item.fields.setValue(field.name, _probeValue(field.name, info));
+      }
+    }
+
+    release.items.add(item);
   }
 
   /// The value one item field gets from a probe. A name the probe does not

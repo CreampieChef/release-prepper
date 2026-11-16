@@ -866,6 +866,12 @@ abstract class AppLocalizations {
   /// **'There are no videos. Pick the folder and scan it.'**
   String get noVideos;
 
+  /// No description provided for @videoScanProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Videos scanned: {done} / {total}'**
+  String videoScanProgress(int done, int total);
+
   /// No description provided for @videoSkippedFiles.
   ///
   /// In en, this message translates to:

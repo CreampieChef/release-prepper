@@ -1526,8 +1526,8 @@ lib/
     progress_row.dart ProgressRow, the row a section draws while one of its runs
                               is going: the bar and the count next to it. Shared
   by the
-                              Photoset block and the Image folder section,
-  because both
+                              Photoset block, the Image folder section, and the
+  Video pack section, because all three
                               show a run the same way, with the same bar the
   Upload
                               section draws for each hoster. Drawn only while a
@@ -2112,6 +2112,12 @@ lib/
   the
                                   nearest `Material` ancestor
   (`ai/video_pack.md` §5)
+                                  Draws the shared progress row for its scan,
+                                  below its title row, as the photoset block
+                                  does (`ai/picking.md` §7), and the table
+                                  during a scan is the items reported so far: a
+                                  row is drawn as its item is reported, so a
+                                  video shows before the run ends.
     image_folder/
       image_folder_controller.dart ImageFolderController: runs the scan with the
   source as the item,
@@ -3317,6 +3323,13 @@ lib/
   reader interface, because
                                 there is no container format here
   (`ai/video_pack.md` §4).
+                                + `VideoScanProgress`, the shape a report is.
+                                The two phases are what a progress report needs:
+                                the listing decides which entries are items
+                                before any file is read, so the total is known
+                                at the first report, and each item is reported
+                                after its own probe, in the order the listing
+                                gives the files (`ai/picking.md` §7).
     torrent/
       torrent_file.dart         readPrivateFlag(): the Private flag as a torrent
                                 file states it — the two dictionaries it can be
@@ -5284,43 +5297,43 @@ folder it picked has one item, so a row counting items says nothing and its scan
 words are null, and the block draws nothing there. All three take two int
 placeholders and are documented with `@key` in both files. The Video pack family
 (`videoFolderLabel`, `videoPackSectionTitle`, `scanVideos`, `noVideos`,
-`videoSkippedFiles`, `videoUnprobedFiles`, `videoEmptyFolders`,
-`videoUnreadableFolders`, `videoSourceEmpty`, `videoSourceNotFound`,
-`videoSourceNotReadable`) is in both files and is used by `release_editor.dart`
-and `video_pack_section.dart`. The four report keys take a `{names}` placeholder
-and are documented with `@key` in both files. What the scan could not take is
-listed by the section rather than shown as a message, because a scan that ran
-and excluded files is not an error; only the cases where nothing can happen at
-all are messages, and those are the same three as the photoset family's. The
-values the section shows per video use the labels their fields already have,
-through `fieldLabel`, rather than keys of their own, and the table's two value
-columns are those same labels. The name column is not a field, so its header is
-`fileNameLabel`: the one key in the family that is neither a field label nor a
-message. The detail lines are `label: value`, so the colon is punctuation in the
-widget, as the joins in the report lines are. The Screenshots family
-(`screenshotsSectionTitle`, `screenshotCountLabel`, `generateScreenshots`,
-`regenerateScreenshots`, `noScreenshots`, `selectVideoFirst`,
-`screenshotFailed`, `mtnNotAvailable`, `screenlistFailed`) is in both files and
-is used by `screenshots_section.dart`; its failure mapping reuses the probe and
-ffmpeg messages. The two button keys are the bare verbs, because the section's
-title already says what the button acts on, and `selectVideoFirst` is the
-placeholder the section shows when there is no item. The Upload family
-(`uploadSectionTitle`, `uploadNeedsImagesFirst`, `uploadNeedsScreenlistsFirst`,
-`uploadButton`, `uploadProgress`, `uptoodaNotAvailable`, `imagesManifestFailed`)
-is in both files and is used by `upload_section.dart`. `uploadProgress` is the
-bar's "{done} / {total}" text with two int placeholders. The two placeholder
-strings are what the section shows instead of the list until the release has the
-poster and an image of the kind its type produces; the widget picks between them
-per type, so a pack names the screenlists and the other types name the
-screenshots. Only the cases where nothing can happen at all get a message — the
-tool is not in the bundle, or `images.json` could not be written — because a
-per-image upload failure is shown by the bar staying below full.
-`uptoodaNotAvailable` says the installation is incomplete rather than "install
-it", because that tool is part of the app and is not something the user
-installs. The Torrent family (`torrentSectionTitle`, `torrentButton`,
-`torrentProgress`, `torrentSpeed`, `torrentEta`, `torrentCreated`,
-`torrentAlreadyCreated`, `mkbrrNotAvailable`, `mkbrrRunFailed`,
-`mkbrrRunTimeout`, `mkbrrModifyFailed`, `folderOpenFailed`,
+`videoScanProgress`, `videoSkippedFiles`, `videoUnprobedFiles`,
+`videoEmptyFolders`, `videoUnreadableFolders`, `videoSourceEmpty`,
+`videoSourceNotFound`, `videoSourceNotReadable`) is in both files and is used by
+`release_editor.dart` and `video_pack_section.dart`. The four report keys take a
+`{names}` placeholder and are documented with `@key` in both files. What the
+scan could not take is listed by the section rather than shown as a message,
+because a scan that ran and excluded files is not an error; only the cases where
+nothing can happen at all are messages, and those are the same three as the
+photoset family's. The values the section shows per video use the labels their
+fields already have, through `fieldLabel`, rather than keys of their own, and
+the table's two value columns are those same labels. The name column is not a
+field, so its header is `fileNameLabel`: the one key in the family that is
+neither a field label nor a message. The detail lines are `label: value`, so the
+colon is punctuation in the widget, as the joins in the report lines are. The
+Screenshots family (`screenshotsSectionTitle`, `screenshotCountLabel`,
+`generateScreenshots`, `regenerateScreenshots`, `noScreenshots`,
+`selectVideoFirst`, `screenshotFailed`, `mtnNotAvailable`, `screenlistFailed`)
+is in both files and is used by `screenshots_section.dart`; its failure mapping
+reuses the probe and ffmpeg messages. The two button keys are the bare verbs,
+because the section's title already says what the button acts on, and
+`selectVideoFirst` is the placeholder the section shows when there is no item.
+The Upload family (`uploadSectionTitle`, `uploadNeedsImagesFirst`,
+`uploadNeedsScreenlistsFirst`, `uploadButton`, `uploadProgress`,
+`uptoodaNotAvailable`, `imagesManifestFailed`) is in both files and is used by
+`upload_section.dart`. `uploadProgress` is the bar's "{done} / {total}" text
+with two int placeholders. The two placeholder strings are what the section
+shows instead of the list until the release has the poster and an image of the
+kind its type produces; the widget picks between them per type, so a pack names
+the screenlists and the other types name the screenshots. Only the cases where
+nothing can happen at all get a message — the tool is not in the bundle, or
+`images.json` could not be written — because a per-image upload failure is shown
+by the bar staying below full. `uptoodaNotAvailable` says the installation is
+incomplete rather than "install it", because that tool is part of the app and is
+not something the user installs. The Torrent family (`torrentSectionTitle`,
+`torrentButton`, `torrentProgress`, `torrentSpeed`, `torrentEta`,
+`torrentCreated`, `torrentAlreadyCreated`, `mkbrrNotAvailable`,
+`mkbrrRunFailed`, `mkbrrRunTimeout`, `mkbrrModifyFailed`, `folderOpenFailed`,
 `torrentPickFileFirst`, `torrentPickFolderFirst`, `torrentPrivateLabel`,
 `torrentPrivateTitle`, `torrentPrivateMessage`, `torrentPrivateValuePrivate`,
 `torrentPrivateValueNotPrivate`, `torrentPrivateConfirm`,
@@ -6731,7 +6744,9 @@ freezing it. The only CI config is `.github/workflows/windows-release.yml`, the
 release (§9). The suite is not run by CI, so the tool preconditions the tests
 state are met by the machine the tests are run on. `analysis_options.yaml`
 includes `package:flutter_lints/flutter.yaml` and excludes `build/`, `windows/`,
-`macos/`, `linux/` from analysis.
+`macos/`, `linux/` from analysis. The video pack's test for the rows appearing
+while its scan runs is the same shape with the probe in place of the reader,
+because that is what the scan waits on while it goes.
 
 ---
 

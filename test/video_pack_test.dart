@@ -36,14 +36,30 @@ void ignoreRecord(ImageRecord record) {}
 
 void ignoreImagesChanged() {}
 
+/// The same for the scan's progress: a test that is not about what the scan
+/// reports while it works takes a function that does nothing with the report,
+/// so the tests that are about it are the ones that read it.
+void discardScanProgress(VideoScanProgress progress) {}
+
 /// What the probe answers for one file, by name. A name the map does not have
-/// is a probe failure.
+/// is a probe failure. `slow` is the file it holds on, which is what keeps a
+/// run going while a widget test looks at what the run shows.
 class _FakeProbe implements Ffprobe {
   _FakeProbe();
 
   final infos = <String, String>{};
   final types = <String, String>{};
   final formats = <String, String>{};
+
+  /// How long this probe waits on the name it is given. The window between two
+  /// reports has to be wide enough that the test sees the state between them
+  /// rather than racing it, and it stays inside the bound the test's wait uses.
+  static const delay = Duration(seconds: 5);
+
+  /// The file this probe holds on, named as the scan names an item. The scan
+  /// reads the items in order, so the files before it are read first and
+  /// reported first.
+  String slow = '';
 
   @override
   ToolRunner get runner => testRunner();
@@ -58,6 +74,10 @@ class _FakeProbe implements Ffprobe {
     required String filePath,
   }) async {
     final name = p.basename(filePath);
+
+    if (name == slow) {
+      await Future.delayed(delay);
+    }
 
     if (!infos.containsKey(name)) {
       return const MediaProbeFailure(MediaProbeFailureKind.probeFailed);
@@ -268,7 +288,9 @@ void main() {
 
       final controller = testController(release, tabManager, tabId);
 
-      final result = await controller.scan() as VideoPackSuccess;
+      final result = await controller.scan(
+        onProgress: discardScanProgress,
+      ) as VideoPackSuccess;
 
       expect(release.items.map((item) => item.path), [
         'first.mp4',
@@ -290,6 +312,73 @@ void main() {
     },
   );
 
+  // The controller records an item at the report that names it, and replaces
+  // the items at the report that only gives the total (`ai/picking.md` §7,
+  // `ai/video_pack.md` §5). The scan gives the total before it reads anything,
+  // because it decides what the files are first, so the window between the two
+  // is what a section shows as a row appearing.
+  test('an item is recorded at the report that names it', () async {
+    writeVideo('first.mp4');
+    writeVideo('videos/second.mkv');
+
+    final tabManager = TabManager();
+    final release = testRelease(directory.path);
+    final tabId = tabManager.addReleaseEditor(release);
+
+    final controller = testController(release, tabManager, tabId);
+
+    // What the items are at each report: nothing at the report that only gives
+    // the total, then one item, then two.
+    final reports = <List<int>>[];
+    final seen = <List<String>>[];
+
+    await controller.scan(
+      onProgress: (progress) {
+        reports.add([progress.done, progress.total]);
+        seen.add([for (final item in release.items) item.path]);
+      },
+    );
+
+    expect(reports, [
+      [0, 2],
+      [1, 2],
+      [2, 2],
+    ]);
+
+    expect(seen, [
+      [],
+      ['first.mp4'],
+      ['first.mp4', 'videos/second.mkv'],
+    ]);
+  });
+
+  // A scan that never reaches the report that gives the total replaces nothing:
+  // a source that cannot be read is not evidence that it is empty.
+  test('a scan that does not reach the listing replaces nothing', () async {
+    writeVideo('source/first.mp4');
+
+    final tabManager = TabManager();
+    final release = testRelease(p.join(directory.path, 'source'));
+    final tabId = tabManager.addReleaseEditor(release);
+
+    final controller = testController(release, tabManager, tabId);
+
+    await controller.scan(onProgress: discardScanProgress);
+
+    expect(release.items.map((item) => item.path), ['first.mp4']);
+
+    // The source is gone, so the scan fails before it can name an item, and no
+    // report is made.
+    Directory(p.join(directory.path, 'source')).deleteSync(recursive: true);
+
+    final failed = await controller.scan(
+      onProgress: discardScanProgress,
+    ) as VideoPackFailure;
+
+    expect(failed.kind, VideoPackFailureKind.sourceNotFound);
+    expect(release.items.map((item) => item.path), ['first.mp4']);
+  });
+
   // A file the probe could not read is an item with empty fields: the extension
   // list is what decides what a video is, and the app does not write values it
   // does not have.
@@ -304,7 +393,9 @@ void main() {
         'tab-1',
       );
 
-      final result = await controller.scan() as VideoPackSuccess;
+      final result = await controller.scan(
+        onProgress: discardScanProgress,
+      ) as VideoPackSuccess;
 
       expect(controller.release.items.single.fields.value('videoType'), '');
       expect(result.unprobed, ['first.mp4']);
@@ -325,14 +416,16 @@ void main() {
       'tab-1',
     );
 
-    await controller.scan();
+    await controller.scan(onProgress: discardScanProgress);
 
     // The source changed on disk: one video is gone and a loose file appeared.
     File(p.join(directory.path, 'first.mp4')).deleteSync();
     writeOther('cover.txt');
     writeVideo('second.mkv', videoType: '720p');
 
-    final result = await controller.scan() as VideoPackSuccess;
+    final result = await controller.scan(
+      onProgress: discardScanProgress,
+    ) as VideoPackSuccess;
 
     expect(controller.release.items.map((item) => item.path), ['second.mkv']);
     expect(result.skipped, ['cover.txt']);
@@ -352,7 +445,7 @@ void main() {
       TabManager(),
       'tab-1',
     );
-    await controller.scan();
+    await controller.scan(onProgress: discardScanProgress);
 
     final result = await controller.generateImages(1, ignoreRecord);
 
@@ -404,7 +497,7 @@ void main() {
       TabManager(),
       'tab-1',
     );
-    await controller.scan();
+    await controller.scan(onProgress: discardScanProgress);
 
     final reported = <String>[];
     var runEnded = false;
@@ -455,7 +548,7 @@ void main() {
       TabManager(),
       'tab-1',
     );
-    await controller.scan();
+    await controller.scan(onProgress: discardScanProgress);
 
     final result = await controller.generateImages(1, ignoreRecord);
 
@@ -489,7 +582,7 @@ void main() {
       TabManager(),
       'tab-1',
     );
-    await controller.scan();
+    await controller.scan(onProgress: discardScanProgress);
 
     final result = await controller.generateImages(1, ignoreRecord);
 
@@ -511,7 +604,7 @@ void main() {
       TabManager(),
       'tab-1',
     );
-    await controller.scan();
+    await controller.scan(onProgress: discardScanProgress);
 
     await controller.generateImages(1, ignoreRecord);
 
@@ -558,6 +651,57 @@ void main() {
         ),
       ),
     );
+  }
+
+  // A test that looks at what a run shows while it is going — the progress row,
+  // which is drawn only while a run runs — waits on what the run reports, with
+  // a bound, and the probe it is given is one that holds on the second item so
+  // that the state between two reports is what the test sees rather than what
+  // it races. A test that needs a run to be over waits for the end of the run,
+  // not for the first thing the run draws, because the fixture is removed at
+  // teardown and a run still reading it throws afterwards. Both only work
+  // inside `runAsync`, because a probe is a real call and the event loop is
+  // only real there (`ai/picking.md` §7).
+  Future<void> waitUntil(WidgetTester tester, Finder until) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+
+    while (DateTime.now().isBefore(deadline)) {
+      await tester.pump();
+
+      if (until.evaluate().isNotEmpty) {
+        return;
+      }
+
+      await Future.delayed(const Duration(milliseconds: 10));
+    }
+
+    throw StateError(
+      '${until.describeMatch(Plurality.one)} did not appear within 10 seconds',
+    );
+  }
+
+  // A test that needs a run to be over waits for the end of the run, not for
+  // the first thing the run draws, because a run draws its progress row before
+  // it ends. The end here is the point the values the run counted are handed to
+  // the write path, which is what the section does at its end and not while it
+  // goes.
+  Future<void> waitUntilRunEnd(
+    WidgetTester tester,
+    List<Map<String, String>> applied,
+  ) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+
+    while (DateTime.now().isBefore(deadline)) {
+      await tester.pump();
+
+      if (applied.isNotEmpty) {
+        return;
+      }
+
+      await Future.delayed(const Duration(milliseconds: 10));
+    }
+
+    throw StateError('the scan did not end within 10 seconds');
   }
 
   Future<void> scan(WidgetTester tester) async {
@@ -732,6 +876,53 @@ void main() {
       find.descendant(of: second, matching: find.text('Video: AVC')),
       findsOneWidget,
     );
+  });
+
+  // A row appears when its item is reported, so a table during a scan is the
+  // items read so far, and a row is complete only after its probe
+  // (`ai/video_pack.md` §5). The run is held by the probe's own delay on the
+  // second file, so the state between two reports is what the test sees.
+  testWidgets('the rows appear as the scan reads them', (tester) async {
+    writeVideo('first.mp4');
+    writeVideo('second.mp4');
+
+    probe.slow = 'second.mp4';
+
+    final release = testRelease(directory.path);
+    final applied = <Map<String, String>>[];
+
+    await pumpSection(tester, release, applied);
+
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Scan'));
+
+      // The first report is the one that only gives the total, so the widget is
+      // built with a run going and nothing read yet: the row is what the
+      // section shows then, and the placeholder for an empty pack is not.
+      await Future.delayed(const Duration(milliseconds: 200));
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey('videoScanProgress')), findsOneWidget);
+      expect(
+        find.text('There are no videos. Pick the folder and scan it.'),
+        findsNothing,
+      );
+
+      await waitUntil(tester, find.text('first.mp4'));
+
+      // The row for the first item is there; the row for the second is not,
+      // because the probe still holds on it.
+      expect(find.text('first.mp4'), findsOneWidget);
+      expect(find.text('second.mp4'), findsNothing);
+
+      // The test cannot return with the run still going: the fixture is removed
+      // at teardown, and the probe throws after the test has completed. So the
+      // wait is on the end of the run, which is what the second row is part of.
+      await waitUntilRunEnd(tester, applied);
+
+      expect(find.text('first.mp4'), findsOneWidget);
+      expect(find.text('second.mp4'), findsOneWidget);
+    });
   });
 
   testWidgets('clicking a row shows the values the row does not show', (

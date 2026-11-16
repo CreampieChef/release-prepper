@@ -434,6 +434,11 @@ class AppLocalizationsRu extends AppLocalizations {
   String get noVideos => 'Видео нет. Выберите папку и сканируйте её.';
 
   @override
+  String videoScanProgress(int done, int total) {
+    return 'Просканировано видео: $done / $total';
+  }
+
+  @override
   String videoSkippedFiles(String names) {
     return 'Не видео: $names';
   }

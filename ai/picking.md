@@ -248,7 +248,8 @@ of sets, and a single set's do not, because the count of one item is the item
   as the Torrent section's progress is (`ai/torrents.md`): before a run there is nothing to show, and
   after one the block draws nothing, because the pictures a pick wrote are what the area shows. The
   words around the two numbers name what the run counts, so they are resolved per type and the row is
-  given what they say (`ai/doc.md` §6).
+  given what they say (`ai/doc.md` §6). The Video pack section draws the same row for its scan,
+  below its title row and above its sliders (`ai/video_pack.md` §5).
 
 - Both counts are known before the run has done anything, because both are what the run can know
   first: the scan decides which entries are items before it reads any of them, and the pick is the

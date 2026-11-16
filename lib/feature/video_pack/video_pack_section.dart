@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../../service/videos/image_generator.dart';
 import '../../service/videos/video_scanner.dart';
 import '../image_tile.dart';
+import '../progress_row.dart';
 import '../release/file_size.dart';
 import '../release/release.dart';
 import '../release/release_fields.dart';
@@ -85,6 +86,12 @@ class _VideoPackSectionState extends State<VideoPackSection> {
   bool _scanning = false;
   bool _generating = false;
 
+  /// What the scan last reported, for the row the section draws while a scan is
+  /// going. The controller records each item as the scan reports it, so the
+  /// rows this widget builds are the videos it has read: a row appears as its
+  /// item is reported rather than when the run ends (`ai/video_pack.md` §5).
+  VideoScanProgress? _scanProgress;
+
   /// The last scan and the last generation the section was given. The reports
   /// are what those runs found, so they appear only after one. A scan replaces
   /// the items, so it clears the generation reports with it: they would name
@@ -140,9 +147,18 @@ class _VideoPackSectionState extends State<VideoPackSection> {
   }
 
   Future<void> _scan(AppLocalizations l10n) async {
-    setState(() => _scanning = true);
+    setState(() {
+      _scanning = true;
+      _scanProgress = null;
+    });
 
-    final result = await _controller.scan();
+    final result = await _controller.scan(
+      onProgress: (progress) {
+        if (!mounted) return;
+
+        setState(() => _scanProgress = progress);
+      },
+    );
 
     if (!mounted) return;
 
@@ -638,6 +654,21 @@ class _VideoPackSectionState extends State<VideoPackSection> {
           ),
         ),
         const SizedBox(height: 12),
+        // The row is drawn only while a scan is going, as the block's is
+        // (`ai/picking.md` §7). It is below the title row because that is where
+        // a section shows what its run is doing, as the Image folder section
+        // shows its copy row (`ai/image_folder_upload.md` §5).
+        if (_scanning && _scanProgress != null)
+          ProgressRow(
+            key: const ValueKey('videoScanProgress'),
+            done: _scanProgress!.done,
+            total: _scanProgress!.total,
+            count: l10n.videoScanProgress(
+              _scanProgress!.done,
+              _scanProgress!.total,
+            ),
+          ),
+        const SizedBox(height: 12),
         Row(
           children: [
             Text(l10n.screenshotCountLabel),
@@ -659,9 +690,13 @@ class _VideoPackSectionState extends State<VideoPackSection> {
           ],
         ),
         const SizedBox(height: 12),
-        if (videos.isEmpty)
+        // The placeholder is not drawn during a scan, because the progress row
+        // is what a section shows while its run is going (`ai/picking.md` §7),
+        // and a table during a scan is the items read so far rather than the
+        // whole result.
+        if (videos.isEmpty && !_scanning)
           Text(l10n.noVideos, style: theme.textTheme.bodyMedium)
-        else ...[
+        else if (videos.isNotEmpty) ...[
           _header(l10n),
           for (final (index, item) in videos.indexed) _row(l10n, item, index),
         ],

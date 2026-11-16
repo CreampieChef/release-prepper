@@ -214,6 +214,17 @@
     "fileNameLabel": "Имя файла",
     "scanVideos": "Сканировать",
     "noVideos": "Видео нет. Выберите папку и сканируйте её.",
+    "videoScanProgress": "Просканировано видео: {done} / {total}",
+    "@videoScanProgress": {
+        "placeholders": {
+            "done": {
+                "type": "int"
+            },
+            "total": {
+                "type": "int"
+            }
+        }
+    },
     "videoSkippedFiles": "Не видео: {names}",
     "@videoSkippedFiles": {
         "placeholders": {

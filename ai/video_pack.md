@@ -103,7 +103,11 @@ A service under `lib/service/`, called only when the user asks: opening a releas
 changes nothing (`ai/release_structure.md` §4).
 
 It walks the picked folder, decides which files are items, probes each one, and writes the items
-with `type: video`, the per-item values, and the four aggregates at the release level.
+with `type: video`, the per-item values, and the four aggregates at the release level. The walk
+lists the tree first and decides which files are items, and only then probes them, so the total is
+known before the first file is read and the scan can report progress with it, as the picking scan
+does (`ai/picking.md` §7); each item is reported after its own probe, in the order the listing gives
+the files.
 
 The rules it is written to:
 
@@ -247,7 +251,12 @@ What the scan could not take is shown as lines in the section rather than as a m
 scan that ran and excluded files is not an error: the files outside the extension list, the files the
 probe could not read, the subfolders with no video in them, and the folders the walk could not read.
 Only the cases where nothing can happen at all — no source, a source that is not there, a source that
-cannot be read — are messages, and those are the same three the photoset section uses.
+cannot be read — are messages, and those are the same three the photoset section uses. While a scan
+is going the section draws the shared progress row under its title row, as the photoset block does
+(`ai/picking.md` §7), and the placeholder is not drawn while a run is going, because the row is what
+a section shows during a run. The rows are drawn as the scan reports them, so a table during a scan
+is the items read so far: a row appears when its item is reported, and it is complete only after its
+probe, which is when the controller records it.
 
 When a folder could not be read the aggregates above the section are known to be incomplete, because
 the scan cannot say what that folder contained. It says which folders it could not read rather than
@@ -339,7 +348,8 @@ Done:
    The folder the walk could not read is not tested, as the photoset spec's unreadable entry is not:
    it depends on file permissions, which a test process may ignore. A file the walk could not stat
    is not tested either, for the same reason: it depends on the file being there when the walk
-   reaches it.
+   reaches it. It also tests the total the scan reports before it reads a file, the item it reports
+   after its own probe, and the rows the table shows while a scan is going.
 8. `lib/service/videos/image_generator.dart` — the rules that turn one video file into the images the app
    writes: the key-frame times, the file names, the screenlist rows, the ffmpeg and mtn calls. It writes
    the files and reports what it wrote as paths relative to the release directory; it does not record

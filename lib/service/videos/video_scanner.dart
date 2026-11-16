@@ -56,18 +56,20 @@ class _Entry {
 }
 
 /// What the walk collects as it goes: the items and the four lists the scan
-/// reports. Private to the walk, like `_Entry` is. The source and the log
-/// directory are the same for every directory the walk reads, so they are held
-/// here rather than passed through each call; what a call varies is the
-/// directory and the path prefix. Keeping the four lists as one thing is also
-/// what keeps them from being passed in the wrong order, which compiles and
-/// changes what is reported.
+/// reports. `items` is what the listing found, before any file is read, which
+/// is the number a progress report counts against. Private to the walk, like
+/// `_Entry` is. The source and the log directory are the same for every
+/// directory the walk reads, so they are held here rather than passed through
+/// each call; what a call varies is the directory and the path prefix. Keeping
+/// the four lists as one thing is also what keeps them from being passed in the
+/// wrong order, which compiles and changes what is reported.
 class _Found {
   _Found({required this.sourcePath, required this.releaseDirectory});
 
   final String sourcePath;
   final String releaseDirectory;
 
+  final items = <ScannedVideo>[];
   final videos = <ScannedVideo>[];
   final skipped = <String>[];
   final emptyFolders = <String>[];
@@ -79,16 +81,26 @@ class _Found {
 /// decides which files are items, probes each one, and reports what it could
 /// not take. It writes nothing and shows no messages (rule 13): the controller
 /// writes the items and the widget maps a result to localized text.
+/// [onProgress] is what the controller and the widget watch while the run goes:
+/// the first report gives the total, and each later one an item as the scan
+/// reads it. Without it the scan either finishes or does not, and there is
+/// nothing to show while it is going.
 class VideoScanner {
   VideoScanner({required this.probe});
 
   final Ffprobe probe;
 
   /// `releaseDirectory` is where the tool log goes; the scan itself writes no
-  /// files.
+  /// files. The scan is two phases: the walk that decides which entries are
+  /// items, and the probe of what it decided. The first is the phase that can
+  /// be done without reading a file, so the total is known before the first
+  /// item is read — which is what a progress report needs, as `ai/picking.md`
+  /// §7 says. The first report gives the total and nothing else, and each item
+  /// is reported after its own probe, in the order the listing gives the files.
   Future<VideoScanResult> scan({
     required String sourcePath,
     required String releaseDirectory,
+    void Function(VideoScanProgress progress)? onProgress,
   }) async {
     final type = await FileSystemEntity.type(sourcePath);
 
@@ -111,16 +123,34 @@ class VideoScanner {
       final name = p.basename(sourcePath);
 
       if (isVideoFile(name)) {
-        found.videos.add(
-          ScannedVideo(
-            path: name,
-            size: await _size(found, name),
-            info: await _probe(found, name),
-          ),
+        found.items.add(
+          ScannedVideo(path: name, size: await _size(found, name)),
         );
       } else {
         found.skipped.add(name);
       }
+    }
+
+    onProgress?.call(VideoScanProgress(done: 0, total: found.items.length));
+
+    for (final item in found.items) {
+      final video = ScannedVideo(
+        path: item.path,
+        size: item.size,
+        info: await _probe(found, item.path),
+      );
+
+      found.videos.add(video);
+
+      // A file the probe cannot read is still an item, so the count moves for
+      // it as well; what its report says is what the widget shows.
+      onProgress?.call(
+        VideoScanProgress(
+          done: found.videos.length,
+          total: found.items.length,
+          video: video,
+        ),
+      );
     }
 
     return VideoScanSuccess(
@@ -138,7 +168,9 @@ class VideoScanner {
   /// Returns false when the directory could not be read. A folder inside the
   /// source is reported by name and the walk continues, as an unreadable set is
   /// (`ai/photoset_pack.md` §4); the picked folder itself is a failure, because
-  /// there is nothing to report when it cannot be read.
+  /// there is nothing to report when it cannot be read. This is the phase that
+  /// counts the items, so the order it records them in is the order the second
+  /// phase probes them in, and the order a progress report follows.
   Future<bool> _walk(_Found found, String directoryPath, String prefix) async {
     final entries = <_Entry>[];
 
@@ -161,7 +193,7 @@ class VideoScanner {
       final relative = prefix.isEmpty ? entry.name : '$prefix/${entry.name}';
 
       if (entry.isDirectory) {
-        final before = found.videos.length;
+        final before = found.items.length;
 
         if (!await _walk(found, p.join(directoryPath, entry.name), relative)) {
           found.unreadable.add(relative);
@@ -171,7 +203,7 @@ class VideoScanner {
         // A subfolder with no video anywhere in it is reported, as a set with
         // no photos is. A folder that could not be read is not one of these,
         // because the scan cannot say whether it had a video in it.
-        if (found.videos.length == before) {
+        if (found.items.length == before) {
           found.emptyFolders.add(relative);
         }
 
@@ -183,12 +215,8 @@ class VideoScanner {
         continue;
       }
 
-      found.videos.add(
-        ScannedVideo(
-          path: relative,
-          size: await _size(found, relative),
-          info: await _probe(found, relative),
-        ),
+      found.items.add(
+        ScannedVideo(path: relative, size: await _size(found, relative)),
       );
     }
 
@@ -309,4 +337,22 @@ final class VideoScanFailure extends VideoScanResult {
   const VideoScanFailure(this.kind);
 
   final VideoScanFailureKind kind;
+}
+
+/// What the scan reports while it works, in the same shape as the photoset
+/// scan's (`ai/picking.md` §7). The total is what the listing found, so the
+/// first report has it before any file is read; the count then moves as each
+/// item is probed. [video] is the item this report is about, and the first
+/// report has none, because it only gives the total.
+class VideoScanProgress {
+  const VideoScanProgress({
+    required this.done,
+    required this.total,
+    this.video,
+  });
+
+  final int done;
+  final int total;
+
+  final ScannedVideo? video;
 }
