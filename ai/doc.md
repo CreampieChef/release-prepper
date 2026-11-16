@@ -3670,6 +3670,17 @@ testing-tools/                    the tools that are run by hand and are not par
                                 and are run by hand with python3. The app is
                                 pointed at it with `--dev-tracker-stub`. The
                                 rules are in `ai/pornolab_upload.md`.
+tools/                           the scripts that are run by hand on the
+                                repository and are not part of the app; standard
+                                library only, and the `README.md` here says how
+                                each one is run. `wrap_comments.py` is the check
+                                for the house width, the part of `AGENTS.md`
+                                rule 6 the formatter cannot check: it reports
+                                the comment paragraphs in Dart files with a line
+                                over 80, writes nothing unless given `--fix`,
+                                and leaves a paragraph that already fits in the
+                                shape it was given. It runs with the formatter
+                                before a change is committed (§9).
 assets/icons/                   tracker icon assets; declared under
                                 `flutter: assets:` in pubspec.yaml, so they are
                                 bundled. `assets/icons/pornolab.svg` is the one
@@ -5804,6 +5815,7 @@ flutter gen-l10n          # regenerate AppLocalizations from lib/l10n/*.arb
 flutter analyze
 flutter test
 dart format lib test      # the house style is the formatter's output (§11)
+python3 tools/wrap_comments.py  # the comments against the house width (§11)
 flutter run -d linux
 flutter build linux
 ```
@@ -5814,6 +5826,18 @@ paragraph that already fits is left as it is. A line the formatter cannot break 
 a single string literal, an import — stays as it is, and those are the only lines
 over 80 in the tree. The generated `lib/l10n/app_localizations*.dart` come out of
 `gen-l10n` already formatted, so they need no hand-wrapping.
+
+`tools/wrap_comments.py` is the check for the part of that rule the formatter
+cannot check. It reads comment paragraphs as the rule defines them — the run of
+comment lines that share one marker, with a line that is only the marker as the
+separator between two — reports the paragraphs with a line over 80, and writes
+nothing unless it is given `--fix`. A paragraph that already fits is never
+rewritten by it, so the shapes the tree has are what it leaves alone; it is the
+paragraphs with a line over the width that it rewrites, as plain fill with the
+marker repeated on each line. The generated l10n output is skipped, because what
+it writes there is written again by the next `gen-l10n`. It covers Dart only:
+prose under `ai/` is wrapped at the width each file already uses, and the file
+tree in §3 is a layout, so a line added there is written by hand.
 
 `flutter build linux` runs `cmake --install`, which copies `native/uptooda/` into the
 bundle next to the app executable; the app runs from that bundle, so the directory the app
@@ -6862,6 +6886,9 @@ From `lib/TODO.MD` (deduplicated) and the gaps in §2:
   house style is what the formatter produces, so a change that leaves the tree
   unformatted is incomplete. Comments are wrapped to the same 80 columns by hand,
   because the formatter does not reflow them; a paragraph that already fits is
-  left as it is.
+  left as it is. `python3 tools/wrap_comments.py` is the check for that: it
+  reports the paragraphs with a line over the width, and it rewrites them only
+  when it is given `--fix`, so the shapes the tree already has are not changed
+  by it.
 - Run `flutter analyze` before reporting work as done; the tree is expected to
   stay issue-free.
