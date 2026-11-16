@@ -3818,19 +3818,17 @@ changelog/                      one `<version>.md` per release, the notes a
                                 the notes. It is committed before the run, so
                                 the commit the workflow makes is the version
                                 bump and nothing else (§9).
-.github/workflows/              `windows-release.yml`, the Windows release. It
-                                is where the Windows app is built, because
-                                `flutter build windows` only runs on a Windows
-                                host. It is run by hand from the Actions tab,
-                                with the version to publish as its input: it
-                                writes the version into `pubspec.yaml` and the
-                                `appVersion` const in `app/app_info.dart`,
-                                commits the bump with the version as the commit
-                                header and the changelog file as the body,
-                                pushes it, and publishes the install directory,
-                                which is the app, as the asset of a GitHub
-                                Release for the tag `v<version>`, at the commit
-                                it made (§9).
+.github/workflows/              three files, all run by hand from the Actions
+                                tab. `release.yml` is the release: with the
+                                version as its input it commits the bump, calls
+                                the two build workflows for the commit it made,
+                                and opens the GitHub Release with the two files
+                                they produced as its assets. The other two are
+                                the builds, and each can also be run by itself;
+                                neither publishes anything, so what a build
+                                produces is left as a build artifact named for
+                                the version the tree at the commit it builds
+                                carries (§9).
 .widget_preview/                generated `flutter widget-preview` scaffold (gitignored)
 ```
 
@@ -5881,45 +5879,58 @@ that way is found by the locator and then fails to start, which the app reports 
 not being available.
 
 `flutter build windows` only runs on a Windows host, so the Windows build is
-made on a Windows CI runner by `.github/workflows/windows-release.yml`; the
+made on a Windows CI runner by `.github/workflows/windows-build.yml`; the
 `windows/` runner is already in the tree. Its install step copies the tools the
 app ships into the directory next to `release_prepper.exe`, which is the bundle
 the app resolves from: `uptooda`, `mkbrr`, and the committed
 `native/media/windows/` as `media/`, the one directory the three media tools
 share (`ai/bundled_native_tools.md`). It also copies the three files only the
 Windows build needs into `uptooda`: the CA bundle and the WebView2 loader beside
-the tool, and the MIME database into its `Data/`. The workflow publishes that
-directory as a GitHub Release asset, because the app is the directory and not
-the executable: the tools are read from beside it. In the archive the directory
-is named for the app rather than for the build configuration the toolchain wrote
-it into, because the folder a user unzips is the app.
+the tool, and the MIME database into its `Data/`. The app is that directory and
+not the executable, since the tools are read from beside it, so the whole of it
+is zipped, and inside the archive the directory is named for the app rather than
+for the build configuration the toolchain wrote it into, because the folder a
+user unzips is the app. The version the executable reports in its own properties
+is not the released one: `Runner.rc` defines `FileVersion` from
+`FLUTTER_VERSION`, so it is the SDK the build used.
 
-It is run by hand from the Actions tab, with the version to publish as its
-input. The version is the name of a file under `changelog/`, because the form
-cannot be where the notes come from: a dispatch input is one line. The run fails
-before it installs anything if the version is not three numeric components, if
-that file is not there or is empty, or if the tag `v<version>` already exists on
-the remote, so a version that cannot be released costs nothing. The version is
-then written into `pubspec.yaml` and the
-`appVersion` const in `app/app_info.dart`, the two places the project keeps them
-equal, and the commit that records it is the one the release is published for:
-its header is the version, its body is the changelog file, and the release shows
-the same text. The commit is made before the build, so the binary is built from
-the version the release is published for, and pushed only after the build
-succeeds, so a failed build leaves nothing on the branch; it is pushed to the
-branch the run was started on, and the tag is made for that commit. The version
-the executable reports in its own properties is not this one: `Runner.rc`
-defines `FileVersion` from `FLUTTER_VERSION`, so it is the SDK the build used.
-The publish step gives `gh` the run's token as `GH_TOKEN`, and
-`permissions: contents: write` is what lets that token push the commit and
-create the release.
+The three files under `.github/workflows/` are the CI config, and all three are
+started by hand from the Actions tab. The two build workflows publish nothing:
+what a build produces is uploaded as a build artifact, named
+`release_prepper_windows_x64_<version>.zip` and
+`release_prepper_linux_x64_<version>.AppImage`, for the version the tree at the
+commit it builds carries, read from the `appVersion` const. Each takes the
+commit to build from as an input and is called by the release workflow for the
+commit that records the version; a run from the Actions tab leaves the input
+empty and builds the branch tip, and neither run writes anything back.
+
+`.github/workflows/release.yml` is the release. Its input is the version, which
+is the name of a file under `changelog/`, because a dispatch input is one line
+and cannot be where the multi-line notes come from. The version is checked in
+the first job, so a version that cannot be released never reaches a build: the
+run stops there if the version is not three numeric components, if that file is
+not there or is empty, or if the tag `v<version>` already exists on the remote.
+It writes the version into `pubspec.yaml` and the `appVersion` const in
+`app/app_info.dart`, the two places the project keeps them equal, and commits
+the bump with the version as the header and the changelog file as the body — the
+same text the release shows. Only the two files the version is in are staged, so
+the commit is the bump and nothing else: the changelog file is committed by the
+person who wrote it, before the run.
+
+The commit is pushed before the builds are called, so they build from the
+version the release is published for and the release is published for that
+commit. A failed build leaves the bump on the branch: the two files come from
+three runners, so the ordering this run had before — pushing only after a
+successful build — could not be kept. The last job collects the two artifacts,
+which is the only thing that crosses a job boundary, and makes them the assets
+of the release at the commit it made, with the changelog file as the notes.
+`gh` is given the run's token as `GH_TOKEN`. The run needs `contents: write`
+for the push and the release and `actions: read` for the artifacts: a
+`permissions` block sets what it does not name to none, so both must be named,
+and what is named there is what the called workflows are given.
 
 The Linux build is made by `.github/workflows/linux-build.yml`, which runs
 `flutter build linux` on a Linux runner and packages the output as an AppImage.
-It is run by hand from the Actions tab and uploads the file as a build
-artifact; it publishes nothing, so the version in the file name is the one the
-tree already carries, read from the `appVersion` const, and the run changes
-nothing on the branch.
 
 What the artifact holds is the app and the two tools it ships. The install
 output is kept as one directory, because the RPATH is `$ORIGIN/lib` and the
@@ -6773,13 +6784,14 @@ widget, so once it is observable, everything the run did at its end is there
 too. `dart_test.yaml` sets a 30s per-test timeout so a hang is reported instead
 of blocking the run for the default ten minutes, and caps the runner at
 `concurrency: 2` so a full run leaves headroom for the desktop instead of
-freezing it. The only CI config is `.github/workflows/windows-release.yml`, the
-release (§9). The suite is not run by CI, so the tool preconditions the tests
-state are met by the machine the tests are run on. `analysis_options.yaml`
-includes `package:flutter_lints/flutter.yaml` and excludes `build/`, `windows/`,
-`macos/`, `linux/` from analysis. The video pack's test for the rows appearing
-while its scan runs is the same shape with the probe in place of the reader,
-because that is what the scan waits on while it goes.
+freezing it. The CI config is the three files under `.github/workflows/`, the
+two builds and the release (§9). The suite is not run by CI, so the tool
+preconditions the tests state are met by the machine the tests are run on.
+`analysis_options.yaml` includes `package:flutter_lints/flutter.yaml` and
+excludes `build/`, `windows/`, `macos/`, `linux/` from analysis. The video
+pack's test for the rows appearing while its scan runs is the same shape with
+the probe in place of the reader, because that is what the scan waits on while
+it goes.
 
 ---
 

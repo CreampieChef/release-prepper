@@ -1,0 +1,130 @@
+# The Windows build: `flutter build windows`, which is the only kind of host it
+# runs on. Nothing is published here. No version is written, no tag is made, no
+# release is opened, because that is what the release workflow does. The version
+# is read from the `appVersion` const in `lib/app/app_info.dart`, the single
+# source of truth, so the archive is named for what the tree at the commit this
+# run builds says, and the run changes nothing on the branch (`ai/doc.md` §9).
+#
+# It is started from the Actions tab, and `.github/workflows/release.yml` calls
+# it. The commit to build from is an input because `github.sha` is the commit a
+# run started at, which for a release run is the one before the version bump:
+# the commit that records the version has to be named for the binaries to be
+# built from it. A run from the Actions tab leaves the input empty, and the
+# checkout takes the branch tip.
+#
+# What the archive holds is the app, not only the executable: `data/`,
+# `uptooda/`, `mkbrr/` and `media/` are the directories the install step puts
+# beside `release_prepper.exe` (`windows/CMakeLists.txt`), and the app reads the
+# tools it ships from the directory it runs from
+# (`ai/bundled_native_tools.md`). The directory is renamed before it is zipped,
+# because the build output is named for the configuration the toolchain built,
+# while the folder a user unzips is the app, which is what it should be called
+# (`app/app_info.dart`).
+
+name: windows-build
+
+on:
+  workflow_dispatch:
+
+  workflow_call:
+    inputs:
+      sha:
+        description: 'Commit to build from, the one the release workflow made'
+        required: false
+        type: string
+    outputs:
+      artifact:
+        description: 'The archive this run uploaded, by name'
+        value: ${{ jobs.build.outputs.artifact }}
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    outputs:
+      artifact: ${{ steps.package.outputs.artifact }}
+
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.sha || github.sha }}
+
+      # The version the tree carries, read from the single source of truth, in
+      # the same three numeric components the project writes. Nothing is written
+      # back: this run publishes nothing, so the version only names the file.
+      - name: Read the version
+        run: |
+          $appInfo = [System.IO.File]::ReadAllText('lib/app/app_info.dart')
+          $match = [regex]::Match(
+            $appInfo, "(?m)^const appVersion = '([^']*)';")
+
+          if (-not $match.Success) {
+            Write-Error "no appVersion const in lib/app/app_info.dart"
+            exit 1
+          }
+
+          $version = $match.Groups[1].Value
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            Write-Error "$version: pub needs three numeric components"
+            exit 1
+          }
+
+          Add-Content -Path $env:GITHUB_ENV -Value "APP_VERSION=$version"
+
+      # The image already has CMake and the Visual C++ toolset including the ATL
+      # component `flutter_secure_storage` needs, so only the SDK is missing.
+      # The version is the one the project is developed against: Flutter 3.47.7
+      # is what ships the Dart 3.13.5 `pubspec.yaml` requires.
+      - name: Install the Flutter SDK
+        run: |
+          $version = "3.47.7"
+          $archive = "flutter_windows_${version}-stable.zip"
+          $url = "https://storage.googleapis.com/flutter_infra_release/releases/stable/windows/${archive}"
+          Invoke-WebRequest -Uri $url -OutFile "$env:RUNNER_TEMP\$archive"
+          Expand-Archive -Path "$env:RUNNER_TEMP\$archive" `
+            -DestinationPath "$env:RUNNER_TEMP\flutter"
+          Add-Content -Path $env:GITHUB_PATH `
+            -Value "$env:RUNNER_TEMP\flutter\flutter\bin"
+
+      - name: Check the toolchain
+        run: flutter --version
+
+      - name: Get the packages
+        run: flutter pub get
+
+      - name: Build
+        run: flutter build windows
+
+      # The path to the build output is found rather than written, because the
+      # arch segment of it is the toolchain's, not the project's. What the
+      # archive is named for is the arch the runner image is, because that is
+      # the name a user sees, and it is the same shape the Linux build names its
+      # artifact with (`ai/doc.md` §9).
+      - name: Package the build output
+        id: package
+        run: |
+          $exe = Get-ChildItem -Path build/windows -Recurse `
+            -Filter release_prepper.exe | Select-Object -First 1
+          if (-not $exe) {
+            Write-Error "no release_prepper.exe under build/windows"
+            exit 1
+          }
+
+          $parent = Split-Path -Path $exe.DirectoryName -Parent
+          Rename-Item -Path $exe.DirectoryName -NewName "Release Prepper"
+
+          $archive = "release_prepper_windows_x64_$env:APP_VERSION.zip"
+          Compress-Archive -Path (Join-Path $parent "Release Prepper") `
+            -DestinationPath (Join-Path $env:RUNNER_TEMP $archive)
+
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "artifact=$archive"
+
+      - name: Upload the archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.artifact }}
+          path: ${{ runner.temp }}\${{ steps.package.outputs.artifact }}

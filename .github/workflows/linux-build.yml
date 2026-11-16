@@ -2,8 +2,15 @@
 # Nothing is published here. No version is written, no tag is made, no release
 # is opened, because that is what the release workflow does. The version is read
 # from the `appVersion` const in `lib/app/app_info.dart`, the single source of
-# truth, so the artifact is named for what the tree already says and the run
-# changes nothing on the branch (`ai/doc.md` §9).
+# truth, so the artifact is named for what the tree at the commit this run
+# builds says, and the run changes nothing on the branch (`ai/doc.md` §9).
+#
+# It is started from the Actions tab, and `.github/workflows/release.yml` calls
+# it. The commit to build from is an input because `github.sha` is the commit a
+# run started at, which for a release run is the one before the version bump:
+# the commit that records the version has to be named for the binaries to be
+# built from it. A run from the Actions tab leaves the input empty, and the
+# checkout takes the branch tip.
 #
 # The build is pinned to glibc 2.38. That is the highest symbol version the
 # committed `native/uptooda/linux/uptooda-cli` references, so it is the version
@@ -27,9 +34,23 @@ name: linux-build
 on:
   workflow_dispatch:
 
+  workflow_call:
+    inputs:
+      sha:
+        description: 'Commit to build from, the one the release workflow made'
+        required: false
+        type: string
+    outputs:
+      artifact:
+        description: 'The AppImage this run uploaded, by name'
+        value: ${{ jobs.build.outputs.artifact }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    outputs:
+      artifact: ${{ steps.appimage.outputs.artifact }}
 
     container:
       image: fedora:39
@@ -62,6 +83,8 @@ jobs:
             libsecret-devel binutils squashfs-tools desktop-file-utils
 
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.sha || github.sha }}
 
       # The version the project is developed against, the one that ships the
       # Dart 3.13.5 `pubspec.yaml` requires, taken from the release archive
@@ -249,8 +272,11 @@ jobs:
       # root holds a shell script as well as binaries, the AppStream check is
       # turned off because the app has no appstream metadata, and the version is
       # given because appimagetool writes it into the desktop entry, so the
-      # artifact says what it is. The name follows the Windows artifact's.
+      # artifact says what it is. The name is the shape the release publishes
+      # the two files under, and it is recorded as a job output so the job that
+      # publishes them does not have to build it from the version again.
       - name: Build the AppImage
+        id: appimage
         env:
           VERSION: ${{ env.APP_VERSION }}
         run: |
@@ -262,13 +288,16 @@ jobs:
           chmod +x appimagetool.AppImage
           ./appimagetool.AppImage --appimage-extract
 
+          artifact="release_prepper_linux_x64_${VERSION}.AppImage"
           ARCH=x86_64 squashfs-root/usr/bin/appimagetool --no-appstream root \
-            "release_prepper_linux_x64_${APP_VERSION}.AppImage"
+            "$artifact"
+
+          echo "artifact=$artifact" >> "$GITHUB_OUTPUT"
 
       # The file is what a user runs, and it is the app: inside it the tools are
       # read from the directories beside the executable.
       - name: Upload the AppImage
         uses: actions/upload-artifact@v4
         with:
-          name: release_prepper_linux_x64_${{ env.APP_VERSION }}
-          path: ${{ runner.temp }}/release_prepper_linux_x64_${{ env.APP_VERSION }}.AppImage
+          name: ${{ steps.appimage.outputs.artifact }}
+          path: ${{ runner.temp }}/${{ steps.appimage.outputs.artifact }}

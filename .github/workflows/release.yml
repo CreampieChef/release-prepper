@@ -1,0 +1,208 @@
+# The release: the version bump, the two builds, and the GitHub Release
+# published with them. Run it from the Actions tab with the version to publish.
+# The version is the name of a file under `changelog/`, and that file is the
+# release notes: the dispatch form gives every input as one line, so it cannot
+# be where multi-line notes come from. The run checks it in the first job, so a
+# version that cannot be released never reaches a build: it stops before it
+# commits anything if the version is not three numeric components, if the file
+# is not there or is empty, or if the tag for the version already exists on the
+# remote.
+#
+# The builds are not written here. Each platform has one build workflow, and
+# this run calls it for the commit it made, because `github.sha` is the commit
+# the run started at rather than the one the bump job pushes. That is what keeps
+# the rule the build workflows have: the binaries are built from the version the
+# release is published for, and the release is published for that commit.
+#
+# The two files reach the last job as build artifacts, which is the only thing
+# that crosses a job boundary: the three jobs run on three different runners.
+# The build workflows publish nothing on their own, so the archive and the
+# AppImage are collected here and made the assets of the release.
+#
+# The commit is pushed before the builds start, because the builds read the
+# version from the tree at that commit. A failed build therefore leaves the bump
+# on the branch; the release is not created, and the changelog file is still the
+# one its author committed before the run.
+
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish, the name of a file under changelog/'
+        required: true
+
+# What the run needs: the push of the version bump, `gh release create`, and
+# reading the artifacts the build jobs leave behind. A `permissions` block sets
+# every permission it does not name to none, so `actions: read` has to be named
+# for `download-artifact` to see the two files. What is named here is what the
+# workflows this run calls are given: permissions are inherited and cannot be
+# raised through the chain.
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+      sha: ${{ steps.commit.outputs.sha }}
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # The version is checked in the first job, so a version that cannot be
+      # released never reaches a build. It is checked against the form pub
+      # requires, three numeric components, because a name like `0.1` would pass
+      # as a file name and fail at `flutter pub get`, which is the far end of
+      # a run. The tag is checked on the remote rather than in the clone,
+      # because the checkout does not fetch the tags, and the changelog file is
+      # checked with `-s`, which is the test for both not being there and being
+      # empty.
+      - name: Check the version
+        id: check
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          pattern='^[0-9]+\.[0-9]+\.[0-9]+$'
+          if ! printf '%s\n' "$VERSION" | grep -Eq "$pattern"; then
+            echo "$VERSION: pub needs three numeric components"
+            exit 1
+          fi
+
+          notes="changelog/$VERSION.md"
+          if [ ! -s "$notes" ]; then
+            echo "no $notes, or it is empty"
+            if [ -d changelog ]; then
+              echo "the versions that have one:"
+              find changelog -maxdepth 1 -name '*.md'
+            fi
+            exit 1
+          fi
+
+          if git ls-remote --tags origin "v$VERSION"; then
+            echo "v$VERSION is already published"
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # Both files are rewritten line by line, the two lines the version is in.
+      # Both files are LF, so nothing about their line endings changes.
+      - name: Write the version
+        env:
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          if ! grep -Eq '^version: .+$' pubspec.yaml; then
+            echo "no version in pubspec.yaml"
+            exit 1
+          fi
+          if ! grep -Eq "^const appVersion = '.*';" lib/app/app_info.dart; then
+            echo "no appVersion const in lib/app/app_info.dart"
+            exit 1
+          fi
+
+          sed -i "s/^version: .*/version: $VERSION/" pubspec.yaml
+          sed -i "s/^const appVersion = '.*';/const appVersion = '$VERSION';/" \
+            lib/app/app_info.dart
+
+      # The commit is made before the builds, so they build from the version the
+      # release is published for. Its header is the version and its body is the
+      # changelog file, which is what the release shows too. Only the two files
+      # the version is in are staged, so the commit is the bump and nothing
+      # else: the changelog file is committed by the person who wrote it, before
+      # the run. The author is named here because the commit is the runner's,
+      # and the commit is recorded so the builds and the release can be made for
+      # it.
+      - name: Commit the version bump
+        id: commit
+        env:
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add pubspec.yaml lib/app/app_info.dart
+          git commit -m "$VERSION" -m "$(cat "changelog/$VERSION.md")"
+
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # Pushed before the builds start, so that the commit the builds check out
+      # is the commit the release is published for. The checkout left HEAD
+      # detached, so the push names the branch the run was started on.
+      - name: Push the version bump
+        run: git push origin "HEAD:${{ github.ref }}"
+
+  windows:
+    needs: version
+
+    uses: ./.github/workflows/windows-build.yml
+    with:
+      sha: ${{ needs.version.outputs.sha }}
+
+  linux:
+    needs: version
+
+    uses: ./.github/workflows/linux-build.yml
+    with:
+      sha: ${{ needs.version.outputs.sha }}
+
+  publish:
+    needs: [version, windows, linux]
+
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      # The changelog file is the release notes, so this job needs the commit
+      # the bump job made — the same commit the release is made for.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.version.outputs.sha }}
+
+      # Each build job put its file in an artifact of this run, which is the
+      # only way a file crosses a job boundary: the three jobs run on three
+      # different runners. Downloading one artifact by name writes its files
+      # into `path` directly, so both files land in one directory here. The
+      # names are what the build jobs recorded, not what this job builds from
+      # the version, so the naming rule stays in the build workflows.
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.windows.outputs.artifact }}
+          path: ${{ runner.temp }}/assets
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.linux.outputs.artifact }}
+          path: ${{ runner.temp }}/assets
+
+      # `gh` reads its token from `GH_TOKEN`, so the run's token is named for
+      # it here rather than left to the environment. `--target` is the commit
+      # this run made, not the default branch, because the release is for the
+      # version that commit records. `--notes-file` is the changelog file as it
+      # is, the same text as the commit body.
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+          RELEASE_COMMIT: ${{ needs.version.outputs.sha }}
+          WINDOWS_ASSET: ${{ needs.windows.outputs.artifact }}
+          LINUX_ASSET: ${{ needs.linux.outputs.artifact }}
+        run: |
+          gh release create "v$VERSION" \
+            "$RUNNER_TEMP/assets/$WINDOWS_ASSET" \
+            "$RUNNER_TEMP/assets/$LINUX_ASSET" \
+            --target "$RELEASE_COMMIT" \
+            --title "v$VERSION" \
+            --notes-file "changelog/$VERSION.md"
