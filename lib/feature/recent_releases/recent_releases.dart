@@ -14,9 +14,9 @@ const maxRecentEntries = 50;
 /// release.
 ///
 /// The values are stored rather than read from `release.json` when the table
-/// draws, because a row whose folder is gone still has to show something, and a
-/// table that reads fifty manifests to draw itself is fifty file reads for one
-/// screen.
+/// draws, because a table that reads fifty manifests to draw itself is fifty
+/// file reads for one screen. The check that decides which rows the table shows
+/// is an existence test per entry, not a parse (`ai/recent_releases.md` §4).
 class RecentRelease {
   RecentRelease({
     required this.directoryPath,

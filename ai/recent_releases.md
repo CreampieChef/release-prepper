@@ -69,6 +69,11 @@ and this is a record of what happened; putting a history in settings would make 
 - **At most 50 entries.** When a 51st is added, the entry opened least recently is dropped. There is
   no per-row remove and no Clear list, because the cap is what decides what leaves; a row the user
   could remove would be a row the app has to ask about for something the cap already settles.
+- **An entry whose folder is not there is not kept.** The check the table runs when it opens (§4)
+  drops the entries without a `release.json` and writes the file when something was, because an entry
+  that points at a folder the app cannot open is not a record it can go back to. This is the same
+  reason the list has a cap: it is a convenience, not an archive. A check that drops nothing writes
+  nothing, because there is no change to record.
 
 ## 3. What counts as an entry
 
@@ -79,22 +84,24 @@ and this is a record of what happened; putting a history in settings would make 
 - **One entry per release directory.** Re-opening refreshes that entry's dates and moves it in the
   sort; it does not add a second row.
 - **The dates are the values the app read the last time it touched the release**, refreshed on open
-  and on save, not a live read of `release.json` when the table draws. They are stored for one
-  reason: a row whose folder is gone still has to show something, and a table that reads each
-  release.json to draw itself is fifty file reads for one screen.
+  and on save, not a live read of `release.json` when the table draws. They are stored so drawing the
+  table is not fifty manifest reads for one screen; the check that decides which entries the table shows
+  is an existence test per entry (§4), which is that same reading avoided.
 
 ## 4. The table
 
 Columns: name, path, source, creation date, last edit date, tracker, release type.
 
-One row per entry, plus one row per folder the scan in §5 finds.
+One row per entry that has its folder, plus one row per folder the scan in §5 finds: an entry whose
+folder or manifest is not there is not a row and is dropped from the file (§2), so what the table shows
+is only what the app can open.
 
 - **Path is a column.** The name is the basename, so two releases can share it, and the path is the
   key the index is built on; a row that cannot say which release it is cannot be opened.
 - Tracker and type show the labels the app already resolves — `Tracker.displayName` and
   `releaseTypeLabel` — so the table agrees with the editor badges and the wizard dropdowns and adds
   no new label vocabulary. The name, tracker and type headers are the existing keys; only path, the
-  two dates, the empty state and the two failure lines are new ones.
+  two dates, the empty state and the write-failure line are new ones.
 - **Sortable by every column.** Clicking a header sorts by it; clicking it again reverses the
   direction. Default: last edit date, newest first. A column that was not the sorted one starts in its
   natural direction: newest first for a date, A to Z for a text column. Ties are broken by the
@@ -108,13 +115,12 @@ One row per entry, plus one row per folder the scan in §5 finds.
   (§5) — so the rows are a scrollable area and the header stays fixed above them, because the header is
   the control the table is sorted through. The write-failure line is a page-level message, so it stays
   outside the scroll and is always visible.
-- A row whose `release.json` is not there any more is drawn with the values the index holds, dimmed,
-  with an icon next to the name whose tooltip gives the reason, and marked as unavailable, not dropped:
-  the folder may come back, and a row that disappears because of one failed read is a row the user did
-  not ask to lose. Which
-  rows are unavailable is a stat per row, asked once when the tab opens — not a read of each manifest,
-  which is the same fifty reads the stored values exist to avoid. A file that is there but cannot be
-  parsed is not marked; it reports itself when the row is clicked, through the open flow.
+- **A row whose folder or `release.json` is not there is not displayed**, and the entry is dropped from
+  the file with it (§2), so every row the table shows names a folder the app can open. Which entries
+  have their folder is checked once when the tab opens, as an existence test per entry rather than a
+  read of each manifest, which is the same fifty reads the stored values exist to avoid. A file that is
+  there but cannot be parsed keeps its row: the folder is there, and it reports itself when the row is
+  clicked, through the open flow.
 
 ## 5. The default release directory
 
@@ -126,20 +132,20 @@ and the merged view is what the table draws.
 - **Immediate subdirectories with a `release.json`.** A subdirectory without a manifest is not a
   release, so it is not a row. The scan is a listing, not a read of each manifest, which is the same
   fifty reads the stored values exist to avoid.
-- **The scan runs when the tab opens**, the same as the availability check, and the page passes the
-  directory it reads from `SettingsController`, because a controller builds no dependency of its own
-  (rule 4). It is deferred to a microtask, because a controller that notifies while the frame that
-  created it is still building marks the provider scope as needing build while the framework is locked —
-  which is what happens when the list is empty and the check finishes without an await.
+- **The scan runs when the tab opens**, the same as the check that drops the entries whose folders are
+  not there, and the page passes the directory it reads from `SettingsController`, because a controller
+  builds no dependency of its own (rule 4). Both are deferred to a microtask, because a controller that
+  notifies while the frame that created it is still building marks the provider scope as needing build
+  while the framework is locked.
 - **A folder in both is one row**, with the values the index holds: the index is the record, and the
   scan only says the folder is there.
 - **A directory that is not there reads as nothing found**, the same as a store that cannot be reached:
   the table shows what it has and does not report the folder.
 - **No cap.** The 50 is a rule about the stored list, not about what a folder holds, so a directory
   with more than 50 releases shows all of them.
-- A row the scan found is never marked unavailable, because the scan only lists folders that have the
-  manifest. Clicking one opens it through the same flow, and the open records it, so after the first
-  open it is a normal entry with dates.
+- **A row only names a folder that is there**, because the scan lists only the ones with the manifest
+  and the entries the check dropped are not rows (§4). Clicking a row the scan found opens it through
+  the same flow, and the open records it, so after the first open it is a normal entry with dates.
 
 ## 6. Clicking a row
 
@@ -160,15 +166,16 @@ This is a change to the open flow, which before could put the same release in tw
   is built by the widget, because a column shows a display name and a display name is localized (rule
   13); this stays pure.
 - `recent_releases_store.dart` — load/save for the JSON in the app data directory.
-- `recent_releases_controller.dart` — the record rule, the availability check, the scan, the merged view
-  the table draws, the startup read and the tab it opens. It is a provider entry, not a per-widget
-  controller, because the index is app-level state, as `SettingsController` is (rule 5).
+- `recent_releases_controller.dart` — the record rule, the check that drops the entries whose folders
+  are not there and writes the file when it does, the scan, the merged view the table draws, the
+  startup read and the tab it opens. It is a provider entry, not a per-widget controller, because the
+  index is app-level state, as `SettingsController` is (rule 5).
 - `recent_releases_page.dart` — the table, and the widget state that says which column it is ordered
-  by. It asks for the two checks when it opens and passes the default directory to the scan.
+  by. It asks for the check and the scan when it opens and passes the default directory to the scan.
 
 Plus the places the tab kind reaches: `AppTabKind.recentReleases`, the strip icon, `tabTitle`, the
 `TabView` case, the File menu item, one entry in `app_providers.dart`, and the l10n keys for the title,
-the new headers, the empty state and the two failure lines.
+the new headers, the empty state and the write-failure line.
 
 Recording is called from the three paths that touch a release — `MainMenuController` for an open,
 `ReleaseWizardController` for a create, `TabCloseController` for a save — because each of them owns its

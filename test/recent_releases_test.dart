@@ -81,15 +81,29 @@ void main() {
     lastOpenedDate: lastOpenedDate,
   );
 
-  RecentRelease entryAt(String path) => RecentRelease(
+  RecentRelease entryAt(String path, {DateTime? lastEditDate}) => RecentRelease(
     directoryPath: path,
     tracker: 'pornolab',
     releaseType: 'singleVideo',
     source: '/sources/one',
     createdDate: null,
-    lastEditDate: null,
+    lastEditDate: lastEditDate,
     lastOpenedDate: null,
   );
+
+  // A row is only shown for a folder that is on disk: the page asks the
+  // controller to drop the entries whose folders are not there when it opens,
+  // so a test that expects a row puts the folder there first. Real file IO
+  // completes only inside runAsync, because the test body runs in a fake-async
+  // zone.
+  Future<String> folderOnDisk(String name) async {
+    final path = p.join(directory.path, name);
+
+    await Directory(path).create();
+    await File(p.join(path, 'release.json')).create();
+
+    return path;
+  }
 
   // The page reads the default release directory from the settings and passes
   // it to the scan, so the test points the settings at the temp directory
@@ -140,9 +154,10 @@ void main() {
         ),
       );
 
-  // The page asks the controller to check the rows when it opens, and that is
-  // real IO, so the test runs in runAsync and gives the event loop a turn for
-  // it to finish inside the test rather than after it.
+  // The page asks the controller to drop the entries whose folders are not
+  // there, and to scan the default directory when it opens, and both are real
+  // IO, so the test runs in runAsync and gives the event loop a turn for it to
+  // finish inside the test rather than after it.
   Future<void> pumpPage(
     WidgetTester tester,
     RecentReleasesController recent,
@@ -312,9 +327,11 @@ void main() {
     expect(releases.entries.map((e) => e.name), ['b', 'a']);
   });
 
-  // A row whose folder is gone is marked rather than dropped: the values the
-  // index holds are still what the app read, and the folder may come back.
-  test('a row whose manifest is gone is marked as unavailable', () async {
+  // A row whose folder or `release.json` is not there is not shown, and the
+  // entry is dropped from the file as well (`ai/recent_releases.md` §4). The
+  // check is an existence test per entry, not a read of the manifest, so an
+  // entry pointing at a folder the app cannot open is not a row it can open.
+  test('the check drops the entries whose folder is not there', () async {
     final present = p.join(directory.path, 'present');
     final gone = p.join(directory.path, 'gone');
 
@@ -324,9 +341,33 @@ void main() {
 
     await File(p.join(present, 'release.json')).create(recursive: true);
 
-    await recent.checkAvailability();
+    await recent.dropMissingEntries();
 
-    expect(recent.unavailablePaths, {gone});
+    expect(recent.rows.map((e) => e.directoryPath), [present]);
+
+    expect(
+      (readFile()['entries'] as List).map((e) => (e as Map)['directoryPath']),
+      [present],
+    );
+  });
+
+  // A check that drops nothing has nothing to record, so it writes nothing: the
+  // file is rewritten when the list changed, not on every read of it.
+  test('a check that drops nothing writes nothing', () async {
+    final present = p.join(directory.path, 'present');
+
+    final recent = controller(TabManager());
+
+    recent.releases = RecentReleases([entryAt(present)]);
+
+    await File(p.join(present, 'release.json')).create(recursive: true);
+
+    await recent.dropMissingEntries();
+
+    expect(
+      File(p.join(directory.path, 'recent_releases.json')).existsSync(),
+      isFalse,
+    );
   });
 
   // The table also shows the folders in the default release directory. A
@@ -425,13 +466,6 @@ void main() {
     await recent.record(release('one'));
 
     expect(readFile()['entries'], isNotEmpty);
-
-    // A release the app has just read is a folder it can read, so its row is
-    // not marked.
-    recent.unavailablePaths.add('/releases/one');
-    await recent.record(release('one'));
-
-    expect(recent.unavailablePaths, isEmpty);
   });
 
   // The tab the app opens at startup is opened once: the list is app-level, so
@@ -471,24 +505,43 @@ void main() {
 
   testWidgets('the table shows a row for each entry', (tester) async {
     final recent = controller(TabManager());
-    recent.releases = RecentReleases([entry('one')]);
+
+    late String present;
+
+    await tester.runAsync(() async {
+      present = await folderOnDisk('one');
+    });
+
+    recent.releases = RecentReleases([entryAt(present)]);
 
     await pumpPage(tester, recent, TabManager());
 
-    expect(find.byKey(ValueKey('recentRow-/releases/one')), findsOneWidget);
+    expect(find.byKey(ValueKey('recentRow-$present')), findsOneWidget);
     expect(find.text('/sources/one'), findsOneWidget);
   });
 
-  testWidgets('a row whose folder is gone is marked', (tester) async {
+  // A row whose folder is not there is not displayed at all: the table shows
+  // the folders the app can open, and an entry the check dropped is no longer
+  // a row.
+  testWidgets('a row whose folder is not there is not displayed', (
+    tester,
+  ) async {
     final recent = controller(TabManager());
-    recent.releases = RecentReleases([entry('gone')]);
+
+    late String present;
+    late String gone;
+
+    await tester.runAsync(() async {
+      present = await folderOnDisk('present');
+      gone = p.join(directory.path, 'gone');
+    });
+
+    recent.releases = RecentReleases([entryAt(present), entryAt(gone)]);
 
     await pumpPage(tester, recent, TabManager());
 
-    expect(
-      find.byKey(ValueKey('recentUnavailable-/releases/gone')),
-      findsOneWidget,
-    );
+    expect(find.byKey(ValueKey('recentRow-$present')), findsOneWidget);
+    expect(find.byKey(ValueKey('recentRow-$gone')), findsNothing);
   });
 
   // A folder the scan found shows the name and the path and nothing else,
@@ -499,16 +552,10 @@ void main() {
     (tester) async {
       final recent = controller(TabManager());
 
-      // The folders have to be on disk before the page is built, and real file
-      // IO only completes inside runAsync, because the test body runs in a
-      // fake-async zone.
       late String found;
 
       await tester.runAsync(() async {
-        found = p.join(directory.path, 'found');
-
-        await Directory(found).create();
-        await File(p.join(found, 'release.json')).create();
+        found = await folderOnDisk('found');
       });
 
       await pumpPage(tester, recent, TabManager());
@@ -532,19 +579,26 @@ void main() {
     tester,
   ) async {
     final recent = controller(TabManager());
+
+    late String b;
+    late String a;
+
+    await tester.runAsync(() async {
+      b = await folderOnDisk('b');
+      a = await folderOnDisk('a');
+    });
+
     recent.releases = RecentReleases([
-      entry('b', lastEditDate: DateTime.utc(2026, 3, 14)),
-      entry('a', lastEditDate: DateTime.utc(2026, 3, 1)),
+      entryAt(b, lastEditDate: DateTime.utc(2026, 3, 14)),
+      entryAt(a, lastEditDate: DateTime.utc(2026, 3, 1)),
     ]);
 
     await pumpPage(tester, recent, TabManager());
 
     // The default order is the last edit date, newest first.
     expect(
-      tester.getTopLeft(find.byKey(ValueKey('recentRow-/releases/b'))).dy,
-      lessThan(
-        tester.getTopLeft(find.byKey(ValueKey('recentRow-/releases/a'))).dy,
-      ),
+      tester.getTopLeft(find.byKey(ValueKey('recentRow-$b'))).dy,
+      lessThan(tester.getTopLeft(find.byKey(ValueKey('recentRow-$a'))).dy),
     );
 
     // A name column starts ascending, so the order changes; clicking it again
@@ -553,20 +607,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      tester.getTopLeft(find.byKey(ValueKey('recentRow-/releases/a'))).dy,
-      lessThan(
-        tester.getTopLeft(find.byKey(ValueKey('recentRow-/releases/b'))).dy,
-      ),
+      tester.getTopLeft(find.byKey(ValueKey('recentRow-$a'))).dy,
+      lessThan(tester.getTopLeft(find.byKey(ValueKey('recentRow-$b'))).dy),
     );
 
     await tester.tap(find.byKey(ValueKey('recentSort-name')));
     await tester.pumpAndSettle();
 
     expect(
-      tester.getTopLeft(find.byKey(ValueKey('recentRow-/releases/b'))).dy,
-      lessThan(
-        tester.getTopLeft(find.byKey(ValueKey('recentRow-/releases/a'))).dy,
-      ),
+      tester.getTopLeft(find.byKey(ValueKey('recentRow-$b'))).dy,
+      lessThan(tester.getTopLeft(find.byKey(ValueKey('recentRow-$a'))).dy),
     );
   });
 

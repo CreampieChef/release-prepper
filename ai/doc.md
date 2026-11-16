@@ -1188,15 +1188,16 @@ data (`ai/release_structure.md` §4). The URLs are stored per image and per
   and only when one of
   them succeeds. The dates are what the app read the last time it touched the
   release rather than a
-  live read of `release.json`, because a row whose folder is gone still has to
-  show something and the
-  table would otherwise be fifty file reads for one screen. Which column the
+  live read of `release.json`, because the table would otherwise be fifty file
+  reads for one screen. Which column the
   table is ordered by is
   widget state, as the Video pack table's open rows are; the order the file
   lists is data and a sort
-  does not rewrite it. A row whose `release.json` is not there any more is drawn
-  dimmed with the values
-  the index holds and marked, not dropped. Clicking a row opens the release
+  does not rewrite it. An entry whose folder or `release.json` is not there is
+  not shown, and it is dropped
+  from the file as well when the tab opens, so a row always names a folder the
+  app can open
+  (`ai/recent_releases.md` §4). Clicking a row opens the release
   through the shared open
   flow, or focuses the editor tab already open for that directory: the
   single-instance rule the settings
@@ -2742,13 +2743,13 @@ lib/
   SettingsStore's is
       recent_releases_controller.dart RecentReleasesController (ChangeNotifier):
   the list, the record
-                                        rule, the availability check, the scan
-  of the default release
-                                        directory, the merged view the table
-  draws, the startup read and
-                                        the tab it opens as the first tab; the
-  third Listenable in the
-                                        app (see §4). Writes as the list
+                                        rule, the check that drops the entries
+  whose folders are not there, the scan
+                                        of the default release directory, the
+  merged view the table draws, the
+                                        startup read and the tab it opens as
+  the first tab; the third Listenable
+                                        in the app (see §4). Writes as the list
   changes, so the tab has no
                                         dirty flag, and a failed write is a flag
   the page shows as a line
@@ -2770,15 +2771,14 @@ lib/
   can be longer than the
                                         tab (the scan has no cap); the
   write-failure line stays outside
-                                        the scroll so it is always visible. A
-  row whose manifest is gone
-                                        is dimmed with an icon next to its name
-  whose tooltip gives the
-                                        reason; a row click goes through the
-  shared open flow. It asks
-                                        for the availability check and the scan
-  when it opens, and
-                                        passes the default directory to the scan
+                                        the scroll so it is always visible. Only
+  a folder the check found is drawn
+                                        as a row; a row click goes through the
+  shared open flow. It asks for the
+                                        check that drops the entries whose
+  folders are not there and the scan
+                                        when it opens, and passes the default
+  directory to the scan
     window/
       window_size.dart          WindowSize (the whole pixels the window last
                                 had), the app's record of what the window was
@@ -5057,18 +5057,20 @@ succeeds: `MainMenuController` after an open, `ReleaseWizardController` after a 
 `TabCloseController` after a save that wrote the manifest. The dates it stores are the values the release
 object has at that moment, so a save refreshes the edit date with the stamp the write put in the file,
 and a write that failed is not recorded. The table does not read `release.json`: the values are what the
-last record left, and a row whose folder is gone still shows them. Which rows are gone is a stat per row
-asked once when the tab opens, not a read of each manifest — that is the same fifty file reads the stored
-values exist to avoid — so a file that is there but cannot be parsed is not marked and reports itself when
-the row is clicked. The table also draws the immediate subdirectories of the default release directory that
-hold a `release.json`, listed when the tab opens; those are not entries, so a row shows the name and the
-path and nothing else and nothing is written from them, and a folder in both is one row with the values the
-index holds. The page passes the directory it reads from `SettingsController`, as the open flow and the
-wizard do, and asks for both checks in a microtask, because a controller that notifies while the frame that
-created it is still building marks the provider scope as needing build while the framework is locked — which
-is what happens when the list is empty and the check finishes without an await. The model is written first and the widget shows it, the same order as the editor's
-write path; a write that fails does not change what the table shows, so the page says the file was not
-written, as the settings page says the same for settings.json.
+last record left. What decides which entries are shown is an existence test per entry, asked once
+when the tab opens — that is the same fifty file reads the stored values exist to avoid — and an
+entry whose folder or file is not there is dropped from the list and from the file with it, so a row
+always names a folder the app can open. A file that is there but cannot be parsed is not dropped and
+reports itself when the row is clicked. The table also draws the immediate
+default release directory that hold a `release.json`, listed when the tab opens; those are not
+entries, so a row shows the name and the path and nothing else and nothing is written from them, and
+a folder in both is one row with the values the index holds. The page passes the directory it reads
+from `SettingsController`, as the open flow and the wizard do, and asks for both checks in a
+microtask, because a controller that notifies while the frame that created it is still building
+marks the provider scope as needing build while the framework is locked. The model is written first
+and the widget shows it, the same order as the editor's write path; a write that fails does not
+change what the table shows, so the page says the file was not written, as the settings page says
+the same for settings.json.
 
 **Native tools:** `lib/service/native_tools/tool_locator.dart` decides where a
 tool's executable is: the app bundle first, then PATH. A tool declared with a
@@ -5168,9 +5170,9 @@ them are provider entries, so a test can substitute the runner; the editor reads
    existing editor field labels, not new keys — including the scene URL row, whose label is
    `stashSceneInputLabel` itself. The Recent releases family
    (`recentReleases`, `noRecentReleases`, `recentPathLabel`, `recentSourceLabel`,
-   `recentCreatedDateLabel`, `recentLastEditDateLabel`, `recentFolderUnavailable`,
-   `recentWriteFailed`) is in both files and used by `recent_releases_page.dart`, which is also where the
-   tab title comes from. The name, tracker and type headers are the existing keys (`releaseNameLabel`,
+   `recentCreatedDateLabel`, `recentLastEditDateLabel`, `recentWriteFailed`) is in
+   both files and used by `recent_releases_page.dart`, which is also where the tab
+   title comes from. The name, tracker and type headers are the existing keys (`releaseNameLabel`,
    `trackerLabel`, `releaseTypeLabel`), because the table shows the same labels the editor does; the path
    and the two dates have keys of their own, because the editor has no row that shows them as columns.
    The System Check family (`systemCheck`, `systemCheckToolLabel`,
@@ -6625,17 +6627,18 @@ shape §7 describes, a missing or unreadable file reads as an empty list, a valu
 the model cannot read is not kept, recording the same directory updates the
 entry rather than adding a row, the 51st entry drops the one opened least
 recently, the sort orders by the column it is given and breaks a tie by the
-directory path, sorting does not change the order the list holds, a row whose
-manifest is gone is reported as unavailable, and the scan lists only the
-subdirectories that hold a `release.json`, reads a directory that is not there
-as nothing found, keeps a folder in both the index and the scan as one row with
-the index values, and writes nothing to the file. It also covers the tab rules:
-the startup read opens the recent tab once, and opening a release that is
-already open selects the tab that exists rather than adding a second one. The
-widget tests cover the page: a row for each entry, the marker on a row whose
-folder is gone, a row the scan found showing the name and the path and nothing
-else, a header click sorting the table by that column, and that a row click
-opens the release it names. The store is pointed at a temp directory and so are
+directory path, sorting does not change the order the list holds, the check
+drops the entries whose folders are not there and writes the file when it does
+and writes nothing when it drops nothing, the scan lists only the subdirectories
+that hold a `release.json`, reads a directory that is not there as nothing
+found, keeps a folder in both the index and the scan as one row with the index
+values, and writes nothing to the file. It also covers the tab rules: the
+startup read opens the recent tab once, and opening a release that is already
+open selects the tab that exists rather than adding a second one. The widget
+tests cover the page: a row for each entry, no row for an entry whose folder is
+not there, a row the scan found showing the name and the path and nothing else,
+a header click sorting the table by that column, and that a row click opens the
+release it names. The store is pointed at a temp directory and so are
 the settings the page reads, so the scan is asked for the temp directory rather
 than the user's; the reads and writes are real IO, so the widget tests run them
 through `tester.runAsync`. `test/window_size_test.dart` covers the window-size
@@ -6787,10 +6790,10 @@ From `lib/TODO.MD` (deduplicated) and the gaps in §2:
 1. Open Release, remaining gaps: distinguish a missing or unreadable folder from a
    missing `release.json` (`lib/TODO.MD` — the popup reports
    `releaseManifestNotFound` for both today), and a busy/disabled state for the
-   menu item while the picker and the load are in flight. A row of the recent list
-   goes through the same flow, so both gaps reach it too; the recent table marks a
-   row only when the file is not there, because marking one whose file cannot be
-   parsed would mean reading every manifest in the list.
+   menu item while the picker and the load are in flight. A row of the recent
+   list goes through the same flow, so both gaps reach it too: the recent table
+   only tests that the file is there, so a row it shows always has one, and the
+   gap reaches a recent row only as a file that cannot be parsed.
 2. Editor, remaining gaps: validation (the subsite and site fields are the
    first), bbcode in description and additional info. A per-item form does not exist for either pack,
    so the values a scan writes for one item cannot be edited in the app. Fields for tracker and release

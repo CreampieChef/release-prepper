@@ -812,9 +812,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recentLastEditDateLabel => 'Last edit date';
 
   @override
-  String get recentFolderUnavailable => 'The folder is not there.';
-
-  @override
   String get recentWriteFailed =>
       'Could not save the recent releases list. Check the path and permissions.';
 

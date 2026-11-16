@@ -405,7 +405,6 @@
     "recentSourceLabel": "Источник",
     "recentCreatedDateLabel": "Дата создания",
     "recentLastEditDateLabel": "Дата последнего изменения",
-    "recentFolderUnavailable": "Папка не найдена.",
     "recentWriteFailed": "Не удалось сохранить список недавних релизов. Проверьте путь и права доступа.",
     "@fileSizeDisplay": {
         "placeholders": {

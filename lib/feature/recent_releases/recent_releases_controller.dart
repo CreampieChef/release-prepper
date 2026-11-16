@@ -35,10 +35,6 @@ class RecentReleasesController extends ChangeNotifier {
 
   RecentReleases releases = RecentReleases();
 
-  /// The rows whose `release.json` is not there any more. Filled by
-  /// `checkAvailability`, which the page asks for when it opens.
-  Set<String> unavailablePaths = {};
-
   /// The folders in the default release directory that hold a `release.json`,
   /// filled by `scanDefaultDirectory`, which the page asks for when it opens
   /// (`ai/recent_releases.md` §5). These are not entries: nothing was read, so
@@ -49,7 +45,9 @@ class RecentReleasesController extends ChangeNotifier {
   /// that the index does not have. A folder in both is one row, with the values
   /// the index holds, because the index is the record and the scan only says
   /// the folder is there. This is what the table draws, not what the file
-  /// holds.
+  /// holds. Both sides name folders that are there: the entries are the ones
+  /// `dropMissingEntries()` left, and the scan lists only the folders with a
+  /// manifest, so this has no row for a folder that cannot be found.
   List<RecentRelease> get rows => [
     for (final entry in releases.entries) entry,
     for (final path in discoveredPaths)
@@ -78,39 +76,51 @@ class RecentReleasesController extends ChangeNotifier {
   Future<void> record(Release release) async {
     releases.record(release, now: DateTime.now().toUtc());
 
-    // A release the app has just read is a folder it can read, so the row is
-    // not marked as unavailable any more.
-    unavailablePaths.remove(release.directoryPath);
+    notifyListeners();
+
+    await _write();
+  }
+
+  /// Drops the entries whose folder or `release.json` is not there and writes
+  /// the file when something was (`ai/recent_releases.md` §4); the page asks
+  /// for this once when it opens. It is an existence test per entry, not a
+  /// read of the manifest, which is the same fifty reads storing the values
+  /// exists to avoid. A file that is there but cannot be parsed is not
+  /// dropped: the folder is there, so the row is shown and reports itself when
+  /// it is clicked, through the open flow. A check that finds nothing writes
+  /// nothing, because there is no change to record.
+  Future<void> dropMissingEntries() async {
+    final missing = <String>{};
+
+    for (final entry in releases.entries) {
+      if (!await File(p.join(entry.directoryPath, 'release.json')).exists()) {
+        missing.add(entry.directoryPath);
+      }
+    }
+
+    if (missing.isEmpty) {
+      return;
+    }
+
+    releases.entries.removeWhere(
+      (entry) => missing.contains(entry.directoryPath),
+    );
 
     notifyListeners();
 
+    await _write();
+  }
+
+  /// Writes what the model holds, and remembers whether it could not, which is
+  /// the line the page shows (`ai/recent_releases.md` §2). Both paths that
+  /// change the list write through here, because the rule is the same for both.
+  Future<void> _write() async {
     try {
       await store.save(releases);
       writeFailed = false;
     } catch (_) {
       writeFailed = true;
     }
-  }
-
-  /// Which rows no longer have a `release.json`. This is a stat per row, not a
-  /// read of the manifest: the page asks once when it opens, and a row whose
-  /// folder is gone is marked rather than dropped (`ai/recent_releases.md` §4).
-  /// A file that is there but cannot be parsed is not marked, because marking
-  /// it would mean reading every manifest in the list, which is what storing
-  /// the values exists to avoid; a row whose file cannot be read reports that
-  /// when it is clicked, through the open flow.
-  Future<void> checkAvailability() async {
-    final unavailable = <String>{};
-
-    for (final entry in releases.entries) {
-      if (!await File(p.join(entry.directoryPath, 'release.json')).exists()) {
-        unavailable.add(entry.directoryPath);
-      }
-    }
-
-    unavailablePaths = unavailable;
-
-    notifyListeners();
   }
 
   /// Lists the immediate subdirectories of the default release directory and

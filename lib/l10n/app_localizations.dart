@@ -1532,12 +1532,6 @@ abstract class AppLocalizations {
   /// **'Last edit date'**
   String get recentLastEditDateLabel;
 
-  /// No description provided for @recentFolderUnavailable.
-  ///
-  /// In en, this message translates to:
-  /// **'The folder is not there.'**
-  String get recentFolderUnavailable;
-
   /// No description provided for @recentWriteFailed.
   ///
   /// In en, this message translates to:

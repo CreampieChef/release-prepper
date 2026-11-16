@@ -811,9 +811,6 @@ class AppLocalizationsRu extends AppLocalizations {
   String get recentLastEditDateLabel => 'Дата последнего изменения';
 
   @override
-  String get recentFolderUnavailable => 'Папка не найдена.';
-
-  @override
   String get recentWriteFailed =>
       'Не удалось сохранить список недавних релизов. Проверьте путь и права доступа.';
 

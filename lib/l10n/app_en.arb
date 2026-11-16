@@ -405,7 +405,6 @@
     "recentSourceLabel": "Source",
     "recentCreatedDateLabel": "Creation date",
     "recentLastEditDateLabel": "Last edit date",
-    "recentFolderUnavailable": "The folder is not there.",
     "recentWriteFailed": "Could not save the recent releases list. Check the path and permissions.",
     "@fileSizeDisplay": {
         "placeholders": {

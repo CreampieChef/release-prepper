@@ -33,8 +33,9 @@ enum _RecentColumn {
 ///
 /// The rows are the index plus the folders in the default release directory
 /// (`ai/recent_releases.md` §5). A folder the scan found shows the name and the
-/// path and nothing else, because nothing about it was read, and it is never
-/// marked as unavailable: the scan only lists folders that have the manifest.
+/// path and nothing else, because nothing about it was read. Every row names a
+/// folder that is there: an entry whose folder or `release.json` is missing is
+/// not shown, so the table shows only what the app can open.
 ///
 /// Clicking a row opens the release through the shared open flow, so the error
 /// popup is the same one the menu item and Ctrl+O show.
@@ -79,18 +80,18 @@ class _RecentReleasesPageState extends State<RecentReleasesPage> {
 
     _controller = context.read<RecentReleasesController>();
 
-    // Both are asked for once when the page opens: the marker for a row whose
-    // folder is gone, and the folders in the default release directory
-    // (`ai/recent_releases.md` §5). The directory is read here and passed to
-    // the call, because a controller builds no dependency of its own (rule 4),
-    // the same way the open flow and the wizard get it.
+    // Both are asked for once when the page opens: the entries whose folders
+    // are not there are dropped, and the folders in the default release
+    // directory are listed (`ai/recent_releases.md` §4, §5). The directory is
+    // read here and passed to the call, because a controller builds no
+    // dependency of its own (rule 4), the same way the open flow and the
+    // wizard get it.
     //
     // Deferred to a microtask, because a controller that notifies while the
     // frame that created it is still building marks the provider scope as
-    // needing build while the framework is locked — which is what happens when
-    // the list is empty and the check finishes without an await.
+    // needing build while the framework is locked.
     scheduleMicrotask(() {
-      unawaited(_controller.checkAvailability());
+      unawaited(_controller.dropMissingEntries());
       unawaited(
         _controller.scanDefaultDirectory(
           context.read<SettingsController>().defaultReleaseDirectory,
@@ -253,17 +254,7 @@ class _RecentReleasesPageState extends State<RecentReleasesPage> {
     MainMenuController menu,
   ) {
     final theme = Theme.of(context);
-    final unavailable = _controller.unavailablePaths.contains(
-      entry.directoryPath,
-    );
-
-    // A row whose folder is gone is drawn with the values the index holds, in
-    // the dimmed colour, with the reason next to the name: the folder may come
-    // back, and a row that disappears because of one failed read is a row the
-    // user did not ask to lose.
-    final style = unavailable
-        ? theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.outline)
-        : theme.textTheme.bodyMedium;
+    final style = theme.textTheme.bodyMedium;
 
     return Material(
       color: index.isOdd
@@ -285,42 +276,12 @@ class _RecentReleasesPageState extends State<RecentReleasesPage> {
               for (final column in _columns)
                 _cell(
                   column,
-                  _cellContent(column, entry, l10n, style, unavailable),
+                  Text(_cellText(entry, column, l10n), style: style),
                 ),
             ],
           ),
         ),
       ),
-    );
-  }
-
-  Widget _cellContent(
-    _RecentColumn column,
-    RecentRelease entry,
-    AppLocalizations l10n,
-    TextStyle? style,
-    bool unavailable,
-  ) {
-    final text = Text(_cellText(entry, column, l10n), style: style);
-
-    if (column != _RecentColumn.name || !unavailable) {
-      return text;
-    }
-
-    return Row(
-      children: [
-        text,
-        const SizedBox(width: 4),
-        Tooltip(
-          key: ValueKey('recentUnavailable-${entry.directoryPath}'),
-          message: l10n.recentFolderUnavailable,
-          child: Icon(
-            Icons.error_outline,
-            size: 16,
-            color: Theme.of(context).colorScheme.error,
-          ),
-        ),
-      ],
     );
   }
 
