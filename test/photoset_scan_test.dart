@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
+import 'package:release_prepper/service/images/image_dimensions.dart';
 import 'package:release_prepper/service/photosets/directory_reader.dart';
 import 'package:release_prepper/service/photosets/photoset_scanner.dart';
 import 'package:release_prepper/service/photosets/zip_reader.dart';
@@ -29,6 +30,23 @@ void main() {
     0xFF, 0xE1, 0x00, 0x08, 0x45, 0x78, 0x69, 0x66, 0x00, 0x00,
     // A frame segment is the length, the precision, then the height and the
     // width.
+    0xFF, 0xC0, 0x00, 0x07, 0x08,
+    (height >> 8) & 0xFF,
+    height & 0xFF,
+    (width >> 8) & 0xFF,
+    width & 0xFF,
+    for (var index = 0; index < 200; index++) 0x00,
+  ];
+
+  // The same, with the frame past the first read the header reader makes: a
+  // metadata segment 6 KB long, as a photo with an embedded thumbnail has. This
+  // is the case the walk is for.
+  List<int> jpegPhotoAfterSegment(int width, int height) => [
+    0xFF, 0xD8,
+    // The segment length counts itself, so 6000 bytes of content follow it and
+    // the walk steps over the whole segment before it reaches the frame.
+    0xFF, 0xE1, 0x17, 0x72,
+    for (var index = 0; index < 6000; index++) 0x00,
     0xFF, 0xC0, 0x00, 0x07, 0x08,
     (height >> 8) & 0xFF,
     height & 0xFF,
@@ -223,6 +241,12 @@ void main() {
       reason: 'the extension list decides what a photo is',
     );
     expect(result.unreadPhotos, ['set01/a.png']);
+
+    // The reason is kept with the photo, because the log records it: the page
+    // names the photo for a moment, and a name is not a reason. This is the case
+    // the format is known and the fields are not all there, which is not the same
+    // as a format the reader does not know.
+    expect(result.sets.single.photos.first.readError, headerIsIncomplete);
 
     // The one photo that can be measured is both the minimum and the maximum.
     expect(result.minResolution?.width, 100);
@@ -464,12 +488,13 @@ void main() {
   });
 
   test('a JPEG in an archive is read from its frame marker', () async {
-    // The header reader asks for the fixed prefix first and then for more,
-    // because a JPEG's frame marker can be preceded by metadata. The entry's
-    // stream keeps its read position between those two calls, so the second one
-    // has to start from the beginning of the entry again.
+    // The header reader reads forward: the prefix that says which format the
+    // photo is, then only as far as its walk reaches, from where the last read
+    // ended rather than from the beginning of the entry again
+    // (`ai/photoset_pack.md` §5). A frame past that first read is still found,
+    // because the entry's stream keeps its position between the reads.
     _writeZip(p.join(directory.path, 'set01.zip'), [
-      _ZipEntry('a.jpg', jpegPhoto(3840, 2160), deflate: true),
+      _ZipEntry('a.jpg', jpegPhotoAfterSegment(3840, 2160), deflate: true),
       _ZipEntry('b.jpg', jpegPhoto(100, 100)),
     ]);
 
@@ -598,6 +623,11 @@ void main() {
 
       expect(result.sets.single.photoCount, 1);
       expect(result.unreadPhotos, ['set01.zip/a.png']);
+
+      // The reason is what the log records, and here it is the exception the
+      // reader caught for this entry, not one of the cases the header reader
+      // names: the entry was never read.
+      expect(result.sets.single.photos.single.readError, isNotEmpty);
     },
   );
 
@@ -619,25 +649,47 @@ void main() {
     },
   );
 
-  test(
-    'an archive that cannot be read is an empty set, not a failed source',
-    () async {
-      File(p.join(directory.path, 'set01.zip'))
-          .writeAsStringSync('not a real archive');
+  test('an archive that cannot be read is an empty set, not a failed source', () async {
+    File(p.join(directory.path, 'set01.zip'))
+        .writeAsStringSync('not a real archive');
 
-      final result = await scanningArchives().scan(
-        directory.path,
-        ItemBoundary.entries,
-      ) as ScanSuccess;
+    final result = await scanningArchives().scan(
+      directory.path,
+      ItemBoundary.entries,
+    ) as ScanSuccess;
 
-      // The item is still the item the scan found; one entry that cannot be
-      // read does not fail the whole source, as a directory that cannot be
-      // listed does not.
-      expect(result.sets.single.path, 'set01.zip');
-      expect(result.sets.single.photoCount, 0);
-      expect(result.skipped, isEmpty);
-    },
-  );
+    // The item is still the item the scan found; one entry that cannot be read
+    // does not fail the whole source, as a directory that cannot be listed does
+    // not. A file with no central directory is read as an empty archive, so
+    // there is nothing here to record as a reason: the case with a reason is a
+    // container the reader cannot read at all, below.
+    expect(result.sets.single.path, 'set01.zip');
+    expect(result.sets.single.photoCount, 0);
+    expect(result.skipped, isEmpty);
+  });
+
+  // A container the reader cannot read at all — a file that cannot be opened, an
+  // archive whose directory is not there — is the one thing a reader cannot
+  // answer for itself, because a reader is a container, not an object with
+  // state. It throws, and the scan keeps what it failed with, so the run is read
+  // back from the log with a reason and not only with an empty set
+  // (`ai/photoset_pack.md` §4).
+  test('a container that cannot be read is reported with what it failed with', () async {
+    File(p.join(directory.path, 'set01.zip')).writeAsStringSync('unreadable');
+    Directory(p.join(directory.path, 'set02')).createSync();
+    writePhoto('set02', 'a.png', 100, 100);
+
+    final result = await PhotosetScanner(
+      readers: [_UnreadableReader(), const DirectoryPhotosetReader()],
+    ).scan(directory.path, ItemBoundary.entries) as ScanSuccess;
+
+    // The order the source gives is the order the run reports in, so the set
+    // that could not be read comes first and the one that read is still there.
+    expect(result.sets.map((set) => set.path), ['set01.zip', 'set02']);
+    expect(result.sets.first.readError, contains('cannot read this archive'));
+    expect(result.sets.last.readError, isNull);
+    expect(result.totalPhotoCount, 1);
+  });
 
   test('display names that collide are reported, not renamed', () async {
     // `set01` and `set01.zip` are two different IDs, but both read as `set01`
@@ -868,4 +920,20 @@ class _FakeArchiveReader implements PhotosetReader {
       return const [];
     }
   }
+}
+
+/// A reader for a container it cannot read at all. This is the one case a reader
+/// cannot answer for itself, because a reader is a container and not an object
+/// with state, so it throws and the scan is the place that keeps what it failed
+/// with (`ai/photoset_pack.md` §4).
+class _UnreadableReader implements PhotosetReader {
+  @override
+  bool canRead(SourceEntry entry) => entry.name.endsWith('.zip');
+
+  @override
+  Future<List<ScannedPhoto>> read(String path) async =>
+      throw Exception('cannot read this archive');
+
+  @override
+  Future<List<int>> photoBytes(String path, String name) async => const [];
 }

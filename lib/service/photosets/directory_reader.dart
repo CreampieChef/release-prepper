@@ -20,25 +20,36 @@ class DirectoryPhotosetReader implements PhotosetReader {
   Future<List<ScannedPhoto>> read(String path) async {
     final photos = <ScannedPhoto>[];
 
-    try {
-      await for (final entity in Directory(path).list()) {
-        if (entity is! File || !isPhotoExtension(entity.path)) {
-          continue;
-        }
+    await for (final entity in Directory(path).list()) {
+      if (entity is! File || !isPhotoExtension(entity.path)) {
+        continue;
+      }
+
+      // The extension list is what decides that this is a photo, so a photo the
+      // folder cannot give is still counted, and what it could not be read from
+      // is the reason recorded for that entry (`ai/photoset_pack.md` §4). Its
+      // size is what the source gives it, and a file that cannot be stated has
+      // no size to add, so it contributes nothing to the total.
+      try {
+        final read = await readImageDimensions(entity.path);
 
         photos.add(
           ScannedPhoto(
             name: p.basename(entity.path),
             size: (await entity.stat()).size,
-            dimensions: await readImageDimensions(entity.path),
+            dimensions: read.dimensions,
+            readError: read.error,
+          ),
+        );
+      } catch (error) {
+        photos.add(
+          ScannedPhoto(
+            name: p.basename(entity.path),
+            size: 0,
+            readError: '$error',
           ),
         );
       }
-    } catch (_) {
-      // A set whose contents cannot be listed is an empty set. The scan reports
-      // the set as it found it rather than failing the whole source for one
-      // entry.
-      return const [];
     }
 
     // A directory has no order of its own, so the order is the one a file

@@ -1877,6 +1877,13 @@ lib/
                                 values the scan counted for the editor's single
                                 write path, kept to the names the type's field
                                 list has; typed result, no listener, no context.
+                                What the scan could not read is written to the
+                                app's log here, one entry per photo or a
+                                container, in the order the scan read them: the
+                                page names the photo, and a name is not a
+                                reason, so the log is where a run is read back
+                                from. Nothing is written for what was read
+                                (`ai/photoset_pack.md` §4).
                                 Copies the photos the rule picked into the
                                 release and records them as `kind: photo`,
                                 replacing the records this run writes
@@ -2980,6 +2987,24 @@ lib/
   path, so a file and an
                                 archive entry read through the same format
   dispatch.
+                                The header is read forward, so the walk takes
+                                only the bytes its markers reach, not the whole
+                                photo; the walk is written for both paths,
+                                paths, because one of them cannot await. What it
+                                answers with is the dimensions, or the reason
+                                there are none, because a photo whose header
+                                cannot be read is counted either way, and the
+                                reason is what the log records
+                                (`ai/photoset_pack.md` §4). The cases the reader
+                                can name without an exception are named
+                                separately, because they are not the same
+                                problem: the header is not a format it
+                                understands, its fields are not complete in the
+                                bytes it was given, or the photo ended before
+                                its frame marker — the only case the walk can
+                                reach, and the only one that says the photo
+                                itself is broken. A read that could not happen
+                                is recorded as the exception reported it.
                                 readImageDimensionsSync() is the same header
   read synchronously, so
                                 a widget can lay a grid out while it builds —
@@ -3187,7 +3212,17 @@ lib/
   without changing
                                 the scan (`ai/photoset_pack.md` §5); the
   interface also gives the
-                                whole photo, for the photo the picker copies.
+                                whole photo, for the photo the picker copies. A
+                                photo whose header could not be read is kept
+                                with the reason, and a container a reader cannot
+                                read at all is kept with what it failed with,
+                                because a reader is a container and not an
+                                object with state, so it cannot answer for that:
+                                it throws, and the scan keeps what it failed
+                                with, since the scan is the place that reports
+                                what it found (`ai/photoset_pack.md` §4). The
+                                feature writes the reasons to the app's log, and
+                                nothing is written for what was read.
   Each reader is
                                 called on another isolate, so reading a large
   archive does not
@@ -3210,7 +3245,15 @@ lib/
                                 progress report. Called only when the user asks.
       directory_reader.dart DirectoryPhotosetReader: a photoset that is a
   directory — the files
-                                directly inside it, in name order.
+                                directly inside it, in name order. A photo whose
+                                header could not be read is answered with the
+                                reason for that entry, and the one case a reader
+                                cannot answer for itself — a folder it cannot
+                                list — is left to the scan, which is the place
+                                that reports what it found
+                                (`ai/photoset_pack.md` §4).
+                                the place that reports what it found
+                                (`ai/photoset_pack.md` §4).
       zip_reader.dart ZipPhotosetReader: a photoset that is a ZIP archive — its
   entries,
                                 in the order the archive lists them. Reads the
@@ -3224,7 +3267,11 @@ lib/
                                 Reads only the bytes a header is made of, not
   the entry; the whole
                                 entry is read separately, for the photo the
-  picker copies.
+  picker copies. An entry
+                                whose header could not be read is answered with
+                                the reason for that entry, and a file with no
+                                central directory is an empty archive, not a
+                                failure.
       photoset_picker.dart PhotosetPicker: the picking rule (`ai/picking.md`) —
   the count the
                                 popup asked for, the two ways the count is
@@ -3361,7 +3408,16 @@ lib/
                                 and the entry a check that is neither a tool run
                                 nor a request is recorded with: what was
                                 checked, whether it passed, and what it failed
-                                with. The page shows only the state, so the log
+                                with. And the entry the photoset scan records a
+                                photo or a container it could not read with: the
+                                source and the item the reason belongs to, and
+                                the reason — the exception as it reported it, or
+                                the case the reader names when nothing threw.
+                                Nothing is written for what the scan read,
+                                because a real pack is tens of thousands of
+                                photos and a line for each would not be
+                                readable.
+                                The page shows only the state, so the log
                                 is where the reason is read back. A value that
                                 does not belong in a log file is written as the
   redacted
@@ -6033,8 +6089,10 @@ which is what a section that owns its row asks for. A field list that has not
 stated its required set is not checked, and the problems are in the order the
 list lists the fields. `test/image_dimensions_test.dart` covers the header
 reader: the dimensions a JPEG, a PNG and each of the three WebP chunk types
-declare, that a header it does not understand is not guessed at, and that a JPEG
-whose frame marker is past the bound it reads is reported as unread.
+declare, that a header it does not understand is not guessed at, that the walk
+reads only as far as its markers reach and asks for nothing after its frame, and
+that a photo with no frame marker anywhere is reported as unmeasurable, which is
+the only case the walk can end on now that it has no bound.
 `test/masonry_test.dart` covers the placement: a photo at or above the span
 ratio takes two columns, one below it and one whose header could not be read
 take one, a span starts where both of its columns are free so the other keeps a

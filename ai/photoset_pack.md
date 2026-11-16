@@ -148,6 +148,28 @@ The rules it is written to:
 - **A photo whose header cannot be read** is still counted, because the extension list is what
   decides what a photo is, and it is reported. A set with nothing measurable has no minimum or
   maximum, so no value is written for it.
+- **The reason is recorded in the log, not on the page.** The page names the photo, and a name is
+  not a reason: a page shows the state for a moment, and the log is where a run is read back from.
+  The reader names which case it was, and the reason travels with the photo as data, because a
+  reader is a container and cannot hold the log — the same rule that says it holds nothing between
+  calls, because it runs on another isolate. The feature is the place that writes it, one entry per
+  photo or container, in the order the scan read them, as the System Check controller is the place
+  that writes the check it makes. Nothing is written for what was read: a real pack is tens of
+  thousands of photos, and a line for each would not be readable. The cases a reader can name
+  without an exception are named separately, because they are not the same problem: the header is
+  not a format it understands, its fields are not complete in the bytes it was given, or the photo
+  ended before its frame marker — the only case the walk can reach, and the only one that says the
+  photo itself is broken. A read that could not happen is recorded as the exception reported it. The
+  grid takes the dimensions only and records nothing: an unmeasurable photo is the square
+  `ai/picking.md` §7 says the drawing lays it out as, and a square tile is not a failure to log.
+
+- **A container that cannot be read at all** is the one thing a reader cannot answer for itself,
+  because it is a container rather than an object with state: it throws. The scan is the place that
+  reports what it found, so it catches per item and keeps what it failed with — the item is still
+  the item the entries gave, an empty set with a reason, rather than the whole source failing. That
+  is the same shape as a folder that cannot be listed, which the reader can answer for, and the
+  reason goes to the log by the rule above. A file with no central directory is not this case: the
+  package reads it as an archive with no entries, so there is nothing to record.
 
 - **It reports as it reads.** The items the entries give are decided before any reading, so the count
   the scan reports is what it can know first; then each item is reported as it is read, through the
@@ -167,8 +189,20 @@ The rules it is written to:
 
 Reading dimensions without a package: a small header reader for JPEG, PNG and WebP. It reads only
 the header — JPEG's start-of-frame marker, PNG's IHDR, WebP's three chunk types — and does not
-decode the image. The alternative is one `ffprobe` call per photo, which is a few lines but
-hundreds of processes for a real pack. The header reader is the choice.
+decode the image, and it reads only as far as its walk reaches: a fixed prefix says which format
+the photo is, and for JPEG the markers are walked forward, reading a step at a time until one of
+them is the frame, rather than reading the whole photo for a header. The walk has no bound: it
+reads until the frame, or until the photo ends. A bound decides what is read from a size rather
+than from the photo, and a photo whose header is larger than any fixed size is still measurable —
+on a real pack, photos whose metadata block is split because a segment length is 16-bit read past
+1 MB and were reported as unread for no reason the photo itself gives. So the only photo the walk
+cannot measure is one with no frame marker anywhere, which is a broken file, not a partial read,
+and a photo that is not broken is never read whole: the frame is the first thing after a small
+metadata segment. The walk answers only from the bytes it is given, so it cannot tell a segment it
+has not read from a segment that is not a frame; that is why it reads a step at a time, and why
+running out can only be answered at the end. The
+alternative is one `ffprobe` call per photo, which is a few lines but hundreds of processes for a
+real pack. The header reader is the choice.
 
 ## 5. Archives
 
@@ -190,13 +224,20 @@ What the scan needs from it:
 The reader reads the central directory through the package and then only the bytes the header needs:
 a stored entry is read as it is, a deflated one is decoded lazily. Reading a whole entry is what
 reading headers exists to avoid. It is called more than once for one entry — a fixed prefix, then
-more, because a JPEG's frame marker can be preceded by metadata — so each call starts from the
-beginning of that entry again rather than from where the previous read ended. The package's lazy path
-does decrypt, so an encrypted entry is read
+more, because a JPEG's frame marker can be preceded by metadata — and it answers from where the
+previous answer ended, so a walk forward through the metadata does not read the entry from its
+beginning again for every step. The package's lazy path does decrypt, so an encrypted entry is read
 as well, but only with a password, which the app does not have, and entries stored with another
 method are not decoded — a ZIP of photos is stored or deflated, because JPEG, PNG and WebP are
 already compressed. Both give the header reader bytes it cannot read, and the photo is counted and
-reported, as §4 says.
+reported, as §4 says, with the reason named for that entry. An entry that was never read is not the
+same as a header the reader cannot parse, so the reader answers for its own entries only; the
+container itself is left to the scan by the rule §4 gives.
+
+What the walk cannot get past is the package's chunk: the lazy decoder reads its input 64 KB at a
+time, so an entry whose header is a few hundred bytes in still costs one chunk. That is the floor
+of a scan that reads headers rather than entries; what a real pack costs against it is measured in
+`ai/environment.md`.
 
 The reader is behind an interface so a format can be added without changing the scan. RAR and 7z
 are not in scope: they need a real decoder, not a container parser, so they would mean an external

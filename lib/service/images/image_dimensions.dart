@@ -37,50 +37,70 @@ bool isPhotoExtension(String name) =>
     photoExtensions.contains(name.split('.').last.toLowerCase());
 
 /// Where the bytes of a photo header come from: a file, or an entry in an
-/// archive. `read` returns up to [length] bytes from the start of the image, so
-/// a format whose header is longer than the fixed one asks for more.
+/// archive. `read` answers with up to [length] bytes from where the previous
+/// read ended, so the bytes a photo has already given are not read again.
 typedef HeaderBytes = Future<List<int>> Function(int length);
 
-/// The dimensions a photo reports from the bytes its header is made of, or null
-/// when that header is not one this reader understands. A photo whose header
-/// cannot be read is still counted — the extension list is what decides what a
-/// photo is — and the scan reports it.
-Future<ImageDimensions?> readImageDimensionsFrom(HeaderBytes read) async {
+/// What a header read answered: the dimensions, or why there are none. A photo
+/// whose header cannot be read is still counted — the extension list is what
+/// decides what a photo is — so the answer is kept as part of the photo, and
+/// the reason is what the log records (`ai/photoset_pack.md` §4).
+final class HeaderRead {
+  const HeaderRead(this.dimensions) : error = null;
+
+  const HeaderRead.failed(this.error) : dimensions = null;
+
+  final ImageDimensions? dimensions;
+
+  /// Why the header could not be read. This is not text for the page: the page
+  /// names the photo, as rule 13 gives it, and the log is where the reason is
+  /// read back. It is the exception as the exception reported it when the read
+  /// itself could not happen, and one of the phrases below for a case the reader
+  /// can name without an exception.
+  final String? error;
+}
+
+// The cases a header read ends on, as the log records them. A read that threw is
+// not one of these, because what it threw with is the reason, and that is what
+// the log keeps (`ai/photoset_pack.md` §4).
+const headerIsEmpty = 'the header is empty';
+
+const headerIsNotAFormat =
+    'the header is not one of the formats this reader understands';
+
+const headerIsIncomplete =
+    'the header is a known format, but its fields are not complete in the '
+    'bytes it was given';
+
+const photoEndedBeforeItsFrame = 'the photo ended before its frame marker';
+
+/// The dimensions a photo reports from the bytes its header is made of, or the
+/// reason it cannot.
+Future<HeaderRead> readImageDimensionsFrom(HeaderBytes read) async {
   // The first bytes say which format the photo is. Only JPEG needs more than a
   // fixed header, because its dimensions are in a marker that can be preceded
   // by metadata segments.
   final start = await read(_identifyBytes);
 
   if (start.isEmpty) {
-    return null;
+    return const HeaderRead.failed(headerIsEmpty);
   }
 
   if (_startsWith(start, _jpegMagic)) {
-    // The bound is a limit, not a guess: a photo whose frame marker is past it
-    // is reported as unread rather than measured from a partial read.
-    return _jpegDimensions(await read(_jpegMaxHeader));
+    return await _walkJpeg(read, start);
   }
 
-  if (_startsWith(start, _pngMagic)) {
-    return _pngDimensions(start);
-  }
-
-  if (_startsWith(start, _riffMagic) && _startsWithAt(start, 8, _webpMagic)) {
-    return _webpDimensions(start);
-  }
-
-  return null;
+  return _otherDimensions(start);
 }
 
-/// The dimensions a file reports.
-Future<ImageDimensions?> readImageDimensions(String path) =>
-    readImageDimensionsFrom((length) => _readPrefix(File(path), length));
-
-/// The same header, read synchronously, so a widget can lay a grid out while it
+/// The same header read synchronously, so a widget can lay a grid out while it
 /// builds — the same reason `ImagesStore.loadSync` exists. The same parsers and
-/// the same rule: a header, not the pixels. Null when the header is not one
-/// this reader understands, and the caller lays that tile out as a square.
-ImageDimensions? readImageDimensionsSync(String path) {
+/// the same rule, including the walk reading on rather than from the start
+/// again. The walk cannot be shared between the two, since one of them cannot
+/// await, so it is written twice and the parsers are not. The caller lays a tile
+/// it cannot measure out as a square; the reason is for the log, not for the
+/// grid.
+HeaderRead readImageDimensionsSync(String path) {
   RandomAccessFile? file;
 
   try {
@@ -88,56 +108,132 @@ ImageDimensions? readImageDimensionsSync(String path) {
     final start = file.readSync(_identifyBytes);
 
     if (start.isEmpty) {
-      return null;
+      return const HeaderRead.failed(headerIsEmpty);
     }
 
     if (_startsWith(start, _jpegMagic)) {
-      // The second read starts from the beginning of the file again, as the
-      // archive path does. The sync variant, because a handle cannot have an
-      // async operation pending while a sync one is being made on it.
-      file.setPositionSync(0);
-
-      return _jpegDimensions(file.readSync(_jpegMaxHeader));
+      return _walkJpegSync(file, start);
     }
 
-    if (_startsWith(start, _pngMagic)) {
-      return _pngDimensions(start);
-    }
-
-    if (_startsWithAt(start, 8, _webpMagic)) {
-      return _webpDimensions(start);
-    }
-
-    return null;
-  } catch (_) {
-    // A file that cannot be read is not measured.
-    return null;
+    return _otherDimensions(start);
+  } catch (error) {
+    // A file that cannot be read is not measured, and what it failed with is the
+    // reason the log records.
+    return HeaderRead.failed('$error');
   } finally {
     file?.closeSync();
+  }
+}
+
+/// The dimensions a file reports, through one handle, so the walk reads on from
+/// where the last read ended rather than from the beginning of the file again.
+Future<HeaderRead> readImageDimensions(String path) async {
+  RandomAccessFile? file;
+
+  try {
+    file = await File(path).open();
+
+    return await readImageDimensionsFrom((length) => file!.read(length));
+  } catch (error) {
+    // A file that cannot be read is not measured. The caller reports it.
+    return HeaderRead.failed('$error');
+  } finally {
+    await file?.close();
+  }
+}
+
+// The walk reads forward, a step at a time, and stops at the frame. It asks for
+// a whole step because a metadata segment can be longer than the bytes it has,
+// and a walk that runs out of bytes cannot tell a segment that is not there yet
+// from one that is not a frame — only the bytes it is given are an answer.
+//
+// There is no bound, because a bound decides what is read from a size rather
+// than from the photo: a photo whose header is larger than any fixed size is
+// still a photo that can be measured. What a bound would do is turn a readable
+// photo into an unread one, which is what happened on a real pack to photos
+// whose metadata block is split because a segment length is 16-bit. So the walk
+// reads until the frame or until the source ends, and the only photo it cannot
+// measure is one with no frame marker at all — a broken photo, not a partial
+// read. Reading the whole photo for its header is what this exists to avoid
+// (`ai/photoset_pack.md` §4), and a photo that is not broken is never read
+// whole: the frame is the first thing after a small metadata segment for the
+// photos that are not the exception.
+//
+// The walk ends on one thing only: the source running out. A header that is not
+// walkable does not end it, because the walk cannot know that a segment it has
+// not read is not a frame, so it reads on; if no frame is ever reached, the
+// answer is that the photo ended before its frame marker. That is the only reason
+// a header read can give, and it is a statement about the photo rather than about
+// the bytes it was given — which is why the phrase is worth keeping. Only the
+// bytes the walk is given are an answer, so it cannot tell a segment it has not
+// read from one that is not a frame until it runs out of them.
+Future<HeaderRead> _walkJpeg(HeaderBytes read, List<int> have) async {
+  final bytes = [...have];
+
+  while (true) {
+    final dimensions = _jpegDimensions(bytes);
+
+    if (dimensions != null) {
+      return HeaderRead(dimensions);
+    }
+
+    final more = await read(_jpegStep);
+
+    if (more.isEmpty) {
+      return const HeaderRead.failed(photoEndedBeforeItsFrame);
+    }
+
+    bytes.addAll(more);
+  }
+}
+
+/// The same walk on a handle, for the synchronous path.
+HeaderRead _walkJpegSync(RandomAccessFile file, List<int> have) {
+  final bytes = [...have];
+
+  while (true) {
+    final dimensions = _jpegDimensions(bytes);
+
+    if (dimensions != null) {
+      return HeaderRead(dimensions);
+    }
+
+    final more = file.readSync(_jpegStep);
+
+    if (more.isEmpty) {
+      return const HeaderRead.failed(photoEndedBeforeItsFrame);
+    }
+
+    bytes.addAll(more);
   }
 }
 
 // Enough for the fixed headers: WebP's extended header ends at byte 33, so the
 // prefix has to reach past it.
 const _identifyBytes = 40;
-const _jpegMaxHeader = 1 << 20;
+
+// How far the JPEG walk reads at a time. The frame is normally the first thing
+// after a small metadata segment, so the walk reaches it in one or two steps, and
+// a step is what keeps the bytes it asks for the bytes its markers reach rather
+// than the whole photo.
+const _jpegStep = 1 << 10;
 const _jpegMagic = [0xFF, 0xD8];
 const _pngMagic = [0x89, 0x50, 0x4E, 0x47];
 const _riffMagic = [0x52, 0x49, 0x46, 0x46];
 const _webpMagic = [0x57, 0x45, 0x42, 0x50];
 
-Future<List<int>> _readPrefix(File file, int length) async {
-  final bytes = <int>[];
-
-  try {
-    await for (final chunk in file.openRead(0, length)) {
-      bytes.addAll(chunk);
-    }
-  } catch (_) {
-    // A file that cannot be read is not measured. The caller reports it.
+/// The formats whose header is inside the prefix: the dimensions are at a known
+/// offset, so the walk is not needed.
+HeaderRead _otherDimensions(List<int> bytes) {
+  if (_startsWith(bytes, _pngMagic)) {
+    return _pngDimensions(bytes);
   }
 
-  return bytes;
+  if (_startsWith(bytes, _riffMagic) && _startsWithAt(bytes, 8, _webpMagic)) {
+    return _webpDimensions(bytes);
+  }
+
+  return const HeaderRead.failed(headerIsNotAFormat);
 }
 
 bool _startsWith(List<int> bytes, List<int> magic) =>
@@ -160,6 +256,10 @@ bool _startsWithAt(List<int> bytes, int offset, List<int> magic) {
 /// JPEG: the dimensions are in a start-of-frame marker. Everything before it is
 /// metadata, so the markers are walked until one is found. Markers that carry
 /// no length — the image boundaries, the restart markers — are stepped over.
+///
+/// This answers for one set of bytes, not for the photo, so null here is not a
+/// final answer: it is the walk being given less than a segment and asking for
+/// more. What the walk ends on is named by the walk, not here.
 ImageDimensions? _jpegDimensions(List<int> bytes) {
   var offset = 2;
 
@@ -213,24 +313,24 @@ ImageDimensions? _jpegDimensions(List<int> bytes) {
 
 /// PNG: the dimensions are the first two fields of IHDR, which is always the
 /// first chunk, so the fixed header is enough. Big-endian.
-ImageDimensions? _pngDimensions(List<int> bytes) {
+HeaderRead _pngDimensions(List<int> bytes) {
   if (bytes.length < 24) {
-    return null;
+    return const HeaderRead.failed(headerIsIncomplete);
   }
 
   final width = _bigEndian(bytes, 16);
   final height = _bigEndian(bytes, 20);
 
   return width > 0 && height > 0
-      ? ImageDimensions(width: width, height: height)
-      : null;
+      ? HeaderRead(ImageDimensions(width: width, height: height))
+      : const HeaderRead.failed(headerIsIncomplete);
 }
 
 /// WebP: the dimensions depend on which chunk the file starts with, so all
 /// three are read. Little-endian.
-ImageDimensions? _webpDimensions(List<int> bytes) {
+HeaderRead _webpDimensions(List<int> bytes) {
   if (bytes.length < 20) {
-    return null;
+    return const HeaderRead.failed(headerIsIncomplete);
   }
 
   final data = bytes.sublist(20);
@@ -242,45 +342,45 @@ ImageDimensions? _webpDimensions(List<int> bytes) {
         data[3] != 0x9D ||
         data[4] != 0x01 ||
         data[5] != 0x2A) {
-      return null;
+      return const HeaderRead.failed(headerIsIncomplete);
     }
 
     final width = (data[6] | (data[7] << 8)) & 0x3FFF;
     final height = (data[8] | (data[9] << 8)) & 0x3FFF;
 
     return width > 0 && height > 0
-        ? ImageDimensions(width: width, height: height)
-        : null;
+        ? HeaderRead(ImageDimensions(width: width, height: height))
+        : const HeaderRead.failed(headerIsIncomplete);
   }
 
   if (_startsWithAt(bytes, 12, _vp8lChunk)) {
     // Lossless: the size is packed into the four bytes after the signature,
     // fourteen bits each.
     if (data.isEmpty || data[0] != 0x2F || data.length < 5) {
-      return null;
+      return const HeaderRead.failed(headerIsIncomplete);
     }
 
     final packed = data[1] | (data[2] << 8) | (data[3] << 16) | (data[4] << 24);
     final width = (packed & 0x3FFF) + 1;
     final height = ((packed >> 14) & 0x3FFF) + 1;
 
-    return ImageDimensions(width: width, height: height);
+    return HeaderRead(ImageDimensions(width: width, height: height));
   }
 
   if (_startsWithAt(bytes, 12, _vp8xChunk)) {
     // Extended: the canvas size is three bytes each, stored as the value minus
     // one, after the four flag bytes and three reserved bytes.
     if (data.length < 13) {
-      return null;
+      return const HeaderRead.failed(headerIsIncomplete);
     }
 
     final width = (data[7] | (data[8] << 8) | (data[9] << 16)) + 1;
     final height = (data[10] | (data[11] << 8) | (data[12] << 16)) + 1;
 
-    return ImageDimensions(width: width, height: height);
+    return HeaderRead(ImageDimensions(width: width, height: height));
   }
 
-  return null;
+  return const HeaderRead.failed(headerIsIncomplete);
 }
 
 const _vp8Chunk = [0x56, 0x50, 0x38, 0x20];

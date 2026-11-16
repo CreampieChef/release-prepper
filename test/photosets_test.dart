@@ -19,13 +19,17 @@ import 'package:release_prepper/feature/tab/tab_manager.dart';
 import 'package:release_prepper/l10n/app_localizations.dart';
 import 'package:release_prepper/feature/screenshots/images.dart';
 import 'package:release_prepper/feature/screenshots/images_store.dart';
+import 'package:release_prepper/service/images/image_dimensions.dart';
 import 'package:release_prepper/service/images/masonry.dart';
+import 'package:release_prepper/service/logging/tool_log.dart';
+import 'package:release_prepper/service/logging/tool_log_entry.dart';
 import 'package:release_prepper/service/native_tools/ffmpeg.dart';
 import 'package:release_prepper/service/native_tools/tool_runner.dart';
 import 'package:release_prepper/service/photosets/directory_reader.dart';
 import 'package:release_prepper/service/photosets/photoset_picker.dart';
 import 'package:release_prepper/service/photosets/photoset_scanner.dart';
 
+import 'fake_tool_log.dart';
 import 'test_photo.dart';
 import 'test_runner.dart';
 
@@ -99,6 +103,7 @@ void main() {
     String tabId, {
     List<PhotosetReader>? readers,
     _FakeFfmpeg? ffmpeg,
+    ToolLog? log,
   }) => PhotosetController(
     release: release,
     scanner: PhotosetScanner(
@@ -109,6 +114,7 @@ void main() {
     releaseStore: ReleaseStore(),
     tabManager: tabManager,
     tabId: tabId,
+    log: log ?? FakeToolLog(),
   );
 
   // The options a test that is not about the popup passes to the rule: the
@@ -560,6 +566,80 @@ void main() {
     expect(failed.kind, PhotosetFailureKind.sourceNotFound);
     expect(release.items.map((item) => item.path), ['set01']);
   });
+
+  // What the scan could not read is recorded in the log with the reason. The page
+  // names the photo, and a name is not a reason: a page shows the state for a
+  // moment, and the log is where a run is read back from. Nothing is written for
+  // what was read, because a real pack is tens of thousands of photos.
+  test('what the scan could not read is logged with the reason', () async {
+    final log = FakeToolLog();
+
+    Directory(p.join(directory.path, 'set01')).createSync();
+
+    writePhoto('set01', 'read.png', 100, 100);
+
+    // A header whose format is known but whose fields are not all there.
+    File(p.join(directory.path, 'set01', 'unread.png'))
+        .writeAsBytesSync([0x89, 0x50, 0x4E, 0x47]);
+
+    final tabManager = TabManager();
+    final release = testRelease(directory.path);
+    final tabId = tabManager.addReleaseEditor(release);
+
+    final controller = testController(
+      release,
+      ImagesStore(),
+      tabManager,
+      tabId,
+      log: log,
+    );
+
+    await controller.scan(onProgress: discardScanProgress);
+
+    // One entry: the photo that could not be read, and not the one that was.
+    expect(log.entries, hasLength(1));
+
+    final entry = log.entries.single.toJson();
+
+    expect(entry['tool'], PhotosetController.scanLogName);
+    expect(entry['stream'], ToolLogRead.readStream);
+    expect(entry['input'], [directory.path, 'set01/unread.png']);
+    expect(entry['error'], headerIsIncomplete);
+  });
+
+  // A container the reader cannot read at all is an item with a reason, not an
+  // empty item with nothing said about it, and the names the page shows for a
+  // moment are not what a run is read back from.
+  test(
+    'a container that could not be read is logged with what it failed with',
+    () async {
+      final log = FakeToolLog();
+
+      File(p.join(directory.path, 'set01.zip')).writeAsStringSync('unreadable');
+
+      final tabManager = TabManager();
+      final release = testRelease(directory.path);
+      final tabId = tabManager.addReleaseEditor(release);
+
+      final controller = testController(
+        release,
+        ImagesStore(),
+        tabManager,
+        tabId,
+        readers: [_UnreadableReader()],
+        log: log,
+      );
+
+      await controller.scan(onProgress: discardScanProgress);
+
+      expect(log.entries, hasLength(1));
+
+      final entry = log.entries.single.toJson();
+
+      expect(entry['input'], [directory.path, 'set01.zip']);
+      expect(entry['error'], contains('cannot read this archive'));
+    },
+  );
 
   // The name shown is derived from the path, because the stored path is the
   //
@@ -2784,6 +2864,21 @@ class _FakeArchiveReader implements PhotosetReader {
       return const [];
     }
   }
+}
+
+/// A reader for a container it cannot read at all, so a test can show what the
+/// scan and the log do with the one case a reader cannot answer for itself
+/// (`ai/photoset_pack.md` §4).
+class _UnreadableReader implements PhotosetReader {
+  @override
+  bool canRead(SourceEntry entry) => entry.name.endsWith('.zip');
+
+  @override
+  Future<List<ScannedPhoto>> read(String path) async =>
+      throw Exception('cannot read this archive');
+
+  @override
+  Future<List<int>> photoBytes(String path, String name) async => const [];
 }
 
 /// The tool a pick run writes a preview thumbnail with (`ai/picking.md` §8). It

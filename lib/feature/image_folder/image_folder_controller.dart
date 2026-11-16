@@ -272,7 +272,7 @@ class ImageFolderController {
   /// section shows. Null for an image whose header cannot be read, which the
   /// grid lays out as a square (`ai/picking.md` §7).
   double? aspectRatio(String absolutePath) {
-    final dimensions = readImageDimensionsSync(absolutePath);
+    final dimensions = readImageDimensionsSync(absolutePath).dimensions;
 
     if (dimensions == null || dimensions.height == 0) {
       return null;

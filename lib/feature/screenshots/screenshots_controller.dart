@@ -62,7 +62,7 @@ class ScreenshotsController {
   /// grid uses. A frame is not assumed to be 16:9: ffmpeg writes it at the
   /// source resolution, so the shape is whatever the file says.
   double? aspectRatio(String absolutePath) {
-    final dimensions = readImageDimensionsSync(absolutePath);
+    final dimensions = readImageDimensionsSync(absolutePath).dimensions;
 
     if (dimensions == null || dimensions.height == 0) {
       return null;

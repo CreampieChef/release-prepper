@@ -563,7 +563,7 @@ class _SlowReader implements PhotosetReader {
       ScannedPhoto(
         name: name,
         size: await _length(path, name),
-        dimensions: readImageDimensionsSync(p.join(path, name)),
+        dimensions: readImageDimensionsSync(p.join(path, name)).dimensions,
       ),
   ];
 

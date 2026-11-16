@@ -11,6 +11,7 @@ import '../../l10n/app_localizations.dart';
 import '../../service/images/masonry.dart';
 import '../../service/launcher/path_opener.dart';
 import '../../service/launcher/url_opener.dart';
+import '../../service/logging/tool_log.dart';
 import '../../service/native_tools/ffmpeg.dart';
 import '../../service/native_tools/ffprobe.dart';
 import '../../service/native_tools/media_info.dart';
@@ -421,6 +422,7 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
           releaseStore: context.read<ReleaseStore>(),
           tabManager: context.read<TabManager>(),
           tabId: widget.tabId,
+          log: context.read<ToolLog>(),
         ),
       );
     }

@@ -12,10 +12,10 @@ const _zipExtensions = {'zip'};
 /// A photoset that is a ZIP archive.
 ///
 /// This is the one place rule 12 in `ai/doc.md` is set aside, and the reason is
-/// not convenience: the parts a hand-written reader gets wrong are the ones
-/// real archives have — zip64 sizes when the plain end-of-central-directory
-/// record holds placeholders, data descriptors from a streaming writer,
-/// encrypted entries.
+/// not convenience: the parts a hand-written reader gets wrong are the ones real
+/// archives have — zip64 sizes when the plain end-of-central-directory record
+/// holds placeholders, data descriptors from a streaming writer, encrypted
+/// entries.
 ///
 /// The order is the order the archive lists its entries, which is what
 /// `ai/photoset_pack.md` §4 says for an archive; a directory has no order of
@@ -42,6 +42,8 @@ class ZipPhotosetReader implements PhotosetReader {
           continue;
         }
 
+        final header = await _readHeader(entry);
+
         photos.add(
           ScannedPhoto(
             name: p.basename(entry.name),
@@ -49,18 +51,13 @@ class ZipPhotosetReader implements PhotosetReader {
             // the size the file has there: the same kind of number as the size
             // on disk for a file in a folder (`ai/photoset_pack.md` §3).
             size: entry.size,
-            dimensions: await readImageDimensionsFrom(
-              (length) => _readHeader(entry, length),
-            ),
+            dimensions: header.dimensions,
+            readError: header.error,
           ),
         );
       }
 
       return photos;
-    } catch (_) {
-      // An archive that cannot be read is an empty set, as a directory that
-      // cannot be listed is: one entry does not fail the whole source.
-      return const [];
     } finally {
       stream.closeSync();
     }
@@ -98,30 +95,29 @@ class ZipPhotosetReader implements PhotosetReader {
     }
   }
 
-  /// The bytes of an entry's header, without reading the entry. A stored entry
-  /// is read as it is; a deflated one is decoded lazily, so only the bytes the
-  /// header is made of are decoded. The package's own decode path would
-  /// materialise the whole entry, which is what reading headers exists to
-  /// avoid.
+  /// One entry's header, read as `HeaderBytes` says: from where its last answer
+  /// ended, so the walk is not given the entry from its beginning again for
+  /// every step. A stored entry is read as it is; a deflated one is decoded
+  /// lazily, so only the bytes the header is made of are decoded. The package's
+  /// own decode path would materialise the whole entry, which is what reading
+  /// headers exists to avoid.
   ///
-  /// The header reader asks for a fixed prefix first and then for more, because
-  /// a JPEG's frame marker can be preceded by metadata, so this is called more
-  /// than once for one entry. The stream is the entry's own and keeps its read
-  /// position between calls, so each read starts from the beginning of the
-  /// entry again.
+  /// The lazy path does decrypt, so an encrypted entry is read as well — but only
+  /// with a password, which the app does not have. Entries stored with another
+  /// method are not decoded here, because a ZIP of photos is stored or deflated:
+  /// JPEG, PNG and WebP are already compressed.
   ///
-  /// The lazy path does decrypt, so an encrypted entry is read as well — but
-  /// only with a password, which the app does not have. Entries stored with
-  /// another method are not decoded here, because a ZIP of photos is stored or
-  /// deflated: JPEG, PNG and WebP are already compressed. Both cases give the
-  /// header reader bytes it cannot read, and the photo is counted and reported,
-  /// as `ai/photoset_pack.md` §4 says.
-  Future<List<int>> _readHeader(ArchiveFile entry, int length) async {
+  /// What cannot be read is answered with the reason for that entry, because one
+  /// entry does not fail the set (`ai/photoset_pack.md` §4). A truncated entry
+  /// gives what decoded, which is not a header, and an encrypted one throws
+  /// because there is no password. The reason is what the log records.
+  Future<HeaderRead> _readHeader(ArchiveFile entry) async {
     try {
       final stored = entry.rawContent?.getStream(decompress: false);
 
       if (stored == null) {
-        return const [];
+        // An entry with no content to read. This is where it says so.
+        return const HeaderRead.failed('the entry has no content to read');
       }
 
       stored.setPosition(0);
@@ -130,12 +126,11 @@ class ZipPhotosetReader implements PhotosetReader {
           ? const ZLibDecoder().decodeLazy(stored, raw: true)
           : stored;
 
-      return bytes.readBytes(length).toUint8List();
-    } on ArchiveException {
-      // A truncated entry gives what decoded, which is not a header, and an
-      // encrypted one throws because there is no password. Either way the
-      // caller reports the photo, and one entry does not fail the set.
-      return const [];
+      return await readImageDimensionsFrom(
+        (length) async => bytes.readBytes(length).toUint8List(),
+      );
+    } on ArchiveException catch (error) {
+      return HeaderRead.failed('$error');
     }
   }
 }

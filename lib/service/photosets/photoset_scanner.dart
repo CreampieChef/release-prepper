@@ -45,7 +45,12 @@ class SourceEntry {
 /// means the header could not be read — the photo is still counted, because the
 /// extension list is what decides what a photo is, and the scan reports it.
 class ScannedPhoto {
-  const ScannedPhoto({required this.name, required this.size, this.dimensions});
+  const ScannedPhoto({
+    required this.name,
+    required this.size,
+    this.dimensions,
+    this.readError,
+  });
 
   final String name;
 
@@ -56,6 +61,12 @@ class ScannedPhoto {
   final int size;
 
   final ImageDimensions? dimensions;
+
+  /// Why the header could not be read, and null when it was. The photo is
+  /// counted either way, so the reason is kept with it: the page names the
+  /// photo, and the log records this (`ai/photoset_pack.md` §4). It is the same
+  /// answer as [dimensions], from one header read, so a photo never has both.
+  final String? readError;
 
   /// The extension the photo name has, lowercased. This is what the format
   /// aggregate is built from, and every counted photo has one because the
@@ -72,7 +83,7 @@ class ScannedPhoto {
 /// entry, and the photo that is copied into the release has to go back through
 /// that same reader.
 class ScannedSet {
-  const ScannedSet({required this.entry, required this.photos});
+  const ScannedSet({required this.entry, required this.photos, this.readError});
 
   final SourceEntry entry;
 
@@ -80,6 +91,12 @@ class ScannedSet {
 
   /// The photos, in the order the source gives them.
   final List<ScannedPhoto> photos;
+
+  /// Why the container itself could not be read, and null when it could. A set
+  /// that cannot be read is an empty set with a reason: the scan reports it as
+  /// it found it rather than failing the whole source for one entry
+  /// (`ai/photoset_pack.md` §4), and the log records what it failed with.
+  final String? readError;
 
   int get photoCount => photos.length;
 }
@@ -96,7 +113,15 @@ abstract class PhotosetReader {
   /// Whether this entry is a container this reader reads.
   bool canRead(SourceEntry entry);
 
-  /// The photos it holds, in the order the source gives them.
+  /// The photos it holds, in the order the source gives them. A photo whose
+  /// header cannot be read is answered with the reason, because the photo is
+  /// counted either way (`ai/photoset_pack.md` §4).
+  ///
+  /// A container that cannot be read at all is not something a reader can answer
+  /// for itself: it throws, and the scan is the place that reports what it found,
+  /// so it catches per item and keeps the reason. That is why a reader has no log
+  /// of its own, as the rule above gives: a reader is a container, not an object
+  /// with state.
   Future<List<ScannedPhoto>> read(String path);
 
   /// The whole photo, for the photo that is copied into the release. Reading
@@ -198,9 +223,24 @@ class PhotosetScanner {
       // UI isolate for the whole archive (`ai/photoset_pack.md` §4). Doing it
       // here rather than in each reader is what makes the rule hold for a
       // reader added later.
-      final photos = await Isolate.run(() async => reader.read(entry.readPath));
+      var photos = const <ScannedPhoto>[];
+      String? readError;
 
-      final set = ScannedSet(entry: entry, photos: photos);
+      try {
+        photos = await Isolate.run(() async => reader.read(entry.readPath));
+      } catch (error) {
+        // A container that could not be read is an empty set with a reason. Each
+        // reader lets that one case come here rather than swallowing it, because
+        // this is the place that reports what a scan found, and the reason is
+        // what the log keeps (`ai/photoset_pack.md` §4).
+        readError = '$error';
+      }
+
+      final set = ScannedSet(
+        entry: entry,
+        photos: photos,
+        readError: readError,
+      );
 
       sets.add(set);
 

@@ -321,7 +321,7 @@ void main() {
     expect(bytes.sublist(0, 2), [0xFF, 0xD8]);
 
     // The picture is the size the source is, not a scaled-down copy of it.
-    final dimensions = await readImageDimensions(outputPath);
+    final dimensions = (await readImageDimensions(outputPath)).dimensions;
 
     expect(dimensions?.width, 3840);
     expect(dimensions?.height, 2160);

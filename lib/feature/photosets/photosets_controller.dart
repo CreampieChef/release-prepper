@@ -4,6 +4,8 @@ import 'dart:math' as math;
 import 'package:path/path.dart' as p;
 
 import '../../service/images/image_dimensions.dart';
+import '../../service/logging/tool_log.dart';
+import '../../service/logging/tool_log_entry.dart';
 import '../../service/native_tools/ffmpeg.dart';
 import '../../service/photosets/photoset_picker.dart';
 import '../../service/photosets/photoset_scanner.dart';
@@ -34,6 +36,13 @@ import '../tab/tab_manager.dart';
 /// That is why the run reports as it goes: the report is what lets the widget
 /// build between two sets.
 ///
+/// It writes the app's log for what the scan could not read. The page names the
+/// photo, as the rule that a controller shows no messages gives it, and a name is
+/// not a reason: the reason is what the log keeps, because a page shows state for
+/// a moment and a run is read back from the log after it. Nothing is written for
+/// what the scan read, because a real pack is tens of thousands of photos and a
+/// line for each would not be readable.
+///
 /// For both photoset types the run writes a preview thumbnail next to each
 /// photo it copies (`ai/picking.md` §8). That is the only place those files
 /// come from, and nothing is recorded for them, so the path is derived here,
@@ -47,6 +56,7 @@ class PhotosetController {
     required this.releaseStore,
     required this.tabManager,
     required this.tabId,
+    required this.log,
   });
 
   final Release release;
@@ -62,9 +72,20 @@ class PhotosetController {
   /// `release.json`, for the last-edit stamp a pick writes. The scan changes no
   /// files, so it stamps nothing: opening a release is a read.
   final ReleaseStore releaseStore;
-
   final TabManager tabManager;
   final String tabId;
+
+  /// The app's log, for what the scan could not read. The reader decides the
+  /// case and the scan reports it, but a reader is a container and cannot hold
+  /// this (`ai/photoset_pack.md` §4), so the reason comes back as data and this
+  /// is the place that writes it — the same shape as the System Check controller
+  /// holds the log for the check it makes.
+  final ToolLog log;
+
+  /// What the log names this run by, in the place a log entry names the tool it
+  /// ran. A scan is not a tool call, so it names the work, as the check entries
+  /// name what was checked.
+  static const scanLogName = 'photoset-scan';
 
   /// The largest side a preview thumbnail is written at (`ai/picking.md` §8).
   static const thumbnailMaxSize = 800;
@@ -162,6 +183,11 @@ class PhotosetController {
 
     final success = result as ScanSuccess;
 
+    // What the scan could not read is recorded here, in the order the scan read
+    // it. The names are what the page shows, and the reason is what the log keeps
+    // (`ai/photoset_pack.md` §4).
+    await _logReadFailures(success);
+
     // The write path is the editor's, so the values are returned rather than
     // written. Marking the tab dirty here is for the items; the values mark it
     // through that path.
@@ -191,6 +217,51 @@ class PhotosetController {
       nameCollisions: success.nameCollisions,
       scan: success,
     );
+  }
+
+  /// One log entry for each thing the scan could not read, in the order the scan
+  /// read them: a container it could not read at all, and a photo whose header it
+  /// could not read. Nothing is written for what was read, because a real pack is
+  /// tens of thousands of photos (`ai/photoset_pack.md` §4).
+  ///
+  /// The reasons are the reader's and the scan's, not words made here: an
+  /// exception as it reported it, or the case the header reader names. Rule 13 is
+  /// not broken by this, because it is about what a page shows, and the page shows
+  /// the names as it already did.
+  Future<void> _logReadFailures(ScanSuccess result) async {
+    for (final set in result.sets) {
+      final container = set.readError;
+
+      if (container != null) {
+        await log.write(
+          release.directoryPath,
+          ToolLogRead(
+            date: DateTime.now().toUtc(),
+            tool: scanLogName,
+            input: [release.source, set.path],
+            error: container,
+          ),
+        );
+      }
+
+      for (final photo in set.photos) {
+        final error = photo.readError;
+
+        if (error == null) {
+          continue;
+        }
+
+        await log.write(
+          release.directoryPath,
+          ToolLogRead(
+            date: DateTime.now().toUtc(),
+            tool: scanLogName,
+            input: [release.source, '${set.path}/${photo.name}'],
+            error: error,
+          ),
+        );
+      }
+    }
   }
 
   /// One item, as the scan read it. An item is what the scan produces, so this
@@ -387,7 +458,7 @@ class PhotosetController {
   /// section shows. Null for a photo whose header cannot be read, which the
   /// grid lays out as a square (`ai/picking.md` §7).
   double? aspectRatio(String absolutePath) {
-    final dimensions = readImageDimensionsSync(absolutePath);
+    final dimensions = readImageDimensionsSync(absolutePath).dimensions;
 
     if (dimensions == null || dimensions.height == 0) {
       return null;

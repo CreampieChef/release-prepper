@@ -31,6 +31,7 @@ import 'package:release_prepper/l10n/app_localizations.dart';
 import 'package:release_prepper/service/images/masonry.dart';
 import 'package:release_prepper/service/launcher/path_opener.dart';
 import 'package:release_prepper/service/launcher/url_opener.dart';
+import 'package:release_prepper/service/logging/tool_log.dart';
 import 'package:release_prepper/service/native_tools/ffmpeg.dart';
 import 'package:release_prepper/service/native_tools/ffprobe.dart';
 import 'package:release_prepper/service/native_tools/media_info.dart';
@@ -51,6 +52,7 @@ import 'package:release_prepper/service/videos/image_generator.dart';
 import 'package:release_prepper/service/videos/video_scanner.dart';
 
 import 'fake_pornolab_client.dart';
+import 'fake_tool_log.dart';
 import 'test_fields.dart';
 import 'test_font_store.dart';
 import 'test_photo.dart';
@@ -347,6 +349,7 @@ void main() {
           Provider<ReleaseStore>(create: (_) => ReleaseStore()),
           ChangeNotifierProvider<TabManager>(create: (_) => TabManager()),
           Provider<ImagesStore>(create: (_) => ImagesStore()),
+          Provider<ToolLog>(create: (_) => FakeToolLog()),
           ...messageProviders(messageBundle),
           ...stashProviders(),
           ...draftProviders(urlOpener: urlOpener),

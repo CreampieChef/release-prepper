@@ -225,3 +225,37 @@ final class ToolLogCheck extends ToolLogEntry {
     'error': error,
   };
 }
+
+/// A photo, or a container, the photoset scan could not read
+/// (`ai/photoset_pack.md` §4). The log is the app's log, so `tool` names what
+/// the app was reading, as the check entries name what was checked, and `input`
+/// is the source and the item the reason belongs to.
+///
+/// Nothing is written for what was read: a scan reads tens of thousands of
+/// photos, and a line for each would make the file unreadable, so this is the
+/// record of what it could not read. The page names the photo, as the page shows
+/// state, and the reason is here — a page shows it for a moment and the log is
+/// what a run is read back from.
+final class ToolLogRead extends ToolLogEntry {
+  const ToolLogRead({
+    required super.date,
+    required super.tool,
+    required super.input,
+    required this.error,
+  });
+
+  static const readStream = 'read';
+
+  /// Why it could not be read: the exception as the exception reported it, or the
+  /// case the reader names when nothing threw (`ai/photoset_pack.md` §4).
+  final String error;
+
+  @override
+  Map<String, Object?> toJson() => {
+    'date': date.toIso8601String(),
+    'tool': tool,
+    'input': input,
+    'stream': readStream,
+    'error': error,
+  };
+}
