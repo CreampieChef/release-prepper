@@ -209,13 +209,13 @@ abstract class AppLocalizations {
   /// No description provided for @releaseTypeSinglePhotoset.
   ///
   /// In en, this message translates to:
-  /// **'Single photoset (Beta)'**
+  /// **'Single photoset'**
   String get releaseTypeSinglePhotoset;
 
   /// No description provided for @releaseTypePhotosetPack.
   ///
   /// In en, this message translates to:
-  /// **'Photoset pack (Beta)'**
+  /// **'Photoset pack'**
   String get releaseTypePhotosetPack;
 
   /// No description provided for @releaseTypeImageFolderUpload.

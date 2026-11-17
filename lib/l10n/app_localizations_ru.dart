@@ -66,10 +66,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get releaseTypeVideoPack => 'Пак видео (Beta)';
 
   @override
-  String get releaseTypeSinglePhotoset => 'Одиночный фотосет (Beta)';
+  String get releaseTypeSinglePhotoset => 'Одиночный фотосет';
 
   @override
-  String get releaseTypePhotosetPack => 'Пак фотосетов (Beta)';
+  String get releaseTypePhotosetPack => 'Пак фотосетов';
 
   @override
   String get releaseTypeImageFolderUpload =>

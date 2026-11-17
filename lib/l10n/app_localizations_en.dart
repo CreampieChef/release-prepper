@@ -66,10 +66,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get releaseTypeVideoPack => 'Video pack (Beta)';
 
   @override
-  String get releaseTypeSinglePhotoset => 'Single photoset (Beta)';
+  String get releaseTypeSinglePhotoset => 'Single photoset';
 
   @override
-  String get releaseTypePhotosetPack => 'Photoset pack (Beta)';
+  String get releaseTypePhotosetPack => 'Photoset pack';
 
   @override
   String get releaseTypeImageFolderUpload => 'Image folder upload (Beta)';

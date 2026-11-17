@@ -5322,7 +5322,8 @@ display names (`releaseTypeSingleVideo`, `releaseTypeVideoPack`,
 `releaseTypeSinglePhotoset`, `releaseTypePhotosetPack` and
 `releaseTypeImageFolderUpload`) are in both files, in the order the enum
 declares them, and are resolved by `releaseTypeLabel` in `release_type.dart`.
-Every one of them carries a "(Beta)" marker except Single video.
+Only Video pack and Image folder upload carry a "(Beta)" marker; Single video,
+Single photoset and Photoset pack do not.
 `genreTagsLabel` is reused rather than given a pack name of its own, so the tags
 work for both types. `fieldLabel` in `release_fields.dart` is the one function
 that turns a field name into a key, and `releaseTypeLabel` is the same for a
