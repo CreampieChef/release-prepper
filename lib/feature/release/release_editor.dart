@@ -302,7 +302,16 @@ class _ReleaseEditorState extends State<ReleaseEditor> {
     'audioStream',
   ];
 
-  static const _photosetPackLeft = ['siteOrJournal', 'period', 'genreTags'];
+  // The name the post is titled with is the first row of the column, because it
+  // is the first name the field list lists (`ai/photoset_pack.md` §3).
+  static const _photosetPackLeft = [
+    'titleOrActress',
+    'siteOrJournal',
+    'period',
+    'genreTags',
+    'description',
+    'additionalInfo',
+  ];
 
   static const _photosetPackRight = [
     'photosetCount',

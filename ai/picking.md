@@ -303,6 +303,11 @@ of sets, and a single set's do not, because the count of one item is the item
   the right column of a line of the list says, against the photos the run picked for that set, and
   for the single photoset it is shown nowhere, because that type draws no list.
 
+  The list the post shows is a different thing, and it is built in code, because the renderer has no
+  iteration: it names the count the scan took with no picked half against it (`ai/photoset_pack.md`
+  §7). It draws the sets in the order this list draws them in, and names each set the same way, by
+  the rule above.
+
 - The area is titled Screenshots for both types, because what it shows is the pictures rather than
   the sets, and it uses the title the Screenshots section titles itself with, so the two areas that
   show the same files the same way say the same word. The pack's list of sets is the block's, not

@@ -262,6 +262,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get chooseFolder => 'Выбрать папку';
 
   @override
+  String get titleOrActressLabel => 'Название (или имя актрисы)';
+
+  @override
   String get siteOrJournalLabel => 'Сайт или журнал';
 
   @override

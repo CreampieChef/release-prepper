@@ -1308,12 +1308,13 @@ data (`ai/release_structure.md` §4). The URLs are stored per image and per
   different results. A failure is drawn with `colorScheme.error`, as an error
   row is.
 - The two dropdowns' options are the enum values, `ReleaseType` and `Tracker`,
-  so an option cannot
-  exist without the field list and label behind it. A template is not required
-  to create a release, so
-  a type whose message is not implemented can still be chosen; a video pack is
-  one, and generating its
-  message is what fails, not opening it. The labels are the display names:
+  so an option cannot exist without the field list and label behind it. A
+  template is not required to create a release, so a type whose message is not
+  implemented can still be chosen, and generating its message is what fails, not
+  opening it. Every type has a template now, so nothing is refused for that
+  reason; a photoset pack's post names the release as its field list states it
+  rather than what each set has, because iteration over a list is not built
+  (`ai/photoset_pack.md` §7). The labels are the display names:
   `releaseTypeLabel` for a type, `Tracker.displayName` for a tracker.
 
 ---
@@ -2361,9 +2362,11 @@ lib/
                                 (`ai/description_template.md` §Variables), the
                                 screenshot block, in the shape the release chose
   or the flat block
-                                for the types that cannot group, and the app
-  signature block when
-                                the release asks for it, calls the renderer,
+                                for the types that cannot group, the list of
+   sets for the
+                                type that has one, and the app signature block
+   when the release
+                                asks for it, calls the renderer,
   writes both
                                 files; typed result, no listener, no context.
   Says whether every
@@ -4408,7 +4411,9 @@ keys, and the editor's form, the Stash section and the Video pack section all ca
 for its table's column headers and for the detail lines, which are text rather than form rows;
 `releaseTypeLabel(type, l10n)` in `release_type.dart` is the same for a release type. The answer is
 the same for every type except the two names a single photoset words differently, because a model
-is the same value as a cast and a set name the same value as a title (`ai/single_photoset.md` §4).
+is the same value as a cast and a set name the same value as a title (`ai/single_photoset.md` §4);
+a name only one type has is that type's words for what it means, as the pack's
+field is the case for the title or the actress name (`ai/photoset_pack.md` §3).
 Which shape a row has — a button, a multiline box, one that grows — is the widget's.
 
 `FieldValues` holds the values as plain strings keyed by field name — the same model at both
@@ -5293,10 +5298,13 @@ poster family (`chooseImage`, `pasteFromUrl`, `nothingToPaste`, `removeImage`,
 `posterFileNotFound`, `posterWrongFormat`, `posterUrlInvalid`,
 `posterDownloadFailed`, `posterWriteFailed`, `posterRemoveFailed`) are in both
 files too and are used by `release_editor.dart`. The photoset pack family
-(`photosetPackFolderLabel`, `chooseFolder`, `siteOrJournalLabel`, `periodLabel`,
-`photosetCountLabel`, `totalPhotoCountLabel`, `pickedPhotoCountLabel`,
-`totalSizeLabel`, `minResolutionLabel`, `maxResolutionLabel`) is in both files
-and is used by `release_editor.dart`. `pickedPhotoCountLabel` is not a pack
+(`photosetPackFolderLabel`, `chooseFolder`, `titleOrActressLabel`,
+`siteOrJournalLabel`, `periodLabel`, `photosetCountLabel`,
+`totalPhotoCountLabel`, `pickedPhotoCountLabel`, `totalSizeLabel`,
+`minResolutionLabel`, `maxResolutionLabel`) is in both files and is used by
+`release_editor.dart`. `titleOrActressLabel` is the pack's own key, because the
+name belongs to this type alone, so the words do not depend on the type
+(`ai/photoset_pack.md` §3). `pickedPhotoCountLabel` is not a pack
 name: the count of what a pick wrote is the same value for either photoset type,
 so both field lists read that one key, and it is the only name in this family
 that the single photoset's field list uses. `totalSizeLabel` is the name the
@@ -6245,7 +6253,10 @@ section, so the same tests provide a settings controller with a client that
 answers with nothing, and the fake launcher; none of those tests reach the
 Upload button or the link, and the section's own behaviour is in
 `test/draft_section_test.dart`. The pack tests cover the field list as the
-editor uses it: a photoset pack shows its own fields and none of the video ones,
+editor uses it: a photoset pack shows its own fields — the name the post is
+titled with first, and the words that name resolves to — and none of the video
+ones, and the row for that name is the first row of the form's first column,
+because the field list lists it first,
 a video pack shows its own four aggregates as read-only and none of the photoset
 ones — the total first, and shown in the human form as the size field is —, a
 single photoset shows its own fields and the words its type uses for names the
@@ -6562,11 +6573,16 @@ value when that hoster is absent, that the first poster record is the primary
 one, that with `--dev` the poster hoster is the first test hoster and the block
 names the test hosters with the second as the backup, the block is one spoiler
 per hoster then the backup poster with the screenlist as the last item, that a
-photo is rendered in the block like a screenshot, a hoster with nothing uploaded
-produces no spoiler, an image with no `thumb_url` is skipped, a poster on the
-poster hoster produces no backup spoiler, nothing uploaded produces an empty
-block so its line is dropped, and the text is written to `message.txt` with no
-trailing newline. The asset bundle is a fake that answers from a map, so the
+photo is rendered in the block like a screenshot, the list of sets the pack
+builds as a block variable: one line per item with the name the display rule
+gives it and the count the scan took, a line for an item whose count was not
+written names the set by its name alone, a pack with no items produces nothing
+so its template line is dropped, and a type with no list of sets produces
+nothing for the variable, a hoster with nothing uploaded produces no spoiler, an
+image with no `thumb_url` is skipped, a poster on the poster hoster produces no
+backup spoiler, nothing uploaded produces an empty block so its line is dropped,
+and the text is written to `message.txt` with no trailing newline.
+The asset bundle is a fake that answers from a map, so the
 path rule is tested without the bundle on disk, and it throws the shape the real
 bundle throws for a key it does not have, so the store's guard is tested against
 what the app actually gets. `test/message_section_test.dart` covers the widget:

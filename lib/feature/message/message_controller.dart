@@ -41,6 +41,13 @@ const thumbUrlType = 'thumb_url';
 /// second tracker needs its own strings.
 const screenshotsTitle = 'Скриншоты';
 const backupPosterTitle = 'Резервный постер';
+const photosetListTitle = 'Список сетов';
+
+/// The word the line naming a set puts after the count it shows
+/// (`ai/photoset_pack.md` §7). The words of the field lines are in the template
+/// files, but this one belongs to a line built here, so it is written here for
+/// the same reason as the block titles above.
+const postPhotoCountWord = 'фото';
 
 /// The two lines the post shows for one video's streams (`ai/video_pack.md` §7).
 /// The words are the same as the app's labels for those fields, but written here
@@ -262,15 +269,18 @@ class MessageController {
 
   /// The values the template reads: the fields as `release.json` writes them,
   /// the release record, the image variables, `appVersion`, the two values the
-  /// render builds from the fields — the resolution line, and the formats
-  /// as the post lists them — and the app signature block
+  /// render builds from the fields — the resolution line, and the formats as
+  /// the post lists them — the two blocks the app builds, the screenshot block
+  /// and the list of sets, and the app signature block
   /// (`ai/description_template.md` §Variables, §App signature). A local path is
   /// not something a post shows, so the source is not a value.
   ///
   /// Only the release's own fields are here. A per-item value is not one a
-  /// template can read, because the renderer has no iteration; showing items
-  /// needs the block grouping rule that decides how they would be shown
-  /// (`ai/release_structure.md` §3, `ai/video_pack.md` §8).
+  /// template can read, because the renderer has no iteration: the item values
+  /// are read by the code that builds the block they are shown in, which is how
+  /// the list of sets works (`ai/release_structure.md` §3). Showing items as a
+  /// group needs the block grouping rule that decides how they would be shown
+  /// (`ai/video_pack.md` §8).
   ///
   /// Only the fields a template reads are here, which is what the field list
   /// says with `readByTemplate`. The two draft names are stored but no template
@@ -293,6 +303,7 @@ class MessageController {
         posterUrlType,
       ),
       'screenshotSection': _screenshotSection(manifest),
+      'photosetList': _setsBlock(),
       'appVersion': appVersion,
     };
 
@@ -453,6 +464,50 @@ class MessageController {
         ReleaseType.singlePhotoset => _blockFlat(manifest),
         ReleaseType.imageFolderUpload => _blockFlat(manifest),
       };
+
+  /// The block listing the sets, for the type that has a list of sets
+  /// (`ai/photoset_pack.md` §7): one line per item, the name the display rule
+  /// gives it and the count the scan took for that set. Only the pack has one,
+  /// because the single photoset's block draws no list (`ai/picking.md` §7), so
+  /// the other types produce nothing, and a pack with no items produces nothing
+  /// rather than an empty spoiler. The size is not part of a line, because
+  /// nothing per set is stored: the scan keeps the sizes it reads only to add
+  /// them into the release's total (§3). The switch is exhaustive over the
+  /// release types, as the one above is.
+  String _setsBlock() => switch (release.releaseType) {
+    ReleaseType.photosetPack => _setLines(),
+    ReleaseType.singleVideo => '',
+    ReleaseType.videoPack => '',
+    ReleaseType.singlePhotoset => '',
+    ReleaseType.imageFolderUpload => '',
+  };
+
+  /// The lines, in the order the model holds the items, which is the order the
+  /// list in the form draws them in as well (`ai/picking.md` §7). A value an
+  /// item does not have is left out rather than shown as an empty part, the
+  /// same rule as the line a group is titled with.
+  String _setLines() {
+    final lines = <String>[];
+
+    for (final item in release.items) {
+      final count = item.fields.value('photoCount');
+
+      final line = [
+        p.basenameWithoutExtension(item.path),
+        if (count.isNotEmpty) '$count $postPhotoCountWord',
+      ].where((part) => part.isNotEmpty).join(', ');
+
+      if (line.isNotEmpty) {
+        lines.add(line);
+      }
+    }
+
+    if (lines.isEmpty) {
+      return '';
+    }
+
+    return _spoiler(photosetListTitle, lines);
+  }
 
   /// The records the block shows, in the order it shows them: photos, then
   /// screenshots, then the screenlist. The poster is not one of them; it is the

@@ -572,6 +572,12 @@ abstract class AppLocalizations {
   /// **'Choose folder'**
   String get chooseFolder;
 
+  /// No description provided for @titleOrActressLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Title (or actress name)'**
+  String get titleOrActressLabel;
+
   /// No description provided for @siteOrJournalLabel.
   ///
   /// In en, this message translates to:

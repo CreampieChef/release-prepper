@@ -59,10 +59,10 @@ no template read it.
 row the form builds, as it has for a single video: its widget is the Stash row, and that is what
 writes it through the editor's write path (`ai/release_structure.md` §3).
 
-`additionalInfo` is on the list because the template reads it as an optional line, so the type has
-the field and the row the other types have (`ai/description_template.md` §Variables). A field with
-no row and no value would be stored but never written, which is why it was not on this list while
-no template read it.
+`description` and `additionalInfo` are stated as not required, as the other types state them, being
+the optional template variables (`ai/description_template.md` §Validation); the other names here are
+stated as required. Nothing is checked for this type, because its required set is not stated, so
+what the marks hold is what the rules would be when they are.
 
 App-generated, at the release level:
 

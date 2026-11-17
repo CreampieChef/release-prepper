@@ -848,6 +848,79 @@ void main() {
     },
   );
 
+  // The list of sets the post shows is the pack's, and it is built here
+  // because the renderer has no iteration: the name the display rule gives the
+  // item, and the count the scan took for it (`ai/photoset_pack.md` §7). An
+  // archive and a directory are named the same way, by the rule the list in
+  // the form follows too (`ai/picking.md` §7).
+  test('the pack lists its sets with the display name and the count', () async {
+    expect(
+      await _generate(
+        const ImagesManifest(images: []),
+        '{{photosetList}}',
+        releaseType: ReleaseType.photosetPack,
+        items: [
+          _item('set01.zip', {'photoCount': '12'}),
+          _item('set02', {'photoCount': '8'}),
+        ],
+      ),
+      [
+        '[spoiler="Список сетов"]',
+        'set01, 12 фото',
+        'set02, 8 фото',
+        '[/spoiler]',
+      ].join('\n'),
+    );
+  });
+
+  // A count the scan did not write is left out rather than shown as an empty
+  // part, the same rule as the line a group is titled with.
+  test(
+    'a line names a set whose count was not written by its name alone',
+    () async {
+      expect(
+        await _generate(
+          const ImagesManifest(images: []),
+          '{{photosetList}}',
+          releaseType: ReleaseType.photosetPack,
+          items: [_item('set01.zip', {})],
+        ),
+        ['[spoiler="Список сетов"]', 'set01', '[/spoiler]'].join('\n'),
+      );
+    },
+  );
+
+  // A pack with no items produces nothing, so the line its template has for the
+  // block is dropped rather than producing an empty spoiler.
+  test('a pack with no sets produces no list', () async {
+    expect(
+      await _generate(
+        const ImagesManifest(images: []),
+        '{{photosetList}}',
+        releaseType: ReleaseType.photosetPack,
+        items: [],
+      ),
+      '',
+    );
+  });
+
+  // The other types have no list of sets, so the variable produces nothing for
+  // them: the block in the form draws no list for the single photoset, and the
+  // other types have no items of that kind at all.
+  test('a type with no list of sets produces nothing for it', () async {
+    expect(
+      await _generate(
+        const ImagesManifest(images: []),
+        '{{photosetList}}',
+        releaseType: ReleaseType.singlePhotoset,
+        items: [
+          _item('set01', {'photoCount': '12'}),
+        ],
+      ),
+      '',
+    );
+  });
+
   // A photo is an image in the post like a screenshot is, so the block covers
   // it too.
   test('a photo is rendered in the block like a screenshot', () async {

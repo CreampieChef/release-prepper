@@ -39,11 +39,12 @@ Six constructs, and no others:
 * `{{#style.slot}}…{{/style.slot}}` — a style slot. Its content is wrapped by the rule
   of that name in the style file.
 * `{{blank}}` — an empty line in the output.
-* A block variable (`{{screenshotSection}}`, `{{appSignature}}`) — the app builds the
-  whole block itself, the image block from the release's image records as a spoiler block
-  with one item per line and the app signature from its file, and passes the
-  finished block to the template as a string. The template does not describe its shape, so
-  no style slot applies to it. `MessageController` builds it.
+* A block variable (`{{screenshotSection}}`, `{{photosetList}}`, `{{appSignature}}`) — the app
+  builds the whole block itself, and passes the finished block to the template as a string: the
+  image block from the release's image records as a spoiler block with one item per line, the
+  list of sets from the items the model holds for the type that has a list, and the app
+  signature from its file. The template does not describe its shape, so no style slot applies
+  to it. `MessageController` builds it.
 
 ### Lines
 
@@ -87,17 +88,21 @@ Field names are the names `release.json` writes.
 | `appVersion` | the app's own version, from `lib/app/app_info.dart` |
 | `appSignature` | the app signature file, when the checkbox is on (see App signature) |
 | `resolutionMinMax` | built from the two resolution fields, as one value |
+| `photosetList` | built from the items the model holds, for the type that has a list of sets |
 
-`tracker` and `releaseType` are the technical names, not the display names. A template is written
-in the language the tracker publishes in and writes its own words, so the app can only provide the
-ID; a template that needs the words a post shows writes them itself.
+`tracker` and `releaseType` are the technical names, not the display names. A template is written in
+the language the tracker publishes in and writes its own words, so the app can only provide the ID;
+a template that needs the words a post shows writes them itself. A line of a block the app builds is
+an exception: the block's shape and the words it needs to say a count are written in the code that
+builds it, because the template cannot name each item (`ai/photoset_pack.md` §7).
 
 `movieFilePath` is not available: a local path is not something a post shows.
 
 `resolutionMinMax` is not a field, so it is not in `release.json` and not in any field list: it is
 the same information as `minResolution` and `maxResolution`, and nothing can edit it. The values the
-app builds itself — the image variables, `appVersion`, the signature, this one — are the values no
-field list can state, so they are what `MessageController.values()` adds to the fields it reads.
+app builds itself — the image variables, the blocks, `appVersion`, the signature, this one — are the
+values no field list can state, so they are what `MessageController.values()` adds to the fields it
+reads.
 
 It is `min-max`, or the value once when the smallest and the largest photo are the same photo, and
 nothing when neither has been written.

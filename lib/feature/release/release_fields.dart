@@ -293,8 +293,10 @@ const singleVideoFieldList = FieldList(
 
 /// Field list of a photoset pack (`ai/photoset_pack.md`).
 ///
-/// The user provides the site or journal, the period and the tags; the rest is
-/// what the scan counts. A photoset has no values read from a file, so nothing
+/// The user provides the name the post is titled with, the site or journal,
+/// the period, the tags, the description and the additional information; the
+/// rest is what the scan counts. A photoset has no values read from a file, so
+/// nothing
 /// here is filled by a probe — these are filled by the scan, which is the same
 /// marker under a different producer.
 const photosetPackFieldList = FieldList(
@@ -303,9 +305,23 @@ const photosetPackFieldList = FieldList(
   itemBoundary: ItemBoundary.entries,
   itemType: itemTypePhotoset,
   fields: [
+    // The name the post is titled with. A pack has no title for one set: the
+    // per-item form does not exist, so the value is the release's own, and a
+    // pack post is titled with either the title or the name of the actress.
+    // This is a name of its own rather than `videoTitle` or `cast`, because it
+    // is the two of them in one value, and a name means one value
+    // (`ai/release_structure.md` §3).
+    FieldSpec(name: 'titleOrActress'),
     FieldSpec(name: 'siteOrJournal'),
     FieldSpec(name: 'period'),
     FieldSpec(name: 'genreTags'),
+    // The same names the other types have, because the values are the same
+    // values; the template reads both as optional lines, so these are optional
+    // as the rule for a template variable says (`ai/description_template.md`
+    // §Validation). The row is the multiline box the other forms build for
+    // these two names.
+    FieldSpec(name: 'description', isRequired: false),
+    FieldSpec(name: 'additionalInfo', isRequired: false),
     FieldSpec(name: 'photosetCount', filledByApp: true),
     FieldSpec(name: 'totalPhotoCount', filledByApp: true),
     // What the pick wrote, kept with the counts the scan took, because it is
@@ -404,11 +420,12 @@ const singlePhotosetFieldList = FieldList(
     FieldSpec(name: 'videoTitle'),
     FieldSpec(name: 'productionDate'),
     FieldSpec(name: 'genreTags'),
-    FieldSpec(name: 'description'),
-    // The same name the single video and the video pack have, because the
-    // additional information is the same value; the template reads it as an
-    // optional line (`ai/description_template.md` §Variables).
-    FieldSpec(name: 'additionalInfo'),
+    // The same names the other types have, because the values are the same
+    // ones, and not required, as they are there: the template reads them as
+    // optional lines, so an empty value is what the post shows for them
+    // (`ai/description_template.md` §Validation, `ai/photoset_pack.md` §3).
+    FieldSpec(name: 'description', isRequired: false),
+    FieldSpec(name: 'additionalInfo', isRequired: false),
     FieldSpec(name: 'totalPhotoCount', filledByApp: true),
     // The same name the pack has, because the count of the photos the pick
     // wrote is the same value whatever the type, and for this type the item
@@ -520,6 +537,10 @@ String fieldLabel(
   'audioStream' => l10n.audioStreamLabel,
   'description' => l10n.descriptionLabel,
   'additionalInfo' => l10n.additionalInfoLabel,
+  // The name a pack post is titled with: the title, or the actress name when
+  // the pack has no title (`ai/photoset_pack.md` §3). It is a name this type
+  // alone has, so the words do not depend on the type.
+  'titleOrActress' => l10n.titleOrActressLabel,
   'siteOrJournal' => l10n.siteOrJournalLabel,
   'period' => l10n.periodLabel,
   'photosetCount' => l10n.photosetCountLabel,

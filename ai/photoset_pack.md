@@ -1,11 +1,12 @@
 # Photoset pack
 
 **Design. The field list, the form, the scan, the header reader, the two readers, the picker, the
-block and the photo area are implemented; the message template is not.** This is the fourth release
-type, after Single video, the video pack and the single photoset. It follows
+block and the photo area are implemented, and so are the message and the title templates. What is
+not is the iteration over the sets in the renderer, so the post names the release as its field list
+states it, and what it says about the sets is the list of sets built in code (§7).** This is the
+fourth release type, after Single video, the video pack and the single photoset. It follows
 `ai/release_structure.md`: the containers are one shape for every type, and a new type is a field
-list plus a template. When the template is implemented, `ai/doc.md` §7 is rewritten in the same
-change, as the project rule requires.
+list plus a template.
 
 ## 1. One release type, not two
 
@@ -50,13 +51,37 @@ User-provided, at the release level:
 
 | Field | Meaning |
 | --- | --- |
+| `titleOrActress` | the name the post is titled with: the title, or the actress name |
 | `siteOrJournal` | the site or journal name |
 | `period` | the period the set covers |
 | `genreTags` | the tags — the existing name, reused |
+| `description` | the description — the existing name, reused |
+| `additionalInfo` | the additional information — the existing name, reused |
 
 `genreTags` is reused rather than renamed so the tags and the fill-from-items button work
 unchanged. `siteOrJournal` and `period` are new: a journal is not a subsite, and a period is not
 a production date.
+
+`description` and `additionalInfo` are the existing names, reused, so this type has what the other
+types have for them: the multiline box the form builds for those two names, and the conditional
+lines the template wraps, which produce nothing when the value is empty. They are the two fields
+this type states as not required, being the optional template variables
+(`ai/description_template.md` §Validation); the other names here are stated as required. Nothing is
+checked for this type, because its required set is not stated, so what the marks hold is what the
+rules would be when they are.
+
+`titleOrActress` is the first name of the list, and the form's column list mirrors it, so its row is
+the first row of the form's first column, below the poster box (`ai/release_editor.md`). It is a
+name of this type rather than one another type already has, for two reasons. A pack has no title for
+one set: the per-item form does not exist, so no item can be named, and the value that names the
+release is the release's own. And it is one value for two things — the title when the pack has one,
+the actress name when it does not — so it is not the same value as `videoTitle` or as `cast`, and
+writing it under either name would say something the post does not show (`ai/release_structure.md`
+§3). It is a user field, so it is editable, not `filledByApp`.
+
+The words are *Title (or actress name)* / *Название (или имя актрисы)*, resolved by `fieldLabel`.
+Because the name belongs to this type alone, the arm does not branch on the type, and the two names
+a single photoset words differently are not touched (`ai/single_photoset.md` §4).
 
 App-generated, at the release level:
 
@@ -75,13 +100,16 @@ App-generated, at the item level:
 | --- | --- |
 | `photoCount` | the number of photos in this set |
 
-`pickedPhotoCount` is not what the scan counts: it is what the pick run wrote, so the run fills it and
-hands it to the editor's write path at its end, as the values above are handed there (`ai/picking.md`
-§7). The name is in both photoset types' field lists, because the value is the same for either, and the
-row it is drawn at is the one after `totalPhotoCount`, as the field lists are read in order. The
-item-level count is recorded by the scan, because an item's field is what the model writes for a
-post to read, and it is also what the total in a line of the block's list of sets shows
-(`ai/picking.md` §7).
+`pickedPhotoCount` is not what the scan counts: it is what the pick run wrote, so the run fills it
+and hands it to the editor's write path at its end, as the values above are handed there
+(`ai/picking.md` §7). The name is in both photoset types' field lists, because the value is the same
+for either, and the row it is drawn at is the one after `totalPhotoCount`, as the field lists are
+read in order. The item-level count is recorded by the scan, because an item's field is what the
+model writes for a post to read, and it is also what the total in a line of the block's list of sets
+shows (`ai/picking.md` §7), and what the line of the post's list of sets shows (§7). No size is an
+item field, because the scan keeps the sizes the counted photos have only to add them into the
+release's `totalSize`; that is why a line of the post's list names a set and its count and says
+nothing about size, and why the size is §9.
 
 Resolution is compared by pixel area, not by a side, and it is aggregated at the release level
 only — there is no per-set min/max. A resolution value is written as `WIDTHxHEIGHT`.
@@ -275,19 +303,102 @@ does, as `ai/release_structure.md` §4 says; whether it should upload from the s
 
 ## 7. The message
 
-A pack post lists items individually, which needs iteration over a list in `TemplateRenderer` —
-the one genuinely new capability `ai/description_template.md` §5 names. It is also the first case
-where building the block in code is no longer acceptable, because the block is grouped per
-photoset rather than flat.
+A pack post lists items individually, which needs iteration over a list in `TemplateRenderer` — the
+one genuinely new capability `ai/description_template.md` §5 names. It is not built, so what the
+post says about the sets is a block the app builds in code, which is the shape the renderer's block
+variable has (`ai/description_template.md` §Variables), and the list of sets below is one of those
+blocks.
 
 So this type is where the tracker config stops being a future idea: the grouping rule, the block
 titles, the hoster and the URL types. Either the config is built now, or the pack block is
 hardcoded as the first version is today. That is a decision, not an implementation detail.
 
-The template is `assets/templates/pornolab/photoset_pack.txt`. The pack has no title file of
-its own, and the tracker default no longer exists — it was the single video type's template,
-moved to the per-type path (`ai/description_template.md` §Title) — so the pack's title is
-empty.
+What is built is the field block plus the image block, with no iteration: the post names the release
+as its field list states it, and the image block is the flat one `MessageController` already builds
+for this type, because nothing groups it per set. The lines are the names the field list has, in the
+order the list gives them, and the formats line is not one of them, because this type has no
+`imageFormats` name (§3).
+
+The name the post is titled with is the styled line at the top of the post, as one set's name is in
+the single photoset's post, and the field has no row in the body: the same value would be said
+twice. The description and the additional information are the conditional lines the other types
+have, so a pack with nothing written in them produces nothing there.
+
+The list of sets is the one part of the post that names items, so it is a block variable,
+`{{photosetList}}`, placed before the image block. One line per item, in the order the model holds
+them, which is the order the list in the form draws them in too (`ai/picking.md` §7): the name the
+display rule gives the item (§2), and the count the scan took for that set (§3). An archive and a
+directory are named the same way, because the display name is the path without its extension either
+way (§2). A value an item does not have is left out rather than shown as an empty part, as the line
+a video pack group is titled with does (`ai/video_pack.md` §7).
+
+The size is not part of a line, because the model keeps nothing per set: the scan sums the sizes the
+counted photos have into the release's `totalSize` and writes no value for an item. A line can show
+a size only when the model holds one per set, which is §9.
+
+The block is the pack's own: the single photoset draws no list of sets, the other types have no
+sets, so the variable produces nothing for them, and a pack with no items produces nothing rather
+than an empty spoiler. Its title, and the word the line puts after a count, are written in
+`message_controller.dart` with the other block titles, for the same reason those are written there:
+the post is in the language the site publishes in.
+
+The template is `assets/templates/pornolab/photosetPack.txt`, named by the enum value as every
+template is:
+
+```
+{{#style.poster}}{{posterUrl}}{{/style.poster}}
+
+{{#style.title}}{{titleOrActress}}{{/style.title}}
+
+{{blank}}
+
+{{#style.label}}Сайт или журнал{{/style.label}}: {{#style.text}}{{siteOrJournal}}{{/style.text}}
+{{#style.label}}Период{{/style.label}}: {{#style.text}}{{period}}{{/style.text}}
+
+{{blank}}
+
+{{#style.label}}Жанр{{/style.label}}: {{#style.text}}{{genreTags}}{{/style.text}}
+{{#style.label}}Количество фото{{/style.label}}: {{#style.text}}{{totalPhotoCount}}{{/style.text}}
+{{#style.label}}Количество сетов{{/style.label}}: {{#style.text}}{{photosetCount}}{{/style.text}}
+{{#style.label}}Разрешение{{/style.label}}: {{#style.text}}{{resolutionMinMax}}{{/style.text}}
+
+{{blank}}
+
+{{#description}}{{#style.label}}Описание{{/style.label}}: {{#style.text}}{{description}}{{/style.text}}{{/description}}
+
+{{blank}}
+
+{{#additionalInfo}}{{#style.label}}Доп. информация{{/style.label}}: {{#style.text}}{{additionalInfo}}{{/style.text}}{{/additionalInfo}}
+
+{{blank}}
+
+{{photosetList}}
+
+{{blank}}
+
+{{screenshotSection}}
+
+{{blank}}
+
+{{appSignature}}
+```
+
+The words are the words `fieldLabel` gives the names for this type, so the post and the form cannot
+disagree about what a field is called. The two counts are the lines this type has and the single
+photoset does not: the photos across all the sets, and the sets themselves (`ai/single_photoset.md`
+§3, §4). The description and the additional information are the same lines as that type's, because
+the values are the same ones.
+
+The title is `assets/templates/pornolab/photosetPack.title.txt`:
+
+```
+[{{siteOrJournal}}] {{period}} {{titleOrActress}} [{{genreTags}}] [{{resolutionMinMax}}, {{totalPhotoCount}} фото, {{photosetCount}} сетов]
+```
+
+It is the single photoset's rule with this type's values, the same shape `ai/single_photoset.md` §8
+defines: the period where that type has a date, one value where that type has the model and the set
+name, and the two counts where that type has the count of one set. It has no video quality in it, as
+that type has none, so it is not the tracker's rule (`ai/description_template.md` §Title).
 
 ## 8. What changes in code
 
@@ -329,11 +440,34 @@ Done:
     it takes the fallback path; a single photoset writes them as the pack does, because the rule does not
     branch on the type.
 
+11. `release_fields.dart` — `titleOrActress` as the first name of this type's field list, and the
+    arm `fieldLabel` gives it; `release_editor.dart` with the row as the first row of the form's
+    first column, because the column list mirrors the field list. The name is the pack's own, so
+    nothing in the single photoset's labels changes (`ai/single_photoset.md` §4).
+
+12. `release_fields.dart` — `description` and `additionalInfo` on this type's field list, as the
+    other types have them, and the same two lines in the message. The rows are the multiline boxes
+    the form builds for those two names, so the form needs nothing beyond the column list. The tests
+    are the two rows being editable, as the other fields of the form are.
+
+13. The two templates of §7: `assets/templates/pornolab/photosetPack.txt`, with the field block in
+    the order the field list gives it, the two optional lines, the line for the list of sets, and
+    the flat image block, and `assets/templates/pornolab/photosetPack.title.txt`. The l10n key for
+    the title field's words in both arb files. The tests are the pack form showing the field first
+    and the words this type's label resolves to, and the row being the first row of the column.
+
+14. `message_controller.dart` — the block variable of §7: the lines, one per item, drawn with the
+    name the display rule gives it and the count the scan took for it, since the renderer has no
+    iteration, and nothing for the types with no list of sets or for a pack with no items. Its
+    title, and the word after a count, are constants next to the other block titles. The tests are
+    the block for an archive and a directory named the same way, a line for an item whose count was
+    not written, a pack with no items, and a type with no list.
+
 Left:
 
-11. `message_controller.dart` — iteration and the grouping rule.
-12. `template_renderer.dart` — iteration over a list.
-13. The per-item forms in the editor (`ai/release_structure.md` §7 item 11).
+15. `message_controller.dart` — iteration and the grouping rule for the image block.
+16. `template_renderer.dart` — iteration over a list.
+17. The per-item forms in the editor (`ai/release_structure.md` §7 item 11).
 
 ## 9. Open questions
 
@@ -341,8 +475,12 @@ Left:
   directly inside it until this is decided.
 - Whether the app copies the picked photos into the release or uploads them from the source. The
   structure spec says copy; the cost is disk space and a source that may be gone later.
-- Whether the item record needs the container kind. It does not, unless a re-scan has to work
-  after the source is gone.
+- Whether the item record needs the container kind. It does not, unless a re-scan has to work after
+  the source is gone.
+
+- Whether the scan stores the size a set's counted photos have. It does not, so the post's list
+  names a set and its count only (§7), and a line with a size needs the value per item before it can
+  be written.
 - The picking rule is decided in `ai/picking.md`, including that a set whose share is below one photo
   is skipped rather than given one, because the count is what the popup was asked for. What is not:
   whether the numbers are constants in the code or values the tracker config holds.

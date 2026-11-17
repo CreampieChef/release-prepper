@@ -2423,16 +2423,12 @@ void main() {
       await openEditor(tester, testPackRelease('/tmp/x'));
 
       // The field is as wide as the column, as a field the form builds plainly
-      // is. The gap before the section is from the bottom of the last row, and
-      // the last line of that row is its link, so the row ends there — at the
-      // widget that draws the link, whose touch target is taller than the words
-      // it shows.
-      final lastField = tester.getRect(find.byKey(const ValueKey('genreTags')));
-      final linkRow = tester.getRect(
-        find.ancestor(
-          of: find.text('Sort and deduplicate tags'),
-          matching: find.byType(TextButton),
-        ),
+      // is. The gap before the section is from the bottom of the last row of
+      // the column, which is the additional information box: the two boxes the
+      // tags are followed by are the ones the form builds for these names
+      // (`ai/photoset_pack.md` §3).
+      final lastField = tester.getRect(
+        find.byKey(const ValueKey('additionalInfo')),
       );
       final section = tester.getRect(
         find.byKey(const ValueKey('torrentSection')),
@@ -2444,7 +2440,7 @@ void main() {
 
       expect(section.width, closeTo(lastField.width, 0.5));
       expect(section.left, closeTo(lastField.left, 0.5));
-      expect(section.top - linkRow.bottom, closeTo(columnGap, 0.5));
+      expect(section.top - lastField.bottom, closeTo(columnGap, 0.5));
 
       // Above the Upload section, in the same column.
       expect(upload.top - section.bottom, closeTo(columnGap, 0.5));
@@ -2465,7 +2461,9 @@ void main() {
 
       await openEditor(tester, testPackRelease('/tmp/x'));
 
-      final field = tester.getRect(find.byKey(const ValueKey('genreTags')));
+      final field = tester.getRect(
+        find.byKey(const ValueKey('additionalInfo')),
+      );
       final section = tester.getRect(
         find.byKey(const ValueKey('torrentSection')),
       );
@@ -3785,14 +3783,24 @@ void main() {
 
   // A photoset pack has its own field list, so the form shows those names and
   // none of the video ones. The values the scan counts are read-only, because
-  // the user cannot edit what the app fills.
+  // the user cannot edit what the app fills. The name the post is titled with
+  // is this type's own, because a pack has no title for one set, so the words
+  // for it are this type's and not the ones the shared names resolve to
+  // (`ai/photoset_pack.md` §3, `ai/single_photoset.md` §4).
   testWidgets('a photoset pack shows its own fields', (tester) async {
     tester.view.physicalSize = const Size(2000, 2000);
     tester.view.devicePixelRatio = 1.0;
 
     await openEditor(tester, testPackRelease('/tmp/x'));
 
-    for (final name in ['siteOrJournal', 'period', 'genreTags']) {
+    for (final name in [
+      'titleOrActress',
+      'siteOrJournal',
+      'period',
+      'genreTags',
+      'description',
+      'additionalInfo',
+    ]) {
       expect(fieldOf(tester, name).readOnly, isFalse, reason: name);
     }
 
@@ -3807,10 +3815,36 @@ void main() {
       expect(fieldOf(tester, name).readOnly, isTrue, reason: name);
     }
 
+    // The words this type's own name resolves to. The single photoset's words
+    // for the names this form does not have are not shown here, and neither are
+    // the words the other types use for them.
+    expect(find.text('Title (or actress name)'), findsOneWidget);
+
     // The video field list is not part of a pack form.
     for (final name in ['videoTitle', 'cast', 'videoQuality', 'fileSize']) {
       expect(find.byKey(ValueKey(name)), findsNothing, reason: name);
     }
+  });
+
+  // The name the post is titled with is the first name of this type's field
+  // list, and the form draws its rows in the order the list gives them, so its
+  // row is the first row of fields in the form's first column, below the poster
+  // box and above the site row (`ai/photoset_pack.md` §3).
+  testWidgets('the title row is the first row of a pack form', (tester) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    await openEditor(tester, testPackRelease('/tmp/x'));
+
+    final title = tester.getRect(find.byKey(const ValueKey('titleOrActress')));
+    final site = tester.getRect(find.byKey(const ValueKey('siteOrJournal')));
+
+    // A row is as wide as the column it is in, so the two are the same width.
+    expect(title.width, closeTo(site.width, 0.5));
+    expect(title.left, closeTo(site.left, 0.5));
+
+    // The row before the site, with the gap between the rows of a column.
+    expect(site.top - title.bottom, closeTo(16, 0.5));
   });
 
   // The count the pick wrote is a field row like the counts the scan took, and

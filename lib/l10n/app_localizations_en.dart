@@ -262,6 +262,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chooseFolder => 'Choose folder';
 
   @override
+  String get titleOrActressLabel => 'Title (or actress name)';
+
+  @override
   String get siteOrJournalLabel => 'Site or journal';
 
   @override
