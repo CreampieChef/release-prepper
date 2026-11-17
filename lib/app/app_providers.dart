@@ -24,7 +24,7 @@ import '../feature/tab/tab_close_controller.dart';
 import '../feature/tab/tab_manager.dart';
 import '../feature/window/window_controller.dart';
 import '../feature/window/window_gateway.dart';
-import '../feature/window/window_size_store.dart';
+import '../feature/window/window_record_store.dart';
 import '../service/fonts/font_store.dart';
 import '../service/launcher/path_opener.dart';
 import '../service/launcher/url_opener.dart';
@@ -303,10 +303,12 @@ List<SingleChildWidget> appProviders() => [
   ),
 
   // The window. It has no widget and shows nothing, so the entries here are
-  // the whole feature (`ai/doc.md` §4): the size is recorded at the point the
-  // close flow decides the app is closing for real, and the app never asks the
-  // window for a size — the runners apply the recorded one before the window is
-  // created.
+  // the whole feature (`ai/doc.md` §4): the record is written at the point the
+  // close flow decides the app is closing for real and at the window's events —
+  // its size changing, and its state changing. The runners apply the record
+  // before the window is created; the app asks the window for a size at the one
+  // point where the window may be at a size the record does not hold, the
+  // un-maximize.
   //
   // The gateway is the plugin seam, the same reason `SecretStore` is one, and
   // the plugin instance is read here for the same reason its instance is.
@@ -318,19 +320,27 @@ List<SingleChildWidget> appProviders() => [
   // settings.json, because settings are the user's choices and this is a record
   // of what the window was (`ai/doc.md` §7). The Linux and Windows runners read
   // the same file before they create the window.
-  Provider<WindowSizeStore>(
+  Provider<WindowRecordStore>(
     create: (_) =>
-        WindowSizeStore(appDirectory: getApplicationSupportDirectory),
+        WindowRecordStore(appDirectory: getApplicationSupportDirectory),
   ),
 
-  // Nothing is read here at startup, because the app does not apply a size. This
-  // entry is the shape of the other controllers': the close flow is what calls
-  // it.
+  // Nothing is read here at startup, because the app does not apply the record.
+  // This entry is the shape of the other controllers': the close flow is what
+  // calls it. Registering the state-change callback here is where the
+  // feature's wiring is, because the controller has no widget to register it
+  // in — the same deviation rule 2 already records for it.
   Provider<WindowController>(
-    create: (context) => WindowController(
-      store: context.read<WindowSizeStore>(),
-      gateway: context.read<WindowGateway>(),
-    ),
+    create: (context) {
+      final controller = WindowController(
+        store: context.read<WindowRecordStore>(),
+        gateway: context.read<WindowGateway>(),
+      );
+
+      context.read<WindowGateway>().addEventListener(controller.record);
+
+      return controller;
+    },
   ),
 
   Provider<TabCloseController>(

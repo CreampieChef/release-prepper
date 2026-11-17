@@ -121,7 +121,7 @@ Win32Window::~Win32Window() {
 }
 
 bool Win32Window::Create(const std::wstring& title, const Size& size,
-                         bool scale_size) {
+                         bool scale_size, bool maximized) {
   Destroy();
 
   const wchar_t* window_class =
@@ -168,7 +168,14 @@ bool Win32Window::Create(const std::wstring& title, const Size& size,
   // Monitor coordinates are physical pixels for a process the manifest declares
   // PerMonitorV2 aware, which is the unit CreateWindow takes the size in too,
   // so a position built from the work area is not scaled.
-  HWND window = CreateWindow(window_class, title.c_str(), WS_OVERLAPPEDWINDOW,
+  // A record that says maximized is the state the window is created in, and the
+  // size above is then what it restores to, since Windows restores a maximized
+  // window to the size and position it was created with. Show needs to know the
+  // state as well: showing it with SW_SHOWNORMAL here would restore it.
+  const LONG style = WS_OVERLAPPEDWINDOW | (maximized ? WS_MAXIMIZE : 0L);
+  maximized_ = maximized;
+
+  HWND window = CreateWindow(window_class, title.c_str(), style,
                             left, top, width, height, nullptr, nullptr,
                             GetModuleHandle(nullptr), this);
 
@@ -182,7 +189,8 @@ bool Win32Window::Create(const std::wstring& title, const Size& size,
 }
 
 bool Win32Window::Show() {
-  return ShowWindow(window_handle_, SW_SHOWNORMAL);
+  return ShowWindow(window_handle_,
+                    maximized_ ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL);
 }
 
 // static

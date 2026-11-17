@@ -46,20 +46,22 @@ static gboolean parse_whole(const char* token, int* value) {
   return TRUE;
 }
 
-// Reads the size the app recorded in the last run into width and height, and
-// leaves them as they are when there is nothing to read: a file that is not
-// there, cannot be read, is not three whole numbers, or is not the version the
-// app writes. Nothing is reported for any of those, which is the same rule the
-// app follows (`ai/doc.md` §7) — a size that cannot be read is not something
-// the runner can show, and a run that starts at the default size is not an
-// error.
+// Reads the record the app wrote in the last run into width, height and
+// maximized, and leaves them as they are when there is nothing to read: a
+// file that is not there, cannot be read, is not four whole numbers, is not
+// the version the app writes, or has a state that is not one of the two the
+// app writes. Nothing is reported for any of those, which is the same rule
+// the app follows (`ai/doc.md` §7) — a record that cannot be read is not
+// something the runner can show, and a run that starts at the default size is
+// not an error.
 //
 // The file is read from the app data directory as `path_provider` resolves it:
 // `XDG_DATA_HOME`, or `~/.local/share` when that is not set, plus the
 // application id, which is what `g_get_user_data_dir` gives. path_provider's
 // fallback to a directory named for the executable is not reproduced here, so
 // such a directory is not read.
-static void read_recorded_size(int* width, int* height) {
+static void read_recorded_record(int* width, int* height,
+                                 gboolean* maximized) {
   g_autofree char* path = g_build_filename(
       g_get_user_data_dir(), APPLICATION_ID, "window_size.txt", nullptr);
 
@@ -72,7 +74,7 @@ static void read_recorded_size(int* width, int* height) {
 
   g_auto(GStrv) parts = g_strsplit_set(contents, " \t\r\n", -1);
 
-  int values[3] = {0, 0, 0};
+  int values[4] = {0, 0, 0, 0};
   int count = 0;
 
   for (char** part = parts; *part != nullptr; part++) {
@@ -87,14 +89,14 @@ static void read_recorded_size(int* width, int* height) {
       return;
     }
 
-    if (count < 3) {
+    if (count < 4) {
       values[count] = value;
     }
 
     count++;
   }
 
-  if (count != 3 || values[0] != kFormatVersion) {
+  if (count != 4 || values[0] != kFormatVersion) {
     return;
   }
 
@@ -104,8 +106,15 @@ static void read_recorded_size(int* width, int* height) {
     return;
   }
 
+  // A state is one of the two the app writes, so anything else is not a line
+  // this app wrote.
+  if (values[3] != 0 && values[3] != 1) {
+    return;
+  }
+
   *width = values[1];
   *height = values[2];
+  *maximized = values[3] == 1;
 }
 
 // The app icon, resolved through the icon theme by the application id — the
@@ -158,18 +167,31 @@ static void my_application_activate(GApplication* application) {
     gtk_window_set_title(window, "release_prepper");
   }
 
-  // The size the window is created with is the one the app recorded in the last
-  // run, or the default when there is nothing recorded. This is the only place
-  // the size can be applied: the size a window is created with is what this
-  // says, and a size asked for after the window exists is a request the desktop
-  // may ignore, so an app that asked for it would show the user one window that
-  // jumped (`ai/doc.md` §7).
+  // What the window is created as is the record the app wrote in the last run,
+  // or the default when there is nothing recorded. This is the only place the
+  // record can be applied: the size a window is created with is what this
+  // says, and a size asked for after the window exists is a request the
+  // desktop may ignore, so an app that asked for it would show the user one
+  // window that jumped (`ai/doc.md` §7). The state is applied here too, before
+  // the window is shown, for the same reason.
   int width = kDefaultWidth;
   int height = kDefaultHeight;
+  gboolean maximized = FALSE;
 
-  read_recorded_size(&width, &height);
+  read_recorded_record(&width, &height, &maximized);
 
   gtk_window_set_default_size(window, width, height);
+
+  // A maximize asked for before the window is shown is applied when the
+  // window is first mapped, so it appears maximized rather than jumping to
+  // it. It is a request, not a fact: GTK says not to assume the window ends
+  // up maximized, and not every window manager honours one, so nothing here
+  // depends on it. The size above is what GTK requests at map, and whether
+  // un-maximizing returns to it is the window manager's memory, not GTK's —
+  // GTK keeps no normal size of its own.
+  if (maximized) {
+    gtk_window_maximize(window);
+  }
 
   set_window_icon(window);
 

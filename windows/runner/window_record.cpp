@@ -1,4 +1,4 @@
-#include "window_size.h"
+#include "window_record.h"
 
 #include <shlobj.h>
 #include <windows.h>
@@ -126,7 +126,7 @@ std::wstring sanitize_directory_name(const std::wstring& raw) {
 // plus company-name\product-name from the VERSIONINFO resource. The product
 // falls back to the executable name without its extension, and the company
 // component is dropped when the resource has no company name.
-std::wstring recorded_size_path() {
+std::wstring recorded_record_path() {
   wchar_t base[MAX_PATH + 1];
 
   if (SHGetFolderPathW(nullptr, CSIDL_APPDATA, nullptr, 0, base) != S_OK) {
@@ -184,8 +184,8 @@ std::wstring recorded_size_path() {
 
 }  // namespace
 
-bool ReadRecordedSize(int* width, int* height) {
-  const std::wstring path = recorded_size_path();
+bool ReadRecordedRecord(int* width, int* height, bool* maximized) {
+  const std::wstring path = recorded_record_path();
 
   if (path.empty()) {
     return false;
@@ -203,9 +203,9 @@ bool ReadRecordedSize(int* width, int* height) {
     return false;
   }
 
-  // The line is "version width height", separated by whitespace.
+  // The line is "version width height state", separated by whitespace.
   std::istringstream tokens(line);
-  int values[3] = {0, 0, 0};
+  int values[4] = {0, 0, 0, 0};
   int count = 0;
 
   std::string token;
@@ -217,14 +217,14 @@ bool ReadRecordedSize(int* width, int* height) {
       return false;
     }
 
-    if (count < 3) {
+    if (count < 4) {
       values[count] = value;
     }
 
     count++;
   }
 
-  if (count != 3 || values[0] != kFormatVersion) {
+  if (count != 4 || values[0] != kFormatVersion) {
     return false;
   }
 
@@ -234,8 +234,15 @@ bool ReadRecordedSize(int* width, int* height) {
     return false;
   }
 
+  // A state is one of the two the app writes, so anything else is not a line
+  // this app wrote.
+  if (values[3] != 0 && values[3] != 1) {
+    return false;
+  }
+
   *width = values[1];
   *height = values[2];
+  *maximized = values[3] == 1;
 
   return true;
 }

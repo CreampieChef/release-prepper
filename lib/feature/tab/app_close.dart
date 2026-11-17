@@ -4,6 +4,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../window/window_controller.dart';
+import '../window/window_gateway.dart';
 import 'tab_close.dart';
 import 'tab_close_controller.dart';
 
@@ -53,12 +54,12 @@ class _AppCloseHandlerState extends State<AppCloseHandler> with WindowListener {
     if (await confirmCloseApp(context, controller, l10n)) {
       _closing = true;
 
-      // The size is recorded here because this is the only point at which the
-      // app knows what the window was for a whole run. The answer is not shown:
-      // there is no widget left that could say the file was not written, so a
-      // failed write shows up on the next start. The close does not depend on
-      // the write.
-      await window.recordSize();
+      // The record is written here because this is the only point at which the
+      // app knows what the window was for a whole run, besides the window's
+      // events. The answer is not shown: there is no widget left that could say
+      // the file was not written, so a failed write shows up on the next start.
+      // The close does not depend on the write.
+      await window.record(WindowEvent.closed);
 
       await windowManager.destroy();
     }

@@ -29,12 +29,19 @@ class Win32Window {
   // pixels, hence to ensure a consistent size this function scales the inputted
   // width and height as appropriate for that monitor — unless |scale_size| is
   // false, which is what a size that is already in physical pixels needs, such
-  // as the size the app recorded in its last run. The window is invisible until
-  // |Show| is called. Returns true if the window was created successfully.
+  // as the size the app recorded in its last run. When |maximized| is true
+  // the window is created in that state, and Show shows it in that state too,
+  // since ShowWindow would otherwise restore it to the size given here — which
+  // is what a record that says maximized asks for. The window is invisible
+  // until |Show| is called. Returns true if the window was created
+  // successfully.
   bool Create(const std::wstring& title, const Size& size,
-             bool scale_size = true);
+             bool scale_size = true, bool maximized = false);
 
   // Show the current window. Returns true if the window was successfully shown.
+  // A window created maximized is shown maximized, because ShowWindow with
+  // SW_SHOWNORMAL restores a maximized window to the size Create was given,
+  // which is not what a record that says maximized asks for.
   bool Show();
 
   // Release OS resources associated with window.
@@ -89,6 +96,10 @@ class Win32Window {
   static void UpdateTheme(HWND const window);
 
   bool quit_on_close_ = false;
+
+  // Whether the window was created maximized, which Show needs: showing a
+  // window in the maximized state with SW_SHOWNORMAL restores it.
+  bool maximized_ = false;
 
   // window handle for top level window.
   HWND window_handle_ = nullptr;

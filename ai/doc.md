@@ -38,10 +38,11 @@ menu bar.
   native window-close event, which Flutter cannot intercept on its own, so the
   app can run the per-tab unsaved-changes popup before closing, to set the
   native window title in `main.dart`, which `MaterialApp.title` does not set on
-  the desktop runners, and to read the size the window has at the point the app
-  closes. It is not used to ask the window for a size: the runners apply the
-  recorded one before the window exists (§7). `flutter_secure_storage` is the
-  second: it is used only to reach the OS credential store, which Flutter cannot
+   the desktop runners, and to read the size the window has and be told when it
+   changes. The runners apply the recorded size and state before the window
+   exists, and the plugin is asked for a size at one point only, the
+   un-maximize (§7). `flutter_secure_storage` is the second: it is used only to
+   reach the OS credential store, which Flutter cannot
   reach on its own, and only for the values the Integration section stores (see
   §7). `archive` is the third: it is used only to read ZIP archives in the
   photoset scan, because the parts a hand-written reader gets wrong are the ones
@@ -1149,27 +1150,33 @@ data (`ai/release_structure.md` §4). The URLs are stored per image and per
   away on a switch. It is not stored in settings.json, because it is what the
   user was looking at and not a setting, and a settings tab that was closed
   shows the first section again, because the record the choice was on is gone.
-- The app remembers the size the window had at the end of the run (`ai/doc.md`
-  §7). It is the app's second app-level record and the only one with no page:
-  nothing on the Settings page writes it, because the value is not something the
-  app takes from a form — the window is what writes it. It is recorded at the
-  point the app closes for real, which is the only moment the app knows what the
-  window was for a whole run, and the same size as the one already recorded is
-  not written again. What is remembered is the size the window reported at that
-  point: the maximized state is not part of the record, so a window closed
-  maximized is remembered at the size it was maximized to. Position is not
-  recorded, because a size is what the user chose by dragging and the app has
-  one window. A write that fails is not reported: there is no widget left that
-  could say it, so it shows up on the next run, as the file the runners read and
-  as the record this feature compares against. The app never asks the window for
-  a size; the runners read the record before they create the window, so the
-  window is created at the size the last run had rather than resized to it after
-  it appeared. That is the only way to get that: the size a window is created
-  with is what its toolkit says at creation, and a size asked for afterwards is
-  a request the desktop may ignore, which is the difference between a window
-  that opens at the remembered size and one that jumps to it. A record that is
-  not there is nothing, so a first run takes the size a runner starts with. The
-  macOS runner does not read it (`lib/TODO.MD`).
+- The app remembers the record it keeps of the window: the size it had, and
+  whether it was maximized (`ai/doc.md` §7). It is the app's second app-level
+  record and the only one with no page: nothing on the Settings page writes
+  it, because the value is not something the app takes from a form — the
+  window is what writes it. It is recorded at the points the app is told the
+  window changed — its size, or its state — and at the point the app closes
+  for real, which is the only moment the app knows what the window was for a
+  whole run. The same record as the one already recorded is not written again.
+  What the size half means is the size the user chose by dragging: a maximized
+  window reports the size the desktop gave it, and the size a window has at
+  the un-maximize is the one the desktop chose to restore it to, so neither
+  changes the size and only the state is written. The case that cannot be kept
+  is a record with nothing in it yet, where the size the window has is the
+  only size there is. Position is not recorded, because a size is what the
+  user chose by dragging and the app has one window. A write that fails is not
+  reported: there is no widget left that could say it, so it shows up on the
+  next run, as the file the runners read and as the record this feature
+  compares against. The runners read the record before they create the window,
+  so a window is created at the size and in the state the last run had rather
+  than being resized to them after it appeared: the size a window is created
+  with is what its toolkit says at creation, and a size asked for afterwards
+  is a request the desktop may ignore, which is the difference between a
+  window that opens at the remembered size and one that jumps to it. The app
+  asks for a size at one point, the un-maximize, because on Linux nothing
+  returns to the remembered size by itself (§7). A record that is not there is
+  nothing, so a first run takes the size a runner starts with. The macOS
+  runner does not read it (`lib/TODO.MD`).
 - The Recent releases tab (`File` → `Recent releases`, `Icons.schedule` in the
   tab strip) is a table of
   the releases the app has opened, so the user can go back to one without
@@ -2780,36 +2787,47 @@ lib/
                                         when it opens, and passes the default
   directory to the scan
     window/
-      window_size.dart          WindowSize (the whole pixels the window last
-                                had), the app's record of what the window was
-                                (`ai/doc.md` §7), + encode() and decode() for
-                                the line the format is + the rule that a line no
-                                reader can read is read as nothing
-      window_size_store.dart    WindowSizeStore (load/save) for window_size.txt
-                                in the app data directory; a missing or
-                                unreadable file reads as nothing. The app is the
-                                only writer: the Linux and Windows runners read
-                                the same line, so the rules are the format's,
-                                not the store's, and this class does the file
-                                and not the interpretation. The directory is a
-                                constructor parameter as a function, for the
-                                same reason SettingsStore's is
-      window_gateway.dart       WindowGateway (currentSize only) +
-                                PluginWindowGateway over window_manager. It is
-                                an interface because the plugin is a method
-                                channel and cannot be exercised in a test, the
-                                same reason SecretStore is one; the instance is
-                                read at the composition root. It reads the
-                                window and does not ask it for a size, because
-                                the runners apply the recorded one before the
-                                window exists (see §7)
-      window_controller.dart    WindowController: recordSize() (read the size
-                                the window has and write it when it is a size
-                                the app can store and not the size already
-                                recorded); typed result, no listener, no
-                                context, no widget and no state (see §4). It is
-                                called from the close flow, the only place that
-                                knows the app is closing for real
+      window_record.dart        WindowRecord (the size the window had at the
+                                end of a run, and whether it was maximized) —
+                                the app's record of what the window was
+                                (`ai/doc.md` §7) — + encode() and decode() for
+                                the line the format is + the rule that a line
+                                no reader can read is read as nothing
+      window_record_store.dart  WindowRecordStore (load/save) for
+                                `window_size.txt` in the app data directory; a
+                                missing or unreadable file reads as nothing.
+                                The app is the only writer: the Linux and
+                                Windows runners read the same line, so the
+                                rules are the format's, not the store's, and
+                                this class does the file and not the
+                                interpretation. The directory is a constructor
+                                parameter as a function, for the same reason
+                                SettingsStore's is
+      window_size.dart          WindowSize, the size half of the record, with
+                                the rule about what a size is; the two halves
+                                of the record mean different things (see §7)
+      window_gateway.dart       WindowGateway (currentRecord(), requestSize(),
+                                addEventListener()) + PluginWindowGateway over
+                                window_manager + WindowEvent, what changed
+                                about the window: its size, its state, or that
+                                the app is closing. It is an interface because
+                                the plugin is a method channel and cannot be
+                                exercised in a test, the same reason
+                                SecretStore is one; the instance is read at the
+                                composition root. The record is applied by the
+                                runners before the window exists, so the app
+                                reads the window and is told when it changes,
+                                and asks for a size only at the un-maximize
+                                (see §7)
+                                record the window is and write it when the app
+                                can store it and it is not the record already
+                                recorded. At the un-maximize the window is then
+                                asked for the size the record holds. Typed
+                                result, no state, no context, no widget, not a
+                                Listenable (see §4). It is called from the
+                                flow, the only place that knows the app is
+                                closing for real, and from the window's events,
+                                which the composition root registers on it
     stashdb/
       stash_controller.dart StashController: the scene ID from what the user
   pasted, the
@@ -3789,20 +3807,29 @@ linux/runner/                   the GTK runner. It sets the window icon by the
                                 with no icon in the theme is reported with a
                                 warning rather than left as the default icon. It
                                 also reads `window_size.txt` before it creates
-                                the window, so the window is created at the size
-                                the last run had (`ai/doc.md` §7), and takes its
-                                own default when the line is not one it can
-                                read.
-windows/runner/                 the Win32 runner. `window_size.cpp` reads the
+                                the window, so the window is created at the
+                                size and in the state the last run had
+                                (`ai/doc.md` §7), and takes its own default
+                                when the line is not one it can read. The
+                                maximize is asked for before the window is
+                                shown, which is what makes it appear maximized
+                                rather than jump to it, and it is a request a
+                                window manager may refuse.
+windows/runner/                 the Win32 runner. `window_record.cpp` reads the
                                 same line as the Linux runner does, from the
                                 directory `path_provider_windows` names, and
-                                `main.cpp` creates the window at it; a recorded
-                                size is in physical pixels, so it is not scaled
-                                to the monitor, which is the `scale_size`
-                                argument `Win32Window::Create` has for this. It
-                                then places the window, because position is not
+                                `main.cpp` creates the window at the size and
+                                in the state it states; a recorded size is in
+                                physical pixels, so it is not scaled to the
+                                monitor, which is the `scale_size` argument
+                                `Win32Window::Create` has for this. It then
+                                places the window, because position is not
                                 recorded: the runner centres it on the primary
-                                monitor's work area (`ai/doc.md` §7).
+                                monitor's work area (`ai/doc.md` §7). A window
+                                the record says maximized is created that way,
+                                and `Show()` shows it that way too, since
+                                `ShowWindow` with `SW_SHOWNORMAL` would restore
+                                it, which is why the class keeps the state.
 windows/runner/resources/       `app_icon.ico`, the icon the Windows runner shows in
                                 the titlebar and the taskbar. It is the app's own
                                 icon, the same artwork as
@@ -3958,20 +3985,26 @@ not treat those rules as describing the code as it is today).
   the provider scope, which keeps rule 4 intact.
 - Rule 2: `WindowController` has no widget, because the feature shows nothing
   and there is no widget to pair it with. It is called from `app_close.dart`,
-  the only place that knows the app is closing for real, and that is the only
-  place the feature is used from, so the provider entry is the whole feature. It
-  holds no state and nothing is read at startup, because the app does not apply
-  a size — the runners read the record before they create a window (§5) — so the
-  size it compares against is the file read at the point the record is written.
-  It is not a `Listenable`, so rule 7 is intact. Its typed result is read by the
-  tests, because there is no widget that could show it: the close flow cannot
-  report a file that was not written, so it calls the write and does not look at
-  the answer, and a failed write shows up on the next run.
+  the only place that knows the app is closing for real, and from the window's
+  events, which the composition root registers on its `record` method — with no
+  widget there is nowhere else a listener could be put, so the provider entry is
+  the whole feature. It holds no state and nothing is read at startup, because
+  the app does not apply the record — the runners read it before they create a
+  window (§5) — and because the value it needs is the file itself: the record on
+  disk is the size the user chose by dragging, which is what the app writes
+  whenever it is told the window changed while it was not maximized, except at
+  the un-maximize, where the size the window has is the one the desktop chose to
+  restore it to. It is not a `Listenable`, so rule 7 is intact. Its typed result
+  is read by the tests, because there is no widget that could show it: the close
+  flow cannot report a file that was not written, so it calls the write and does
+  not look at the answer, and a failed write shows up on the next run.
 - Rule 10: `window_manager` exposes a top-level `windowManager` instance, which
   `app_close.dart` uses. It is the one shared object reached outside the
-  provider scope, and it is there to receive the window-close event and to be
-  the window the app reads. The window feature does not reach it as a top-level:
-  the composition root reads it once and gives it to `PluginWindowGateway`, the
+  provider scope, and it is there to receive the window events: the close event
+  in `app_close.dart`, and the state changes in `PluginWindowGateway`, which
+  forwards them to what the composition root registered. And it is the window
+  the app reads. The window feature does not reach it as a top-level: the
+  composition root reads it once and gives it to `PluginWindowGateway`, the
   same kind of exception as `rootBundle` and the environment — a top-level the
   framework owns, read only at the composition root.
 - Rule 13: the shared close flow in `tab_close.dart`, the open flow in
@@ -4052,25 +4085,31 @@ when the provider creates it, in the same shape: it reads `recent_releases.json`
 and then opens the tab the app opens at startup as the first tab, so the first
 frames show an empty table and the stored entries apply when the read completes.
 Opening a tab is a side effect, so it is the controller's and not `app.dart`'s
-(rule 8). Nothing in the app reads the window size at startup, because the app
-does not apply a size. The Linux and Windows runners read `window_size.txt`
-before they create the window (§7), which is the only point at which a size can
-be settled: a window is created at the size its toolkit states at creation, and
-a size asked for afterwards is a request the desktop may ignore, so an app that
-asked would show the user a window that jumps. What the app does with the size
-is record it, at the point `app_close.dart` decides the app is closing for real.
+(rule 8). Nothing in the app reads the window record at startup, because the
+app does not apply it: the Linux and Windows runners read `window_size.txt`
+before they create the window (§7), which is the only point at which a size and
+a state can be settled — a window is created at the size its toolkit states at
+creation, and a size asked for afterwards is a request the desktop may ignore,
+so an app that asked would show the user a window that jumps. What the app does
+with the record is write it: at the point `app_close.dart` decides the app is
+closing for real, and at the window's events — its size changing, and its state
+changing. The app asks the window for a size at one point, the un-maximize,
+where the window may be at a size the record does not hold (§7); nothing depends
+on that request being answered, because the plugin cannot say whether it was.
 
 **Composition:** `appProviders()` is the whole object graph: `ToolLocator`,
-`ToolLog`, `ToolRunner`, `Ffmpeg`, `Ffprobe`, `Mtn`, `Uptooda`, `HttpClient` and
-`ImageDownloader` and `StashClient` — the two network users share one client,
-and `Provider` closes it — `ReleaseStore`, `ImagesStore`, `TemplateStore`,
-`TemplateRenderer`, `MessageStore`, `SettingsStore`, `RecentReleasesStore`,
-`SecretStore` (the plugin instance is built here, not inside the store),
-`SettingsController`, `TabManager` and `RecentReleasesController`
-(`ChangeNotifierProvider`s, disposed by Provider), `TabCloseController`,
-`ReleaseOpenController`, `MainMenuController`, `WindowSizeStore`,
-`WindowGateway` (`PluginWindowGateway`: the plugin instance is read here for the
-same reason the credential store's is) and `WindowController`.
+`ToolLog`, `ToolRunner`, `Ffmpeg`, `Ffprobe`, `Mtn`, `Uptooda`, `HttpClient`
+and `ImageDownloader` and `StashClient` — the two network users share one
+client, and `Provider` closes it — `ReleaseStore`, `ImagesStore`,
+`TemplateStore`, `TemplateRenderer`, `MessageStore`, `SettingsStore`,
+`RecentReleasesStore`, `SecretStore` (the plugin instance is built here, not
+inside the store), `SettingsController`, `TabManager` and
+`RecentReleasesController` (`ChangeNotifierProvider`s, disposed by Provider),
+`TabCloseController`, `ReleaseOpenController`, `MainMenuController`,
+`WindowRecordStore`, `WindowGateway` (`PluginWindowGateway`: the plugin
+instance is read here for the same reason the credential store's is) and
+`WindowController`, whose method is put on the gateway's event callback
+here because the feature has no widget to do it in.
 `RecentReleasesController` is built after `TabManager`, because opening the
 startup tab goes through it. `SystemCheckController` is a provider entry too,
 because the check is app-level rather than per release; it is given the four
@@ -4185,15 +4224,17 @@ route's focus scope included.
 `AppCloseHandler` registers the `window_manager` window-close listener and sets
 `setPreventClose(true)` so the toolkit does not close the window on its own; on
 the close event it runs the only if none is cancelled. A clean tab is skipped.
-On the answer that closes it first records the size the window has, through
-`WindowController.recordSize()`, because this is the only point at which the app
-knows what the window was for a whole run; the answer is not shown, because
-there is no widget left that could say a file was not written, and the close
-does not depend on the write. `destroy()` fires the close event again, so the
-handler guards against re-entering itself. `main.dart` calls
-`windowManager.ensureInitialized()` before `runApp` so the listener can be
-registered, then `windowManager.setTitle(appName)` — `MaterialApp.title` is not
-the window title on the desktop runners, so the native title is set here.
+On the answer that closes it first records the window as it is, through
+`WindowController.record()`, because this is the point at which the app knows
+what the window was for a whole run; the same method is what the window's state
+changes call, through the callback the composition root registers on the
+gateway. The answer is not shown, because there is no widget left that could
+say a file was not written, and the close does not depend on the write.
+`destroy()` fires the close event again, so the handler guards against
+re-entering itself. `main.dart` calls `windowManager.ensureInitialized()`
+before `runApp` so the listener can be registered, then
+`windowManager.setTitle(appName)` — `MaterialApp.title` is not the window title
+on the desktop runners, so the native title is set here.
 
 **Creating a release:** `ReleaseWizard` (form) → `validateReleaseName()` →
 `ReleaseWizardController.create()` → `ReleaseStore.create()` →
@@ -5736,79 +5777,146 @@ when a release is opened.
   a failed write does not change what the table shows, so the page says the file was not written, as the
   settings page says the same for `settings.json`.
 
-`window_size.txt` in the same directory is the app's record of the size the
-window had at the end of the last run. It is one line of three whole numbers —
-the format version, the width, the height — with a trailing newline:
+`window_size.txt` in the same directory is the app's record of the window: the
+size it had and the state it was in at the end of the last run. It is one line
+of four whole numbers — the format version, the width, the height, the state —
+with a trailing newline:
 
 ```text
-1 1440 900
+1 1440 900 1
 ```
 
 - It is a file of its own rather than a field inside `settings.json`, for the
   same reason `recent_releases.json` is: settings are the user's choices, and
-  this is a record of what the window was. Nothing on the Settings page reads or
-  writes it, so nothing shows it.
+  this is a record of what the window was. Nothing on the Settings page reads
+  or writes it, so nothing shows it.
+
 - It is plain text rather than JSON because three readers read it: the app, and
   the Linux and Windows runners, which read it before they create the window so
-  the window is created at the size the last run had rather than being resized
-  to it after it appeared. A C or C++ runner has no reader for the app's JSON
-  files, and a JSON library to parse two numbers would be a dependency for
-  nothing.
-- The app is the only writer; the runners only read. So what a line means is the
-  format's rules, not a store's, and every reader must give the same answer for
-  the same file: a line that is not three whole numbers, a version the app does
-  not write, or a number that is not positive is read as nothing by all three.
-  `1440.5` is not read as `1440`. A missing or unreadable file reads as nothing,
-  as `SettingsStore` reads a missing file as the defaults, so a run with no
-  record takes the size the runner starts with — the one
-  `linux/runner/my_application.cc` and `windows/runner/main.cpp` define. Nothing
-  is reported for any of it: a size that cannot be read is not something a
-  runner can show, and a window that opens at the default size is not an error.
-- The numbers are the size as the toolkit reported it, and a reader applies them
-  in the units it read them in, which are the same units on a platform: logical
+  the window is created at the size and in the state the last run had rather
+  than being resized to them after it appeared. A C or C++ runner has no reader
+  for the app's JSON files, and a JSON library to parse four numbers would be a
+  dependency for nothing.
+
+- The app is the only writer; the runners only read. So what a line means is
+  the format's rules, not a store's, and every reader must give the same answer
+  for the same file: a line that is not four whole numbers, a version the app
+  does not write, a number that is not positive, or a state that is not one of
+  the two the app writes is read as nothing by all three. `1440.5` is not read
+  as `1440`. A missing or unreadable file reads as nothing, as `SettingsStore`
+  reads a missing file as the defaults, so a run with no record takes what the
+  runner starts with — the size `linux/runner/my_application.cc` and
+  `windows/runner/main.cpp` define, and no state. Nothing is reported for any
+  of it: a record that cannot be read is not something a runner can show, and a
+  window that opens at the default size is not an error.
+
+- The size is the size as the toolkit reported it, and a reader applies it in
+  the units it read it in, which are the same units on a platform: logical
   pixels on Linux, where `gtk_window_get_size` reports and
   `gtk_window_set_default_size` takes; physical pixels on Windows, where
   `GetWindowRect` reports and `CreateWindow` takes — which is why the Windows
   runner does not scale a recorded size to the monitor, which is what
-  `Win32Window::Create`'s `scale_size` is for. The macOS runner does not read
-  the file (`lib/TODO.MD`).
+  `Win32Window::Create`'s `scale_size` is for. The fourth token is a state, not
+  a size, so it has no units and every reader reads it the same way. The macOS
+  runner does not read the file (`lib/TODO.MD`).
+
+  The app does not read the toolkit directly: its numbers come from the
+  plugin, and the plugin converts them. On Windows it divides `GetWindowRect`
+  by `devicePixelRatio`, so the size the app writes for a Windows run is in
+  logical pixels while the Windows runner reads the same line in physical
+  ones, and on a HiDPI display the two are different numbers. On Linux the
+  plugin reports and takes GTK's own numbers, which are the ones the runner
+  uses, so the app and the runner agree there. Asking the window for a size
+  round-trips on a platform, because the request goes through the same
+  conversion as the read; what it does not do is make the numbers the file
+  holds agree across the two platforms. This has not been observed on either
+  platform on a HiDPI display, and §10 item 9 keeps it open.
+
+- The state is applied where the size is, before the window exists, for the
+  same reason: a state asked for after the window appears is a request the
+  desktop may refuse, and a window that changes state after it appears is a
+  jump the user sees. On Linux `gtk_window_maximize()` asked for before the
+  window is shown is applied when it is first mapped; GTK says not to assume
+  the window ends up maximized, and not every window manager honours the
+  request, so nothing in the runner depends on it. On Windows `WS_MAXIMIZE` is
+  applied when the window is first shown, and `Show()` has to show it maximized
+  too, since `ShowWindow` with `SW_SHOWNORMAL` restores a maximized window to
+  the size `CreateWindow` was given — which is why `Win32Window` keeps the
+   state it was created with. On both the size in the record is what the window
+   restores to when the user un-maximizes, and that is the one point where the
+   app asks the window for a size. On Windows it returns to the recorded size
+   by itself, because that is the size `CreateWindow` was given. On Linux it
+   does not, because GTK keeps no normal size of its own:
+   `gtk_window_get_remembered_size` gives the size the window has once it is
+   realised, and GDK's saved size is only set while the window is not
+   maximized, so a window that was mapped maximized has nothing to restore to
+   and the window manager chooses. The app asks for the recorded size at the
+   un-maximize, which is a request the desktop may refuse: nothing depends on
+   the answer and nothing is reported for it, so the record keeps the size the
+   user chose even when the window is at a different one.
+
 - The directory has to be named the same way by both readers, so the runners
   reproduce what `path_provider` does. Linux: `XDG_DATA_HOME`, or
   `~/.local/share` when that is not set, plus the application id, which is what
-  `g_get_user_data_dir` gives; path_provider's fallback to a directory named for
-  the executable is not reproduced, so such a directory is not read. Windows:
-  Roaming AppData plus `company-name\product-name` from the VERSIONINFO
-  resource, with the executable name as the product when the resource has none
-  and the names sanitised as `path_provider_windows` sanitises them, which is
-  what `windows/runner/window_size.cpp` does.
+  `g_get_user_data_dir` gives; path_provider's fallback to a directory named
+  for the executable is not reproduced, so such a directory is not read.
+  Windows: Roaming AppData plus `company-name\product-name` from the
+  VERSIONINFO resource, with the executable name as the product when the
+  resource has none and the names sanitised as `path_provider_windows`
+  sanitises them, which is what `windows/runner/window_record.cpp` does.
+
 - The version is written as `schemaVersion` (§4 rule 11) and read as a number
   that must equal it, the same field the other data files carry. In the runners
   it is a constant that must stay equal to the Dart const, because a C runner
   has no access to it.
-- It is written at the point the app closes for real, not as the window is
-  resized, because that is the only moment the app knows what the window was for
-  a whole run. The same size as the one already recorded is not written again,
-  the same rule as the settings feature's.
-- Position is not stored, and the maximized state is not part of the record, so
-  a window closed maximized is remembered at the size it was maximized to. §10
-  keeps both as open work.
-- With no position in the record, the placement is the runner's own. The Linux
-  runner asks for none, so the window manager places the window, which is the
-  centring. The Windows runner has no window manager to ask, so
-  `Win32Window::Create` places the window itself on the primary monitor's work
-  area: centred in it, or at its top-left corner when the window is larger,
-  because a window whose title bar is off the screen cannot be moved, and the
-  title bar is the only part there is to drag by. The size is not changed by the
-  placement, so a size that does not fit is not one the runner shrinks. A
-  position built from the work area is not scaled either: for a process the
-  manifest declares PerMonitorV2 aware, monitor coordinates are physical pixels,
-  the unit `CreateWindow` takes the size in. The primary monitor is the one a
-  desktop puts a new window on; a second monitor is not chosen, because nothing
-  in the record says which monitor the window was on.
+
+- It is written at the points the app is told the window changed — its size,
+  or its state — and at the point the app closes for real, and only when the
+  record is one the app can store and is not the record already recorded, the
+  same rule as the settings feature's. What the size half of the record means
+  is the size the user chose by dragging, so a size change is written as it
+  happens: a maximized window reports the size the desktop gave it, which is
+  not a size the user chose, and at the un-maximize the size the window has is
+  the one the desktop chose to restore it to, so in both cases the record
+  keeps the size it had and only the state is written. The only case that
+  cannot be kept is a record with nothing in it yet, where the size the window
+  has is the only size there is, because a state cannot be stored without one.
+
+  The two toolkits report a size change differently, and the app does not
+  pretend otherwise: on Windows the plugin reports one while the user drags
+  the window and one when the drag ends, so a run records what the user drags
+  the window to; on Linux GTK reports the size at each reallocation, including
+  the first one, so a run records the size the runner created the window at.
+  Both are the same rule from the toolkit's side: a size the window has while
+  it is not maximized is a size the user chose, or the size the run started
+  at.
+
+- Position is not stored, because a size is what the user chose by dragging and
+  the app has one window; a desktop may restore a position on its own, and a
+  second rule for it would be a second source of the same thing. §10 keeps it
+  as open work.
+
+- With no position in the record, the placement is the runner's own, and it is
+  what a window whose state is 0 gets: a window the record says maximized is
+  placed by the desktop when it is shown. The Linux runner asks for none, so
+  the window manager places the window, which is the centring. The Windows
+  runner has no window manager to ask, so `Win32Window::Create` places the
+  window itself on the primary monitor's work area: centred in it, or at its
+  top-left corner when the window is larger, because a window whose title bar
+  is off the screen cannot be moved, and the title bar is the only part there
+  is to drag by. The size is not changed by the placement, so a size that does
+  not fit is not one the runner shrinks. A position built from the work area is
+  not scaled either: for a process the manifest declares PerMonitorV2 aware,
+  monitor coordinates are physical pixels, the unit `CreateWindow` takes the
+  size in. The primary monitor is the one a desktop puts a new window on; a
+  second monitor is not chosen, because nothing in the record says which
+  monitor the window was on.
+
 - A write that fails is reported to the caller rather than swallowed, but the
-  caller is the close flow and there is no widget left that could say a file was
-  not written, so it shows up on the next run as the size the runners read. The
-  close does not depend on the write.
+  caller is the close flow and there is no widget left that could say a file
+  was not written, so it shows up on the next run as the record the runners
+  read. The close does not depend on the write.
+
 - What no test can check is the runners' own reading, which is these rules
   written in C and C++ with no test host for either. That is why the version
   constant, the rules about a line, and the directory are written the same way
@@ -6667,24 +6775,34 @@ a header click sorting the table by that column, and that a row click opens the
 release it names. The store is pointed at a temp directory and so are
 the settings the page reads, so the scan is asked for the temp directory rather
 than the user's; the reads and writes are real IO, so the widget tests run them
-through `tester.runAsync`. `test/window_size_test.dart` covers the window-size
+through `tester.runAsync`. `test/window_record_test.dart` covers the window
 record: the file is written in the shape §7 describes, a missing or unreadable
 file reads as nothing, a line this version does not read reads as nothing — a
-version the app does not write, a number that is not a whole number, a size that
-is not positive, a line that is not three numbers — and a line this version does
-read reads as the size it states. Recording the size the window has writes the
-file, the same size as the one already recorded is not written again, a size the
-app cannot store is not recorded and leaves what was recorded as it was, and a
-file that cannot be written is reported rather than swallowed. The store is
-pointed at a temp directory, so the file is the app data directory's file with
-the name the format gives it. The window is `test/fake_window_gateway.dart`, the
-fake the window tests use, because the plugin is a method channel and cannot be
-exercised in a test; it answers with the size it is given, which is all the
-feature asks the window for. What these tests cannot cover is the runners
-reading the same file: there is no test host for the C and C++ runners, so the
-version constant, the rules about a line, and the directory are written the same
-way in all three readers — one rule with three implementations, not three rules.
-`test/system_check_test.dart` covers the check: each result kind is mapped from
+version the app does not write, a number that is not a whole number, a size
+that is not positive, a line that is not four numbers, a state that is not one
+of the two the app writes — and a line this version does read reads as the
+record it states. Recording the record the window has writes the file, the
+same record as the one already recorded is not written again, a record that
+differs only in its state is, a record the app cannot store is not recorded
+and leaves what was recorded as it was, a window closed maximized keeps the
+size that was recorded, the size recorded at a size change is the size a later
+maximize keeps, and the size a window was restored to at an un-maximize is not
+recorded — the record keeps the size it had and the window is asked for it,
+which is what the test reads. A window already at the recorded size is not
+asked for a size, and a record with nothing recorded yet uses the size the
+window has. A file that cannot be written is reported rather than swallowed.
+An event is written through the callback the feature registers, which the test
+registers the same way the composition root does, and a size change through
+that callback records the size. The store is pointed at a temp directory, so
+the file is the app data directory's file with the name the format gives it.
+The window is `test/fake_window_gateway.dart`, the fake the window tests use,
+because the plugin is a method channel and cannot be exercised in a test; it
+answers with the record it is given, keeps the sizes it is asked for so a test
+can read them, and a test can fire an event through the callback it is given.
+What these tests cannot cover is the runners reading the same file: there is
+no test host for the C and C++ runners, so the version constant, the rules
+about a line, and the directory are written the same way in all three readers
+— one rule with three implementations, not three rules.
 the tool's typed result, the first line with text is the version as the tool
 wrote it, a call that printed nothing is reported rather than guessed at, the
 one tool whose version call does not exit 0 — mtn — is shown by what it printed
@@ -6914,17 +7032,32 @@ From `lib/TODO.MD` (deduplicated) and the gaps in §2:
       one value. It is kept because it is the rule the spec states and the first place a
       second tracker would be decided by.
 
-9. Window size: implemented (`ai/doc.md` §7). What is left:
-   - position is not recorded, and the maximized state is not part of the
-     record, so a window closed maximized is remembered at the size it was
-     maximized to rather than the size it had before. Recording either needs a
-     rule for what a maximized window's size is, and the toolkit reports the
-     size it has, not the size the user chose.
-   - the Linux and Windows runners read the record before they create the
-     window; the macOS runner does not, so on macOS nothing applies the recorded
-     size (`lib/TODO.MD`). Doing it there is the same reading as the other two
-     in Swift, with `path_provider`'s macOS directory rule reproduced, which is
-     what §7 keeps as one rule with three implementations.
+9. Window size: implemented, both halves (`ai/doc.md` §7). What is left:
+   - position is not recorded, because a size is what the user chose by
+     dragging and the app has one window. Recording it needs a rule for which
+     monitor the window was on, which nothing in the record says.
+   - the record is applied by the Linux and Windows runners before they create
+     the window; the macOS runner does not read it, so on macOS nothing applies
+     the recorded size or state (`lib/TODO.MD`). Doing it there is the same
+     reading as the other two in Swift, with `path_provider`'s macOS directory
+     rule reproduced, which is what §7 keeps as one rule with three
+     implementations.
+   - a maximize the record asks for is a request, not a fact: GTK says not to
+     assume the window ends up maximized and not every window manager honours
+     one, so a run can open at a size the record does not state. Nothing is
+     recorded for that, because the app records what the window is rather than
+     what it asked for.
+    - the units the record's numbers are in are not the same on the two
+      platforms, because the app writes what the plugin reports: on Windows
+      the plugin divides `GetWindowRect` by `devicePixelRatio`, so a run on a
+      HiDPI display writes logical pixels the Windows runner reads as physical
+      ones. Not observed on either platform. A size the app asks the window
+      for round-trips within a run, so only the file is affected; saying what
+      happens needs a run on a HiDPI display on each platform.
+    - the size the app asks the window for at the un-maximize is a request on
+      Linux, where GTK keeps no normal size and the window manager chooses the
+      one the window gets; on Windows the window returns to the recorded size
+      by itself. What a desktop does has not been observed.
 
 ---
 
