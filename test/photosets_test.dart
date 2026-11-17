@@ -306,16 +306,10 @@ void main() {
   // describes, and the numbers a widget test compares are the run's own.
   //
   // `confirmPick` answers for the run and then waits for its end rather than
-  //
-  // for anything the run shows while it goes, because there is nothing left to
-  //
-  // show: the block draws no list for a run, so the end of the run is the only
-  //
-  // thing a test can wait for, and it is the point the values the run wrote are
-  //
-  // handed to the write path — which is what the tests that compare a run's
-  //
-  // numbers read.
+  // for anything the run shows while it goes, because a test that is not about
+  // the list has nothing to look at while a run works: the end of the run is
+  // the point the values the run wrote are handed to the write path — which is
+  // what the tests that compare a run's numbers read.
   Future<void> confirmPick(WidgetTester tester) async {
     await tester.runAsync(() async {
       await tester.tap(find.byKey(const ValueKey('pickExtremesCheckbox')));
@@ -326,6 +320,14 @@ void main() {
       await waitUntilRunEnd(tester);
     });
   }
+
+  // A line of the list of sets: found by the item's path, not by the name the
+  // line is drawn with, because two items whose display names collide are still
+  // two sets (`ai/photoset_pack.md` §4), and the count its right column says.
+  Finder lineFor(String set, int picked, int total) => find.descendant(
+    of: find.byKey(ValueKey(('setLine', set))),
+    matching: find.text('$picked / $total'),
+  );
 
   // The controller records the items, because an item is what the scan
   //
@@ -658,18 +660,15 @@ void main() {
     expect(controller.displayName('set01.zip'), 'set01');
   });
 
-  // The block is its heading with its buttons and the rows the editor gives it,
-  //
-  // and nothing below them, for either type: what a scan read is shown by the
-  //
-  // photo area, which is another widget (`ai/picking.md` §7). What the run
-  //
-  // counted is a field value, so it goes through the editor's write path rather
-  //
-  // than being written here, and what the run could not take is reported rather
-  //
-  // than guessed at (`ai/picking.md` §2).
-  testWidgets('the block draws nothing below its rows', (tester) async {
+  // The block is its heading with its buttons and the rows the editor gives
+  // it, and for the pack the header naming the list of sets, the row naming
+  // each set the scan read (`ai/picking.md` §7). The line says the name the
+  // display rule gives the item and the photos the run picked for it against
+  // the count the scan took for it. What the run counted is a field value, so
+  // it goes through the editor's write path rather than being written here, and
+  // what the run could not take is reported rather than guessed at
+  // (`ai/picking.md` §2).
+  testWidgets('the block lists the sets the scan read', (tester) async {
     tester.view.physicalSize = const Size(2000, 2000);
     tester.view.devicePixelRatio = 1.0;
 
@@ -688,18 +687,22 @@ void main() {
       onApplyValues: (values) => applied.add(values),
     );
 
+    // Nothing is shown before a scan: opening a release is a read and changes
+    // nothing. A header naming a list is not drawn above an empty one, so what
+    // the block says when it has read nothing takes the header's place
+    // (`ai/picking.md` §7).
+    expect(
+      find.text('There are no photosets. Pick the folder and scan it.'),
+      findsOneWidget,
+    );
+    expect(find.text('Photoset List'), findsNothing);
+
     // The wait is for the end of the run: the values and the report are what
-    //
     // the run does at its end, not what it draws while it reads the folder.
     await scanAndWait(tester);
 
-    // A scan is a read, so the page shows nothing for what it read: no set is
-    //
-    // named, and no photo is placed, because the area draws the photos a run
-    //
-    // wrote rather than the folder the scan looked at.
-    expect(find.text('set01'), findsNothing);
-    expect(find.byType(Positioned), findsNothing);
+    expect(find.text('Photoset List'), findsOneWidget);
+    expect(lineFor('set01', 0, 1), findsOneWidget);
 
     // The values go through the editor's write path, not the block's.
     expect(applied.single['photosetCount'], '1');
@@ -707,6 +710,196 @@ void main() {
 
     // What the scan could not take is reported rather than guessed at.
     expect(find.text('Not photosets: cover.png'), findsOneWidget);
+  });
+
+  // A line appears while the scan is still reading the next set, so a root
+  // with many sets shows what it has read rather than nothing until the run
+  // ends (`ai/photoset_pack.md` §4). The reader here reads one set and then
+  // waits, so the window between the two reports is the reader's own hold
+  // rather than a guess at how long a run takes.
+  testWidgets('a line appears while the scan is reading the next set', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    for (final set in ['set01', 'set02']) {
+      writePhotoAt('source/$set', 'a.png', 100, 100);
+    }
+
+    final release = testRelease(p.join(directory.path, 'source'));
+    final state = testState(release, readers: [_SlowReader(slow: 'set02')]);
+
+    await openPhotosets(tester, state);
+
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Scan'));
+
+      // The count the row reports is what the scan can know before it reads
+      // anything, so reaching it means the first set has been read and the
+      // second is being held.
+      await waitUntil(tester, find.text('Photosets scanned: 1 / 2'));
+
+      expect(lineFor('set01', 0, 1), findsOneWidget);
+      expect(find.byKey(ValueKey(('setLine', 'set02'))), findsNothing);
+
+      await waitUntil(tester, lineFor('set02', 0, 1));
+    });
+
+    // The run is over, so the row for it is not drawn, and both lines are
+    // there.
+    await tester.pump();
+
+    expect(find.byType(ProgressRow), findsNothing);
+    expect(lineFor('set01', 0, 1), findsOneWidget);
+    expect(lineFor('set02', 0, 1), findsOneWidget);
+  });
+
+  // The header naming the list is drawn above the lines, and only for the
+  // type that has a list: before a scan there is nothing to name, so nothing
+  // is drawn above the placeholder (`ai/picking.md` §7).
+  testWidgets('the header naming the list is drawn above the lines', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    writePhotoAt('source/set01', 'a.png', 100, 100);
+
+    final release = testRelease(p.join(directory.path, 'source'));
+    final state = testState(release);
+
+    await openPhotosets(tester, state);
+
+    expect(find.text('Photoset List'), findsNothing);
+
+    await scanAndWait(tester);
+
+    expect(find.text('Photoset List'), findsOneWidget);
+
+    // The block's heading row names the block; the header names the lines,
+    // so it is drawn below that row and above the first line.
+    final heading = tester.getRect(find.text('Photosets'));
+    final header = tester.getRect(find.text('Photoset List'));
+    final line = tester.getRect(find.byKey(ValueKey(('setLine', 'set01'))));
+
+    expect(header.top, greaterThan(heading.bottom));
+    expect(line.top, greaterThan(header.bottom));
+  });
+
+  // The list names the two columns its lines draw, as the two tables name
+  // theirs (`ai/picking.md` §7): the name, and the pair of numbers. The row
+  // is drawn for the type that has a list, and each header sits where its
+  // column's values sit.
+  testWidgets('the row naming the columns is drawn above the lines', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    writePhotoAt('source/set01', 'a.png', 100, 100);
+
+    final release = testRelease(p.join(directory.path, 'source'));
+    const headerKey = ValueKey('photosetListHeader');
+    final state = testState(release);
+
+    await openPhotosets(tester, state);
+
+    // Before a scan there is no list, so no row names its columns.
+    expect(find.text('Set name'), findsNothing);
+    expect(find.text('Photos (picked / total)'), findsNothing);
+
+    await scanAndWait(tester);
+
+    expect(find.text('Set name'), findsOneWidget);
+    expect(find.text('Photos (picked / total)'), findsOneWidget);
+
+    // Below the header naming the list and above the first line, with nothing
+    // between the row and the line: the line's own inset is the space.
+    final listHeader = tester.getRect(find.text('Photoset List'));
+    final columnHeader = tester.getRect(find.byKey(headerKey));
+    final line = tester.getRect(find.byKey(ValueKey(('setLine', 'set01'))));
+
+    expect(columnHeader.top, greaterThan(listHeader.bottom));
+    expect(line.top, greaterThan(columnHeader.bottom));
+
+    // Each header follows its column: the name is at the left edge where the
+    // names are, the count at the right edge where the numbers are. The row has
+    // the lines' inset, so both edges are the same as the line's.
+    expect(
+      tester.getRect(find.text('Set name')).left,
+      equals(tester.getRect(find.text('set01')).left),
+    );
+    expect(
+      tester.getRect(find.text('Photos (picked / total)')).right,
+      equals(tester.getRect(lineFor('set01', 0, 1)).right),
+    );
+
+    // The row is not a line, so it has no band of its own: the nearest
+    // `Material` above it is the page's, not a tinted one.
+    final theme = Theme.of(tester.element(find.byType(PhotosetBlock)));
+
+    expect(
+      tester
+          .widget<Material>(
+            find
+                .ancestor(
+                  of: find.byKey(headerKey),
+                  matching: find.byType(Material),
+                )
+                .first,
+          )
+          .color,
+      isNot(theme.colorScheme.surfaceContainerHigh),
+    );
+  });
+
+  // Every other line of the list is tinted, so it reads as bands of text,
+  // as the two tables the app has do (`ai/video_pack.md` §5). The parity is
+  // the position in the order the items are stored — the order the scan
+  // wrote them here — rather than anything the drawing decides.
+  testWidgets('the lines of the list alternate', (tester) async {
+    tester.view.physicalSize = const Size(2000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+
+    for (final set in ['set01', 'set02', 'set03']) {
+      writePhotoAt('source/$set', 'a.png', 100, 100);
+    }
+
+    final release = testRelease(p.join(directory.path, 'source'));
+    final state = testState(release);
+
+    await openPhotosets(tester, state);
+
+    // The wait is for the end of the run, so all three lines are there before
+    // they are read: the lines appear one by one as the scan reads them.
+    await scanAndWait(tester);
+
+    final theme = Theme.of(tester.element(find.byType(PhotosetBlock)));
+
+    // The line's own `Material` is the nearest one above it, which is the shape
+    // the two tables use.
+    Material lineMaterial(String path) => tester.widget<Material>(
+      find
+          .ancestor(
+            of: find.byKey(ValueKey(('setLine', path))),
+            matching: find.byType(Material),
+          )
+          .first,
+    );
+
+    expect(lineMaterial('set01').color, Colors.transparent);
+    expect(lineMaterial('set02').color, theme.colorScheme.surfaceContainerHigh);
+    expect(lineMaterial('set03').color, Colors.transparent);
+
+    // The header naming the list is not a line, so it has no band of its own.
+    expect(
+      find.ancestor(
+        of: find.text('Photoset List'),
+        matching: find.byType(SectionTitle),
+      ),
+      findsOneWidget,
+    );
   });
 
   // The count the pick wrote is a field value, so the block hands it to the
@@ -817,10 +1010,9 @@ void main() {
   // are resolved per type, and the area it shows its pictures in is the same
   //
   // area a pack has, so it says the same word (`ai/single_photoset.md` §4,
-  //
   // `ai/picking.md` §7). What a list of sets would need is not resolved for
-  //
-  // either type, because the block draws no list.
+  // this type: one set is nothing to list, so the block draws nothing below
+  // its rows.
   testWidgets('the block shows the strings of the type it is showing', (
     tester,
   ) async {
@@ -840,9 +1032,9 @@ void main() {
       onApplyValues: (values) => applied.add(values),
     );
 
-    // One title, and it is the one this type reads right for one set. Nothing
-    //
-    // is drawn below the rows, for either type (`ai/picking.md` §7).
+    // One title, and it is the one this type reads right for one set.
+    // Nothing is drawn below the rows, because this type has no list
+    // (`ai/picking.md` §7).
     expect(find.text('Photoset'), findsOneWidget);
     expect(find.byType(Positioned), findsNothing);
 
@@ -858,12 +1050,9 @@ void main() {
     release.source = p.join(directory.path, 'set01');
 
     // For this type the block draws no scan row at all — a row counting items
-    //
-    // says nothing when the item is the folder (`ai/picking.md` §7) — and
-    //
-    // nothing below the rows either, so the page shows nothing for what the
-    //
-    // scan read.
+    // says nothing when the item is the folder (`ai/picking.md` §7) — and no
+    // line for what it read, because it has no list to draw, so the page shows
+    // nothing for the scan.
     await scanAndWait(tester);
 
     expect(find.text('set01'), findsNothing);

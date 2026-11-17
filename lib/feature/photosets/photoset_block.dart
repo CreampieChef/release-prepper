@@ -10,17 +10,22 @@ import 'photosets_controller.dart';
 
 /// The Photoset data block (`ai/picking.md` §7, `ai/photoset_pack.md` §4, §6,
 /// `ai/single_photoset.md` §7): its heading with the Scan and Pick buttons at
-/// the right and the rows the editor gives it. It draws nothing below those
-/// rows, for either type: what the block names is the photo area, which is
-/// another grid cell and is drawn by `PhotosetGallery`. One widget cannot be
-/// two cells, which is why the block and the gallery are two widgets sharing
-/// one `PhotosetState`.
+/// the right, the rows the editor gives it, and for the pack the row naming the
+/// columns of the list of sets and the line naming each set the scan read,
+/// tinted as the two tables tint their rows (`ai/video_pack.md` §5). For the
+/// single photoset it draws nothing below its rows, because one set is nothing
+/// to list: the strings a list would need are null for that type, so the row
+/// that names the columns is not drawn for it (`ai/picking.md` §7). The photos
+/// the lines name are the photo area, which is another grid cell and is drawn
+/// by `PhotosetGallery`. One widget cannot be two cells, which is why the block
+/// and the gallery are two widgets sharing one `PhotosetState`.
 ///
 /// For both photoset types the block is the page's second column, at the most
 /// the width this feature gives it. Its rows are the path the user picked, the
 /// counts the scan took from that folder, and the count the pick wrote — the
 /// rows the other types have as form rows, which for this feature belong to the
-/// block.
+/// block. Below those rows the pack draws the list of sets, and a single
+/// photoset draws nothing.
 ///
 /// Pick is disabled until a scan has run, because what the popup opens with is
 /// what the scan read: the slider's value is the number the rule's curve gives
@@ -32,10 +37,11 @@ import 'photosets_controller.dart';
 /// (`ai/picking.md` §7).
 ///
 /// A run shows what it has done as it goes, through the callback the
-/// controller reports on (`ai/photoset_pack.md` §4): a photo appears in the
-/// area as the run copies it. The row that shows the count of a run is drawn
-/// only while that run is going, because before a run there is nothing to show
-/// and after it the pictures the run wrote are what the feature shows
+/// controller reports on (`ai/photoset_pack.md` §4): for the pack a set appears
+/// in the list as the scan reads it, and a photo appears in the area as the run
+/// copies it. The row that shows the count of a run is drawn only while the run
+/// is going, because before a run there is nothing to show, and after it the
+/// lines the run produced and the pictures it wrote are what the feature shows
 /// (`ai/torrents.md`). The widget owns the widget state — the busy flag, the
 /// counts the runs report, and the last scan it was given — but not the state
 /// the pictures read: the controller, the generation and what a run has written
@@ -110,6 +116,14 @@ class _PhotosetBlockState extends State<PhotosetBlock> {
   // rows the editor built.
   static const _titleGap = 12.0;
   static const _rowGap = 16.0;
+
+  // The horizontal inset inside a row of the list. It is what makes a tinted
+  // line read as a band rather than as a line of text with a colour behind it,
+  // and it is this list's own: the two tables have no horizontal padding. The
+  // row naming the columns is drawn with the same inset, so its text sits above
+  // its column rather than to the left of it (`ai/picking.md` §7). The vertical
+  // value is the one the two tables use.
+  static const _listInset = 4.0;
 
   void _showMessage(String message) {
     if (!mounted) return;
@@ -329,13 +343,88 @@ class _PhotosetBlockState extends State<PhotosetBlock> {
     );
   }
 
+  /// The row naming the two columns the lines of the list draw, as the two
+  /// tables name theirs (`ai/picking.md` §7). It is drawn only for the type
+  /// that has a list, and nothing is put between it and the first line: the
+  /// line's own inset is the space, as a table's header row is followed by its
+  /// rows.
+  Widget _listHeader(PhotosetStrings strings) {
+    final heading = Theme.of(context).textTheme.labelMedium;
+
+    return Padding(
+      key: const ValueKey('photosetListHeader'),
+      padding: const EdgeInsets.symmetric(horizontal: _listInset),
+      child: Row(
+        children: [
+          Expanded(child: Text(strings.nameHeader!, style: heading)),
+          Text(strings.countHeader!, style: heading),
+        ],
+      ),
+    );
+  }
+
+  /// The line naming one set the scan read: the name it is shown under, and
+  /// the photos the run picked for it against the count the scan took for it.
+  /// The key is the item's path rather than the name it is shown under,
+  /// because two items whose display names collide are still two sets
+  /// (`ai/photoset_pack.md` §4). Every other line is tinted, so the list reads
+  /// as bands of text as the two tables do, and the parity is the position in
+  /// the order the items are stored rather than anything the drawing decides,
+  /// so a re-scan of the same folder does not change a line's colour
+  /// (`ai/video_pack.md` §5).
+  Widget _line(
+    AppLocalizations l10n,
+    PhotosetState state,
+    PhotosetGroup group,
+    int index,
+  ) {
+    final theme = Theme.of(context);
+
+    return Material(
+      color: index.isOdd
+          ? theme.colorScheme.surfaceContainerHigh
+          : Colors.transparent,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: _listInset,
+          vertical: _listInset,
+        ),
+        child: Row(
+          key: ValueKey(('setLine', group.item.path)),
+          children: [
+            Expanded(
+              child: Text(
+                state.controller.displayName(group.item.path),
+                style: theme.textTheme.bodyMedium,
+              ),
+            ),
+            Text(
+              l10n.photosetPickedOfTotal(
+                group.paths.length,
+                group.item.fields.value('photoCount'),
+              ),
+              style: theme.textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final strings = photosetStrings(
-      widget.state.controller.release.releaseType,
-      l10n,
-    );
+    final theme = Theme.of(context);
+    final state = widget.state;
+    final strings = photosetStrings(state.controller.release.releaseType, l10n);
+
+    // The sets the block draws lines for, read only for the type that has a
+    // list: the strings that name a list are null for a single photoset, so
+    // nothing is drawn for it and its sets are not read for a drawing that
+    // never happens (`ai/picking.md` §7).
+    final groups = strings.listTitle == null
+        ? const <PhotosetGroup>[]
+        : photosetGroups(state, state.controller.photosets());
 
     // The rows for the runs going now. A type whose item is the folder it
     //
@@ -419,6 +508,21 @@ class _PhotosetBlockState extends State<PhotosetBlock> {
         for (final row in widget.rows) ...[
           const SizedBox(height: _rowGap),
           row,
+        ],
+        // The list of sets, for the type that has one. A header is not drawn
+        // above an empty list, so what the block says when it has read nothing
+        // takes the header's place (`ai/picking.md` §7).
+        if (strings.listTitle != null) ...[
+          const SizedBox(height: _rowGap),
+          if (groups.isEmpty) ...[
+            Text(strings.emptyText!, style: theme.textTheme.bodyMedium),
+          ] else ...[
+            SectionTitle(title: strings.listTitle!),
+            const SizedBox(height: _titleGap),
+            _listHeader(strings),
+            for (final (index, group) in groups.indexed)
+              _line(l10n, state, group, index),
+          ],
         ],
       ],
     );

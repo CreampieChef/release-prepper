@@ -297,17 +297,19 @@ of sets, and a single set's do not, because the count of one item is the item
   nothing answers 0: a run replaces the photo records it wrote, so the count after it is the count that
   run wrote. The name is in both types' field lists, next to the count the scan took, because the value
   is the same for either (`ai/photoset_pack.md` §3, `ai/single_photoset.md` §3), and it is an app-filled
-  field like those: the row shows what is on disk, so it shows nothing until a run has written it. The count of what the scan read for one set is still recorded for each item, because that
-  is what the model writes and what a per-item field is (`ai/photoset_pack.md` §3), although nothing in
-  this feature shows it any more.
+  field like those: the row shows what is on disk, so it shows nothing until a run has written it.
+  The count of what the scan read for one set is recorded for each item, because that is what the
+  model writes and what a per-item field is (`ai/photoset_pack.md` §3); for the pack it is also what
+  the right column of a line of the list says, against the photos the run picked for that set, and
+  for the single photoset it is shown nowhere, because that type draws no list.
 
-- The area is titled Screenshots for both types, because what it shows is the pictures rather than a
-  list of sets, and it uses the title the Screenshots section titles itself with, so the two areas that
-  show the same files the same way say the same word. Nothing names a set above its photos: the tile
-  says which set its photo is from where the grid mixes sets, and a grid with one set has nothing to
-  tell apart. The block titles itself, with the word the type reads right for one folder or for
-  several, so the area's title is the same for both types while the block's is not
-  (`ai/single_photoset.md` §4).
+- The area is titled Screenshots for both types, because what it shows is the pictures rather than
+  the sets, and it uses the title the Screenshots section titles itself with, so the two areas that
+  show the same files the same way say the same word. The pack's list of sets is the block's, not
+  the area's. Nothing names a set above its photos: the tile says which set its photo is from where
+  the grid mixes sets, and a grid with one set has nothing to tell apart. The block titles itself,
+  with the word the type reads right for one folder or for several, so the area's title is the same
+  for both types while the block's is not (`ai/single_photoset.md` §4).
 
 - For a photoset only one column of the page is titled by the editor: the fields' column, because the
   block titles itself as a section does and the area titles itself too (`ai/doc.md` §2). For a pack the
@@ -399,19 +401,36 @@ the window, so it is not taken.
   show these files the same way can all reach a narrow column. Only what is painted is cut, not the
   text: a tile whose label is cut still says the whole name to a test that looks for it.
 
-- The block has a heading row, which is the title row a section titles itself with, and nothing
-  below the rows the editor gave it, for either type: the heading names the block, and there is
-  no header naming a list of sets, because the block draws no list.
+- The block has a heading row, which is the title row a section titles itself with. Below the rows
+  the editor gave it it draws the list of sets for the pack, and nothing for the single photoset,
+  because one set is nothing to list: the words a list would need are null for that type, and the
+  block draws nothing for what its words are null (`ai/single_photoset.md` §4).
 
-- Nothing in this feature is tinted, because nothing in it is a table: the rule that tints alternate
-  rows is the two tables' (`ai/video_pack.md` §5), and this feature has no table, so the rule does not
-  reach it.
+- The list is the header naming it, the row naming its two columns, and one line per set the scan
+  read. A header for a list is not drawn above an empty one, so what the block says when it has read
+  nothing takes its place rather than sitting under the header. The row naming the columns is drawn
+  only for the type that has a list, and nothing is put between it and the first line: the line's
+  own inset is the space, as a table's header row is followed by its rows, and the row carries that
+  inset so each header sits where its column's values sit. A line names a set by the name the
+  display rule gives its path and says the photos the run picked for that set against the count the
+  scan recorded for it; the key it is drawn with is the item's path, not the name, because two items
+  whose display names collide are still two sets (`ai/photoset_pack.md` §4). A set appears as the
+  scan reads it rather than when the run ends (`ai/photoset_pack.md` §4).
+
+- The lines of the list are tinted on alternate positions, so it reads as bands of text as the two
+  tables do (`ai/video_pack.md` §5), with the inset that makes a band read as a band, and the parity
+  is the position in the order the items are stored rather than anything the drawing decides, so a
+  re-scan of the same folder does not change a line's colour. The row naming the columns is not a
+  line, so it has no band of its own. Nothing else in the feature is tinted, because nothing else in
+  it is a list or a table.
 
 - A set with no photos is reported, as the scan reports what it cannot take, and the rule gives it
-  nothing. It is not shown anywhere: the block draws no list, and a grid has no column for a set with
-  no photos in it. A run that reaches no set is not a silent failure: the set is reported as what it is,
-  and the count the run hands to the write path is 0 — a share below one photo under strategy one, no
-  position inside it under strategy two, or a set the scan could not read.
+  nothing. For the pack it is a line of the list with 0 against 0, because the scan recorded the set
+  and the run picked nothing for it; a grid has no column for a set with no photos in it. For the
+  single photoset it is shown nowhere, because that type draws no list. A run that reaches no set is
+  not a silent failure: the set is reported as what it is, and the count the run hands to the write
+  path is 0 — a share below one photo under strategy one, no position inside it under strategy two,
+  or a set the scan could not read.
 
 - Re—picking writes the same names, so the feature needs the cache eviction and a key that changes
   on each run, as `AGENTS.md` §5 requires. This is the case the poster does not have and the picked

@@ -230,11 +230,11 @@ What is left unfinished is not a compile error but missing behaviour:
   photoset types. The word the block titles itself with is per type, because one
   folder of photos and a folder of sets are said
   differently, while the area says the same word for both: what it shows is the
-  pictures, and no type has a list of sets to name any more. So the word
-  the block is called is said twice for a pack, as its heading and as the label
-  of the count row inside it, and once for a single
-  photoset, where the count of one item is the item rather than a field
-  (`ai/picking.md` §7).
+  pictures. The pack's block also names the list of sets it draws with a header
+  of its own, and a single photoset has no list to name. So the word the block
+  is called is said twice for a pack, as its heading and as the label of the
+  count row inside it, and once for a single photoset, where the count of one
+  item is the item rather than a field (`ai/picking.md` §7).
   A video pack's second column is the folder the user picked and the values the
   scan took
   from it, so it is titled by the folder rather than by one value
@@ -507,9 +507,12 @@ What is left unfinished is not a compile error but missing behaviour:
   it is divided, and whether the extremes must be kept (`ai/picking.md` §1, §4,
   §7) — the rows the editor gives it — the path the user picked, the counts the
   scan took, and the count the pick wrote — which every other type has as rows
-  of the form, and nothing below them, because the block draws no list of sets
-  for either type (`ai/picking.md` §7). The area is what the row has left after
-  the fields' column and the block's column, and it draws the grid this feature
+  of the form — and for the pack the header naming its list of sets, the row
+  naming its two columns, and the line naming each set the scan read, tinted as
+  the tables tint their rows (`ai/picking.md` §7); for a single photoset nothing
+  is drawn below the rows, because one set is nothing to list. The area is what
+  the row has left after the fields' column and the block's column, and it draws
+  the grid this feature
   fits from the two widths it gives: the photos of every set together, grouped
   by kind — the portraits in the columns of the portrait width and the
   landscapes in the columns of the landscape width, never mixed, with the counts
@@ -522,13 +525,15 @@ What is left unfinished is not a compile error but missing behaviour:
   §8): the pick run writes one beside each photo it copies, capped at 800 px on
   the biggest side, skipped for a photo already within the cap, and recorded
   nowhere, so the Upload section has nothing to send for it. Nothing is shown
-  before a run, because opening a release is a read and changes nothing, and the
-  block draws no list of sets for either type, so a scan shows nothing: what it
+  before a run, because opening a release is a read and changes nothing. For the
+  pack a scan shows the sets as it reads them, as lines of its list; for a
+  single photoset a scan shows nothing, because that type draws no list: what it
   read is said only by the values it writes and by the report lines. A set the
   scan could not read, or one the chosen count did not reach — a share below one
-  photo, or no position inside it — is reported as what it is, and a run that
-  copied nothing answers 0 for the count the write path is handed. With nothing
-  grouping the photos there is no column in the grid for a set with none in it.
+  photo, or no position inside it — is reported as what it is, and for the pack
+  it is a line with 0 against 0; a run that copied nothing answers 0 for the
+  count the write path is handed. With nothing grouping the photos there is no
+  column in the grid for a set with none in it.
   The scan decides which entries under the picked folder are items, counts the
   photos in each, and reads their dimensions from the file headers rather than
   by decoding the image; the minimum and the maximum are decided by pixel area
@@ -1942,12 +1947,11 @@ lib/
                                is what the two widgets read (`ai/picking.md`
                                §7). Also the strings resolved per type,
                                including the two lines a run's progress is said
-                               with and the labels of the strategy choice, which
-                               are null for the type that has no choice to make,
-                               and one set as the feature lays it out. Nothing
-                               here names a list of sets, because the block
-                               draws no list for either type, so the strings a
-                               list would need are not in this class. The tile,
+                               with, the labels of the strategy choice, and the
+                               words naming the list of sets and the two columns
+                               its lines draw, all null for the type that has no
+                               list, and one set as the feature lays it out. The
+                               tile,
                                which draws the run's thumbnail when its file is
                                on disk and the photo when it is not, while the
                                key it is placed by and the name under it stay
@@ -1977,12 +1981,14 @@ lib/
       photoset_block.dart      PhotosetBlock: the data block as the page's
                                second column, at the most the width this feature
                                gives it — its heading with the Scan and Pick
-                               buttons at the right, and the rows the editor
-                               gives it, with nothing below them for either type
-                               (`ai/picking.md` §7). Nothing here is tinted,
-                               because nothing here is a table: the rule that
-                               tints alternate rows is the two tables'
-                               (`ai/video_pack.md` §5). Pick is disabled until a
+                               buttons at the right, the rows the editor
+                               gives it, and for the pack the row naming the
+                               columns of its list of sets and the line naming
+                               each set the scan read, tinted as the two tables
+                               tint their rows (`ai/video_pack.md` §5); for a
+                               single photoset nothing is drawn below its rows,
+                               because one set is nothing to list
+                               (`ai/picking.md` §7). Pick is disabled until a
                                scan has run, because what the popup opens with
                                is what the scan read: the value is the number
                                the rule's curve gives for the total, and a block
@@ -2020,22 +2026,31 @@ lib/
                                as rows of the form. What the scan or the pick
                                could not take is reported as a message. While a
                                run is going the block draws the shared progress
-                               row with the count the run has reached, and
-                               nothing else, because a scan is a read and a
-                               pick's results are what the photo area shows
-                               (`ai/picking.md` §7). The progress is widget
-                               state, and the row is drawn only while a run is
-                               going. The values its runs counted are handed to
-                               the editor's write path at the end of a run,
-                               because the block writes no fields itself. A pick
-                               records what it writes in the state the two
+                               row with the count the run has reached, and for
+                               the pack the lines of the sets it has read so
+                               far, because a scan shows what it has read as it
+                               reads it (`ai/picking.md` §7). A pick's results
+                               are what the photo area shows. The progress is
+                               widget state, and the row is drawn only while a
+                               run is going. The values its runs counted are
+                               handed to the editor's write path at the end of a
+
+                               run, because the block writes no fields itself. A
+                               pick records what it writes in the state the two
                                widgets share and tells the editor for each
                                photo, because the pictures are drawn by another
                                widget and build only when the editor does. The
                                two rows are keyed one per run —
                                `photosetScanProgress` and `photosetPickProgress`
                                — as the block's other parts are keyed, so the
-                               row for one run is not the row for the other.
+                               row for one run is not the row for the other. The
+                               row naming the columns of the list is keyed
+                               `photosetListHeader`, and a line of the list is
+                               keyed `('setLine', path)` by the item's path
+                               rather than by the name it shows, because two
+                               items whose display names collide are still two
+                               sets (`ai/picking.md` §7, `ai/photoset_pack.md`
+                               §4).
       photoset_gallery.dart PhotosetGallery: the area a photoset shows its
                                picked photos in, for both types — the title row,
                                and the grid this feature fits from the two
@@ -2050,8 +2065,9 @@ lib/
                                (`ai/picking.md` §7). The area is keyed
                                `photosetGallery` and the tiles are `photoTile`
                                by the path each is shown from (`ai/picking.md`
-                               §7); there is no key for a line naming a set,
-                               because the block draws no list for either type.
+                               §7); a line naming a set is keyed by the widget
+                               that draws the list, not here (`ai/picking.md`
+                               §7).
                                The tiles are the shared `ImageTile`, at the box
                                height the packing worked out for each photo,
                                with a key that changes on each run because a re-
@@ -4670,13 +4686,16 @@ the section shows nothing until the first generation.
 `ai/single_photoset.md` the one for a single set. `PhotosetBlock` is the data
 block: its heading with the Scan and Pick buttons at the right, the rows the
 editor gives it for both photoset types — the path the user picked, the counts
-the scan took from it, and the count the pick wrote — and nothing below them,
-because no type has a list of sets to name (`ai/picking.md` §7). Nothing is
-shown before a run, because opening a release is a read and changes nothing:
-while a scan reads the folder the block draws only its progress row, because
-what it finds is not shown anywhere. The pick shows the photos in the photo area
-as it copies them, and hands the count it wrote to the editor's write path at
-the end of the run. The picked photos are drawn by another widget,
+the scan took from it, and the count the pick wrote — and for the pack the
+header naming its list of sets, the row naming its two columns, and the line
+naming each set the scan read; nothing below the rows for a single photoset,
+because one set is nothing to list (`ai/picking.md` §7). Nothing is shown before
+a run, because opening a release is a read and changes nothing: while a scan
+reads the folder the block draws its progress row and, for the pack, the lines
+of the sets it has read so far, and nothing else for the single photoset. The
+pick shows the photos in the photo area as it copies them, and hands the count
+it wrote to the editor's write path at the end of the run. The picked photos are
+drawn by another widget,
 `PhotosetGallery`, for both types, because the block is the page's second column
 and the pictures are the space after it, and one widget cannot be two grid cells
 (`ai/picking.md` §7). The strings are resolved per type, because "photosets" and
@@ -4805,8 +4824,10 @@ can span columns. The count of what a pick wrote is a field value, so the block
 hands it to the editor's write path at the end of the run rather than showing
 it, and the row shows nothing until a run has written it: the feature shows what
 is on disk. A photo that could not be read or written, and a set with no photos,
-are reported rather than left out, and a set with no photos is drawn nowhere,
-because the block names no list and the grid has no column for it. Re-picking
+are reported rather than left out. For the pack a set with no photos is a line
+of the list with 0 against 0, because the scan recorded the set and the run
+picked nothing for it; a single photoset draws no list, so it is shown nowhere,
+and the grid has no column for a set with none in it. Re-picking
 writes the same names, so the block records what its run wrote and the tiles are
 keyed with a generation that moves on each run, as the rule above requires; that
 generation is the shared state's rather than the block's own counter, because
@@ -5325,22 +5346,28 @@ read the same for one set are keyed per type — `photosetPackSectionTitle`
 against `singlePhotosetSectionTitle`, `photosetPackSourceEmpty` against
 `singlePhotosetSourceEmpty` — and are resolved by `photosetStrings()` in
 `photoset_group.dart`, the same shape as `_sourceLabel` in the editor: one
-switch over the type, no table. It resolves the heading of the block and the
-title of the area that shows the picked photos for both types. Nothing in it
-names a list of sets, because no type draws one: the keys that named a list, the
-two words naming its columns, and a list that was empty are gone from both files
-(`ai/picking.md` §7). The title of the area is `screenshotsSectionTitle` for
-both types, the key the Screenshots section titles itself with, so the two areas
-that show the same files the same way say the same word; the heading of the
+switch over the type, no table. It resolves the heading of the block, the title
+of the area that shows the picked photos, and the words naming the list of sets
+and the two columns its lines draw, which are null for the type that draws no
+list (`ai/picking.md` §7). The title of the area is `screenshotsSectionTitle`
+for both types, the key the Screenshots section titles itself with, so the two
+areas that show the same files the same way say the same word; the heading of
+the
 block is `photosetPackSectionTitle` or `singlePhotosetSectionTitle`, because one
 folder of photos and a folder of sets are said differently. The keys are named
 for the pack because they were written when the pack was the only type that
 showed them. `photosetSkippedEntries`, `photosetUnreadPhotos`,
 `photosetNameCollisions`, `photosetNotCopied` and `photosetEmptySets` take
 placeholders and are documented with `@key` in both files. There is no plural
-form anywhere, and none is needed. The key that said the pair a line of the list
-showed is gone with the line, because the count of what a pick wrote is a field
-value now, and its label is the key named above (`ai/picking.md` §7). The popup
+form anywhere, and none is needed. The keys naming the list of sets the block
+draws for the pack (`photosetListSectionTitle`, `photosetListNameHeader`,
+`photosetListCountHeader`, `photosetPackNoPhotosets`) and the pair a line of
+that list shows (`photosetPickedOfTotal`, with an int and a String placeholder)
+are in both files and are resolved as null for the type with no list, by the
+same switch. The pair is read by the widget that draws the line and is not a
+field value: the count of what a pick wrote is a field, and its label is the key
+named above, while the line says what the run picked for the set against what
+the scan recorded for it (`ai/picking.md` §7). The popup
 Pick opens — `pickOptionsTitle`, `pickExtremesLabel`, `pickCountLabel`,
 `pickStrategyPerSet`, `pickStrategyWholePack` — none with a placeholder. The
 first three name what the popup asks for, so they are the same for both photoset
@@ -6328,20 +6355,24 @@ packing reserves counts one line for each label (`ai/picking.md` §7). Both tile
 come from one run, so the test does not depend on what a line of the label style
 measures, and it also checks that the whole name is still what the widget holds:
 only what is painted is cut.
-`test/photosets_test.dart` covers the block drawing nothing below its rows, for
-either type: a scan is a read, so after one no set is named and no photo is
-placed, and what it counted reaches the test through the editor's write path
-rather than through the widget. It covers the same for a type with one set,
-where no scan row is drawn either, because a row counting items says nothing
-when the item is the folder. It also covers that the count a pick wrote is
-handed to that write path at the end of the run, and that a run which copied
-nothing answers 0, because the count is what the run wrote rather than what is
-on disk. So the tests that compare a run's numbers read them from the map the
-write path was given, or from the tiles after the page is built again, and a
-test that needs a run to be over waits for the end of it — there is nothing else
-for such a test to wait for, because the block draws no list for a run. What a
-test that looks at a run while it is going waits on is the progress row, which
-is drawn only while a run is running.
+`test/photosets_test.dart` covers the pack's list of sets: the header naming the
+list, the row naming its two columns, and the line naming each set the scan
+read, with the pair a line says being the photos the run picked for that set
+against the count the scan recorded for it, and the lines appearing one by one
+as the scan reads them. It covers that a header is not drawn above an empty
+list, that the row naming the columns sits between the header and the first line
+with each header above its own column, and that alternate lines are tinted as
+the two tables tint their rows. For the single photoset it covers the same
+strings resolved for one set with the words a list would need null, so nothing
+is drawn below its rows, and no scan row either, because a row counting items
+says nothing when the item is the folder. It also covers that the count a pick
+wrote is handed to that write path at the end of the run, and that a run which
+copied nothing answers 0, because the count is what the run wrote rather than
+what is on disk. So the tests that compare a run's numbers read them from the
+map the write path was given, or from the tiles after the page is built again,
+and a test that needs a run to be over waits for the end of it; a test that
+looks at a run while it is going waits on what the run has reached, a line or
+the progress row, both drawn only while the run is running.
 The three open buttons the heading has are tested with the two fake openers the
 draft and Torrent tests use, because the widget calls them. The record's values
 are put on directly, because a test about the buttons is not a test of the run

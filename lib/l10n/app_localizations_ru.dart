@@ -310,6 +310,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get photosetPackSectionTitle => 'Фотосеты';
 
   @override
+  String get photosetListSectionTitle => 'Список фотосетов';
+
+  @override
+  String get photosetListNameHeader => 'Название сета';
+
+  @override
+  String get photosetListCountHeader => 'Фото (выбрано / всего)';
+
+  @override
   String get singlePhotosetSectionTitle => 'Фотосет';
 
   @override
@@ -317,6 +326,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get pickPhotosets => 'Выбрать';
+
+  @override
+  String photosetPickedOfTotal(int picked, String total) {
+    return '$picked / $total';
+  }
 
   @override
   String photosetScanProgress(int done, int total) {
@@ -344,6 +358,10 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get pickStrategyWholePack =>
       'Равномерно по всем фото как по одному набору';
+
+  @override
+  String get photosetPackNoPhotosets =>
+      'Фотосетов нет. Выберите папку и сканируйте её.';
 
   @override
   String photosetSkippedEntries(String entries) {

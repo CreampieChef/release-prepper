@@ -83,12 +83,12 @@ App-generated, at the item level:
 
 `photoCount` and `totalPhotoCount` are the same number here, and both are kept on purpose: the scan
 writes the item's value, and the aggregate is the name the pack already has. Nothing shows the item's
-value for this type, because the block draws no list of sets, so a per-item count is written and read by
-the model rather than by the form (`ai/picking.md` §7). `pickedPhotoCount` is not what the scan counts:
-it is what the pick run wrote, so it is filled by the run rather than by the scan, and it is handed to
-the editor's write path at the end of the run, as the scan's values are. It is the same name and the
-same value as the pack's, because for this type the item is the folder the run wrote into, so the
-release-level count and the item's are the same number.
+value for this type, because the block draws no list of sets for it, so a per-item count is written
+and read by the model rather than by the form (`ai/picking.md` §7). `pickedPhotoCount` is not what
+the scan counts: it is what the pick run wrote, so it is filled by the run rather than by the scan,
+and it is handed to the editor's write path at the end of the run, as the scan's values are. It is
+the same name and the same value as the pack's, because for this type the item is the folder the run
+wrote into, so the release-level count and the item's are the same number.
 
 Resolution is compared by pixel area, as for a pack, including the tie that decides which of two
 equal photos is reported (`ai/photoset_pack.md` §3), and a resolution value is written as
@@ -212,14 +212,14 @@ photo itself when the run skipped the photo, could not write the thumbnail, or t
 For a single photoset the block is the page's second column, at the most the width this feature
 gives it, and the picked photos are the photo area beside it — the same two widgets the pack has,
 with the same drawing (`ai/picking.md` §7). The block is its heading with the Scan and Pick buttons
-at its right, the rows the editor gives it, and nothing below them, as it is for the pack: there is
-no header naming a list and no row naming its columns, because no type draws a list, so the words a
-list would need are not in the strings for either type (`ai/picking.md` §7). Its tiles keep one
-label line: the line naming the set is drawn only where the grid mixes sets, and here there is one
-set, so a tile has nothing to say about which set its photo is from. The grid is split by kind, as
-it is for the pack, and the columns are capped at the same width, because the drawing is one
-implementation for both types (`ai/picking.md` §7). Nothing here is tinted, because nothing in this
-feature is a table (`ai/picking.md` §7).
+at its right, the rows the editor gives it, and nothing below them: one set is nothing to list, so
+the words a list would need are null for this type and the block draws no list for it
+(`ai/picking.md` §7). Its tiles keep one label line: the line naming the set is drawn only where the
+grid mixes sets, and here there is one set, so a tile has nothing to say about which set its photo
+is from. The grid is split by kind, as it is for the pack, and the columns are capped at the same
+width, because the drawing is one implementation for both types (`ai/picking.md` §7). Nothing here
+is tinted: the rule that tints alternate lines reaches the pack's list of sets, and this type draws
+none (`ai/picking.md` §7).
 
 The block titles itself with the word for one folder of photos, while the area titles itself with the word
 the picture area has for both types, so the only title the form has is the first column's

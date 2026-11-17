@@ -141,28 +141,39 @@ class PhotosetState {
 }
 
 /// The strings this feature shows for the release type it is showing
-///
 /// (`ai/single_photoset.md` §4). They assume several sets, so they read wrong
-///
-/// for one, and they are resolved per type as `fieldLabel` is. The Scan and
-///
-/// Pick buttons, the count line and the report lines are not here: they say the
-///
-/// same thing for one set as for many.
+/// for one, and they are resolved per type as `fieldLabel` is. The words naming
+/// the list of sets are here and null for the type with no list: a single
+/// photoset is one set, so it has no list to name and the block draws nothing
+/// (`ai/picking.md` §7). The Scan and Pick buttons, the count line and the
+/// report lines are not here: they say the same thing for one set as for many.
 class PhotosetStrings {
   const PhotosetStrings({
     required this.blockTitle,
     required this.photosTitle,
     required this.pickHint,
     required this.pickProgress,
+    this.listTitle,
+    this.nameHeader,
+    this.countHeader,
+    this.emptyText,
     this.scanProgress,
     this.strategyChoices,
   });
 
   /// The heading of the data block: the line that names the folder the user
-  ///
   /// picked and the counts the scan took from it.
   final String blockTitle;
+
+  /// The header above the list of sets, the two words naming the columns its
+  /// lines draw, and what the block says when that list is empty. All four are
+  /// null for the type with no list, so the block draws nothing for it; the
+  /// header naming the list is not drawn above an empty one, so the empty text
+  /// takes its place rather than sitting under it (`ai/picking.md` §7).
+  final String? listTitle;
+  final String? nameHeader;
+  final String? countHeader;
+  final String? emptyText;
 
   /// The title of the area that shows the picked photos. It is the key the
   ///
@@ -223,6 +234,13 @@ PhotosetStrings photosetStrings(
     photosTitle: l10n.screenshotsSectionTitle,
     pickHint: l10n.photosetPackSourceEmpty,
     pickProgress: l10n.photosetPickProgress,
+    // Several sets, so the block draws the list that names them: the header,
+    // the two columns its lines draw, and what is said when it has read nothing
+    // yet.
+    listTitle: l10n.photosetListSectionTitle,
+    nameHeader: l10n.photosetListNameHeader,
+    countHeader: l10n.photosetListCountHeader,
+    emptyText: l10n.photosetPackNoPhotosets,
     scanProgress: l10n.photosetScanProgress,
     // Several sets, so the choice is a real one: the count can be divided
     //
@@ -242,6 +260,13 @@ PhotosetStrings photosetStrings(
     photosTitle: l10n.screenshotsSectionTitle,
     pickHint: l10n.singlePhotosetSourceEmpty,
     pickProgress: l10n.photosetPickProgress,
+    // One set, so there is no list to name and nothing below the rows is drawn
+    // for this type: the words a list would need are null here, and the block
+    // draws nothing (`ai/picking.md` §7).
+    listTitle: null,
+    nameHeader: null,
+    countHeader: null,
+    emptyText: null,
     // One item, so a row counting the items says nothing and the strings that
     //
     // assume several sets are not used here (`ai/picking.md` §7).

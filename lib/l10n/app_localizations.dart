@@ -668,6 +668,24 @@ abstract class AppLocalizations {
   /// **'Photosets'**
   String get photosetPackSectionTitle;
 
+  /// No description provided for @photosetListSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Photoset List'**
+  String get photosetListSectionTitle;
+
+  /// No description provided for @photosetListNameHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Set name'**
+  String get photosetListNameHeader;
+
+  /// No description provided for @photosetListCountHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos (picked / total)'**
+  String get photosetListCountHeader;
+
   /// No description provided for @singlePhotosetSectionTitle.
   ///
   /// In en, this message translates to:
@@ -685,6 +703,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pick'**
   String get pickPhotosets;
+
+  /// No description provided for @photosetPickedOfTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'{picked} / {total}'**
+  String photosetPickedOfTotal(int picked, String total);
 
   /// No description provided for @photosetScanProgress.
   ///
@@ -727,6 +751,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Evenly across all the photos as one set'**
   String get pickStrategyWholePack;
+
+  /// No description provided for @photosetPackNoPhotosets.
+  ///
+  /// In en, this message translates to:
+  /// **'There are no photosets. Pick the folder and scan it.'**
+  String get photosetPackNoPhotosets;
 
   /// No description provided for @photosetSkippedEntries.
   ///

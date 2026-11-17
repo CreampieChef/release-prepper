@@ -310,6 +310,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get photosetPackSectionTitle => 'Photosets';
 
   @override
+  String get photosetListSectionTitle => 'Photoset List';
+
+  @override
+  String get photosetListNameHeader => 'Set name';
+
+  @override
+  String get photosetListCountHeader => 'Photos (picked / total)';
+
+  @override
   String get singlePhotosetSectionTitle => 'Photoset';
 
   @override
@@ -317,6 +326,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pickPhotosets => 'Pick';
+
+  @override
+  String photosetPickedOfTotal(int picked, String total) {
+    return '$picked / $total';
+  }
 
   @override
   String photosetScanProgress(int done, int total) {
@@ -343,6 +357,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pickStrategyWholePack => 'Evenly across all the photos as one set';
+
+  @override
+  String get photosetPackNoPhotosets =>
+      'There are no photosets. Pick the folder and scan it.';
 
   @override
   String photosetSkippedEntries(String entries) {

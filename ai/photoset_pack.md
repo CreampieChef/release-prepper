@@ -35,10 +35,9 @@ can re-derive it from the filesystem. This is the same reasoning as "provenance 
 - **The item path is the real relative path** — `set01` for a folder, `set01.zip` for an archive.
   It is the ID the image records link to (`ai/release_structure.md` §2), so it keeps the extension.
 - **The name without the extension is derived for display, not stored.** Storing it would make
-  `set01.zip` and `set01/` collide on one ID. The app shows no list of photosets: the item list is
-  what the scan wrote, and the display name derived from each path is what a tile in a grid that mixes
-  sets names its set with, and what the path the copies are written to is built from
-  (`ai/picking.md` §7).
+  `set01.zip` and `set01/` collide on one ID. The name is what a line of the block's list of sets is
+  drawn with, what a tile in a grid that mixes sets names its set with, and what the path the copies
+  are written to is built from (`ai/picking.md` §7).
 - The two namespaces stay as they are: item paths are paths in the source, image record paths are
   paths inside the release. A mirrored folder in the release carries the display name; that is not
   a conflict, it is the two namespaces working as designed.
@@ -80,8 +79,9 @@ App-generated, at the item level:
 hands it to the editor's write path at its end, as the values above are handed there (`ai/picking.md`
 §7). The name is in both photoset types' field lists, because the value is the same for either, and the
 row it is drawn at is the one after `totalPhotoCount`, as the field lists are read in order. The
-item-level count is still recorded by the scan, although nothing shows it now that the block draws no
-list, because an item's field is what the model writes for a post to read.
+item-level count is recorded by the scan, because an item's field is what the model writes for a
+post to read, and it is also what the total in a line of the block's list of sets shows
+(`ai/picking.md` §7).
 
 Resolution is compared by pixel area, not by a side, and it is aggregated at the release level
 only — there is no per-set min/max. A resolution value is written as `WIDTHxHEIGHT`.
@@ -307,9 +307,10 @@ Done:
 6. `lib/service/photosets/` — the scan behind the reader interface, and one file per reader:
    `directory_reader.dart` and `zip_reader.dart`. The scan reports what it reads as it reads it, and
    it calls each reader on another isolate (`ai/photoset_pack.md` §4).
-7. `lib/feature/photosets/` — the controller, the block that draws its heading and the rows the editor
-   gives it and nothing below them, the area that draws the picked photos as the grid the feature fits
-   from the two widths it gives, split by kind, and the state and the drawing helpers the two share.
+7. `lib/feature/photosets/` — the controller, the block that draws its heading and the rows the
+   editor gives it and, for the pack, the list of sets below them; the area that draws the picked
+   photos as the grid the feature fits from the two widths it gives, split by kind, and the state
+   and the drawing helpers the two share.
    The block is the page's second column for both photoset types, and the area is the space after it
    (`ai/picking.md` §7). The block draws the progress row while a run is going with the shared
    `ProgressRow` (`lib/feature/progress_row.dart`, `ai/picking.md` §7), and hands the counts its runs
