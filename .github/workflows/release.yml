@@ -87,7 +87,12 @@ jobs:
             exit 1
           fi
 
-          if git ls-remote --tags origin "v$VERSION"; then
+          # `ls-remote` exits 0 when nothing matches, so the exit status is not
+          # the test: a tag that is not there prints nothing. Capturing the
+          # output keeps a real failure — no auth, no network — an error, since
+          # `set -e` fails the step on the assignment rather than on the test.
+          refs=$(git ls-remote --tags origin "v$VERSION")
+          if [ -n "$refs" ]; then
             echo "v$VERSION is already published"
             exit 1
           fi
